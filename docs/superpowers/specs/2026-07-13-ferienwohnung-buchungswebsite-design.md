@@ -41,6 +41,35 @@ bleiben.
 - **E-Mail: Resend** – Free-Tier (3.000 E-Mails/Monat), sendet Benachrichtigung an den
   Betreiber bei neuer Anfrage.
 
+## Inhalte & Sitemap
+
+Als inhaltliche Grundlage dient die bisherige Website des Vorbesitzers
+(https://heuler-norddeich.jimdofree.com/, Jimdo). Texte und Bilder von dort werden als
+Ausgangsmaterial übernommen (ggf. überarbeitet/gekürzt) – die neue Seite muss die alte
+aber nicht 1:1 nachbauen. Struktur und Umfang der neuen Seite legen wir gemeinsam fest.
+
+**Inventar der alten Seite** (als Rohmaterial für die Inhaltsmigration):
+- Startseite: Einführung Norddeich/Lage, Fotos Wohnung außen
+- Ausstattung: Wohn-/Essbereich, Küche, zwei Schlafzimmer, Unterhaltung, Balkon
+- Preise/Buchung: Preisinformationen (Inhalt im Detail bei Umsetzung nachzupflegen)
+- Lage/Umgebung: Nähe zu Seehundstation, Schwimmbad, Spielplatz, Gastronomie, Supermarkt,
+  Deich/Park
+- Kontakt: Familie Wißmann, Telefon, E-Mail
+- Bildergalerien: Wohnen/Essen (12), Schlafzimmer groß (8), Schlafzimmer klein (4),
+  Dusch-Bad (4), Haus und Garten (6), Norddeich und Umgebung (25+)
+- Rechtliches: Impressum, Datenschutz, Cookie-Hinweis
+
+**Sitemap der neuen Website (abgestimmt):**
+- `/` – Startseite (Übersicht, Highlights, Einstieg in Fotos & Verfügbarkeit)
+- `/ausstattung` – Ausstattung der Wohnung
+- `/lage` – Lage & Umgebung
+- `/verfuegbarkeit` – Kalender, Preisinformationen und Anfrageformular (ersetzt eine
+  separate Preise-Seite – Preis und Buchung an einem Ort)
+- `/kontakt` – Kontaktinformationen
+- `/impressum`, `/datenschutz` – Pflichtseiten
+- `/admin` – geschütztes Admin-Panel (Login unter `/admin/login`), nicht Teil der
+  Hauptnavigation
+
 ## Datenmodell (Vorschlag)
 
 **`booking_request`** – jede eingehende Anfrage eines Gasts
