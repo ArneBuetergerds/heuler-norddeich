@@ -1,10 +1,33 @@
 import { describe, it, expect, vi } from "vitest";
 import { confirmBookingRequest, declineBookingRequest } from "./adminQueries";
 
-function createFakeDb(request: { id: number; startDate: Date; endDate: Date }) {
+// Schmale, testlokale Fake-DB-Form: erfüllt nur die von adminQueries.ts
+// genutzte Teilmenge der Drizzle-API. Bewusst nicht identisch zum echten
+// Drizzle-Transaktionstyp (dessen Generics für einen Fake unverhältnismäßig
+// wären) – die Injektion in confirmBookingRequest/declineBookingRequest
+// erfolgt daher weiterhin über `@ts-expect-error`, während der Produktivpfad
+// (adminQueries.ts mit dem echten `db`) voll und streng typisiert bleibt.
+type FakeDb = {
+  inserted: unknown[];
+  updated: unknown[];
+  query: {
+    bookingRequest: {
+      findFirst: ReturnType<typeof vi.fn>;
+    };
+  };
+  insert: () => {
+    values: (values: unknown) => { returning: () => Promise<unknown[]> };
+  };
+  update: () => {
+    set: (values: unknown) => { where: () => Promise<void> };
+  };
+  transaction: (callback: (tx: FakeDb) => Promise<void>) => Promise<void>;
+};
+
+function createFakeDb(request: { id: number; startDate: Date; endDate: Date }): FakeDb {
   const inserted: unknown[] = [];
   const updated: unknown[] = [];
-  return {
+  const fakeDb: FakeDb = {
     inserted,
     updated,
     query: {
@@ -25,7 +48,11 @@ function createFakeDb(request: { id: number; startDate: Date; endDate: Date }) {
         },
       }),
     }),
+    transaction: async (callback: (tx: FakeDb) => Promise<void>) => {
+      await callback(fakeDb);
+    },
   };
+  return fakeDb;
 }
 
 describe("confirmBookingRequest", () => {
