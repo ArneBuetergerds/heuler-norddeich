@@ -5,11 +5,16 @@ import { db } from "@/db/client";
 import { blockedPeriod } from "@/db/schema";
 import { z } from "zod";
 
-const createSchema = z.object({
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-  note: z.string().optional(),
-});
+const createSchema = z
+  .object({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    note: z.string().optional(),
+  })
+  .refine((data) => data.startDate < data.endDate, {
+    message: "Startdatum muss vor dem Enddatum liegen",
+    path: ["endDate"],
+  });
 
 export async function POST(request: Request) {
   const session = await auth();
