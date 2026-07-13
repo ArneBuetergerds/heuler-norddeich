@@ -21,10 +21,16 @@ type FakeDb = {
   update: () => {
     set: (values: unknown) => { where: () => Promise<void> };
   };
+  select: () => {
+    from: (table: unknown) => Promise<{ startDate: Date; endDate: Date }[]>;
+  };
   transaction: (callback: (tx: FakeDb) => Promise<void>) => Promise<void>;
 };
 
-function createFakeDb(request: { id: number; startDate: Date; endDate: Date }): FakeDb {
+function createFakeDb(
+  request: { id: number; startDate: Date; endDate: Date },
+  existingBlockedPeriods: { startDate: Date; endDate: Date }[] = [],
+): FakeDb {
   const inserted: unknown[] = [];
   const updated: unknown[] = [];
   const fakeDb: FakeDb = {
@@ -48,6 +54,9 @@ function createFakeDb(request: { id: number; startDate: Date; endDate: Date }): 
         },
       }),
     }),
+    select: () => ({
+      from: async () => existingBlockedPeriods,
+    }),
     transaction: async (callback: (tx: FakeDb) => Promise<void>) => {
       await callback(fakeDb);
     },
@@ -69,6 +78,27 @@ describe("confirmBookingRequest", () => {
 
     expect(fakeDb.inserted).toHaveLength(1);
     expect(fakeDb.updated).toContainEqual({ status: "confirmed" });
+  });
+
+  it("wirft einen Fehler und schreibt nichts, wenn der Zeitraum inzwischen belegt ist", async () => {
+    const request = {
+      id: 3,
+      startDate: new Date("2026-08-01"),
+      endDate: new Date("2026-08-05"),
+    };
+    const overlappingBlockedPeriod = {
+      startDate: new Date("2026-08-03"),
+      endDate: new Date("2026-08-10"),
+    };
+    const fakeDb = createFakeDb(request, [overlappingBlockedPeriod]);
+
+    await expect(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      confirmBookingRequest(fakeDb, request.id),
+    ).rejects.toThrow("Zeitraum ist inzwischen belegt");
+
+    expect(fakeDb.inserted).toHaveLength(0);
+    expect(fakeDb.updated).toHaveLength(0);
   });
 });
 

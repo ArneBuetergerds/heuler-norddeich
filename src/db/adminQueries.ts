@@ -1,5 +1,6 @@
 import { eq, type SQL } from "drizzle-orm";
 import { bookingRequest, blockedPeriod } from "./schema";
+import { isRangeAvailable } from "../lib/booking";
 
 type DbLike = {
   query: {
@@ -26,6 +27,15 @@ export async function confirmBookingRequest(db: DbLike, id: number): Promise<voi
   // blocked_period-Eintrag bereits angelegt wurde, bliebe sonst eine Anfrage
   // dauerhaft "pending" bei gleichzeitig gesperrtem Zeitraum zurück.
   await db.transaction(async (tx) => {
+    // Zwischen dem Anlegen der Anfrage und ihrer Bestätigung kann der
+    // Zeitraum inzwischen durch eine andere bestätigte Anfrage oder einen
+    // manuellen Sperrzeitraum belegt worden sein. Deshalb innerhalb der
+    // Transaktion (konsistent mit dem nachfolgenden Insert) erneut prüfen.
+    const existingBlockedPeriods = await tx.select().from(blockedPeriod);
+    if (!isRangeAvailable(existingBlockedPeriods, request.startDate, request.endDate)) {
+      throw new Error("Zeitraum ist inzwischen belegt");
+    }
+
     await tx
       .insert(blockedPeriod)
       .values({

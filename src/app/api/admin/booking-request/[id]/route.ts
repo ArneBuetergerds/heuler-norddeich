@@ -16,12 +16,23 @@ export async function PATCH(
   const { id: idParam } = await params;
   const id = Number(idParam);
 
-  if (action === "confirm") {
-    await confirmBookingRequest(db, id);
-  } else if (action === "decline") {
-    await declineBookingRequest(db, id);
-  } else {
-    return NextResponse.json({ error: "Ungültige Aktion" }, { status: 400 });
+  if (!Number.isInteger(id)) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
+
+  try {
+    if (action === "confirm") {
+      await confirmBookingRequest(db, id);
+    } else if (action === "decline") {
+      await declineBookingRequest(db, id);
+    } else {
+      return NextResponse.json({ error: "Ungültige Aktion" }, { status: 400 });
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message === "Zeitraum ist inzwischen belegt") {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
   }
 
   return NextResponse.json({ ok: true });
