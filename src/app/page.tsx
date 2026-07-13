@@ -17,7 +17,7 @@ export default function HomePage() {
         src="/images/haus-garten/haus-garten-01.jpg"
         alt="Außenansicht der Ferienwohnung Heuler"
         width={1200}
-        height={800}
+        height={900}
         className="rounded-lg"
       />
       <p>
