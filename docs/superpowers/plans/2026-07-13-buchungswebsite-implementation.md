@@ -102,8 +102,8 @@ git commit -m "chore: scaffold Next.js project"
 - [ ] **Step 1: Abhängigkeiten installieren**
 
 ```bash
-npm install drizzle-orm @neondatabase/serverless
-npm install -D drizzle-kit
+npm install drizzle-orm @neondatabase/serverless ws
+npm install -D drizzle-kit @types/ws
 ```
 
 - [ ] **Step 2: Schema schreiben**
@@ -149,17 +149,30 @@ export type NewBlockedPeriod = typeof blockedPeriod.$inferInsert;
 
 `src/db/client.ts`:
 
+> **Hinweis (nachträglich, im Rahmen der Task-10-Code-Review):** Ursprünglich wurde
+> hier der `neon-http`-Treiber (`drizzle-orm/neon-http` + `neon()`) eingesetzt. Der
+> `neon-http`-Treiber unterstützt aber keine echten interaktiven
+> `db.transaction()`-Aufrufe (nur HTTP-Einzelrequests), wodurch die
+> Bestätigungslogik in Task 10 (`confirmBookingRequest`) aus zwei separaten,
+> nicht-atomaren Schreibvorgängen bestand. Um echte Transaktionen zu ermöglichen,
+> wurde auf den `neon-serverless`-Treiber (`drizzle-orm/neon-serverless` +
+> `Pool` aus `@neondatabase/serverless`, WebSocket-basiert) umgestellt. Der
+> folgende Code-Block zeigt den aktuellen Stand:
+
 ```typescript
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 import * as schema from "./schema";
+
+neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL ist nicht gesetzt");
 }
 
-const sql = neon(process.env.DATABASE_URL);
-export const db = drizzle(sql, { schema });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const db = drizzle(pool, { schema });
 ```
 
 - [ ] **Step 4: Drizzle-Kit konfigurieren**
@@ -1539,20 +1552,29 @@ Erwartet: FAIL, `./adminQueries` existiert nicht.
 
 `src/db/adminQueries.ts`:
 
+> **Hinweis (nachträglich, Code-Review):** Die ursprüngliche Implementierung führte
+> den Insert des `blockedPeriod`-Eintrags und das Update des `bookingRequest`-Status
+> als zwei separate, nicht-atomare Schreibvorgänge aus (Risiko eines verwaisten
+> `blockedPeriod`-Eintrags bei einem Fehler zwischen den beiden Writes). Im Zuge der
+> Umstellung von `client.ts` auf den `neon-serverless`-Treiber (siehe Task 2) wurde
+> `confirmBookingRequest` in eine echte `db.transaction()` gepackt, sodass Insert und
+> Update atomar committen oder gemeinsam zurückgerollt werden. Aktueller Stand:
+
 ```typescript
-import { eq } from "drizzle-orm";
+import { eq, type SQL } from "drizzle-orm";
 import { bookingRequest, blockedPeriod } from "./schema";
 
 type DbLike = {
   query: {
     bookingRequest: {
-      findFirst: (args: { where: unknown }) => Promise<
+      findFirst: (args: { where: SQL<unknown> }) => Promise<
         { id: number; startDate: Date; endDate: Date } | undefined
       >;
     };
   };
   insert: typeof import("./client").db.insert;
   update: typeof import("./client").db.update;
+  transaction: typeof import("./client").db.transaction;
 };
 
 export async function confirmBookingRequest(db: DbLike, id: number): Promise<void> {
@@ -1563,19 +1585,24 @@ export async function confirmBookingRequest(db: DbLike, id: number): Promise<voi
     throw new Error(`Buchungsanfrage ${id} nicht gefunden`);
   }
 
-  await db
-    .insert(blockedPeriod)
-    .values({
-      startDate: request.startDate,
-      endDate: request.endDate,
-      note: `Bestätigte Anfrage #${request.id}`,
-    })
-    .returning();
+  // Insert + Update müssen atomar sein: schlägt das Update fehl, nachdem der
+  // blocked_period-Eintrag bereits angelegt wurde, bliebe sonst eine Anfrage
+  // dauerhaft "pending" bei gleichzeitig gesperrtem Zeitraum zurück.
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(blockedPeriod)
+      .values({
+        startDate: request.startDate,
+        endDate: request.endDate,
+        note: `Bestätigte Anfrage #${request.id}`,
+      })
+      .returning();
 
-  await db
-    .update(bookingRequest)
-    .set({ status: "confirmed" })
-    .where(eq(bookingRequest.id, id));
+    await tx
+      .update(bookingRequest)
+      .set({ status: "confirmed" })
+      .where(eq(bookingRequest.id, id));
+  });
 }
 
 export async function declineBookingRequest(db: DbLike, id: number): Promise<void> {
