@@ -13,9 +13,22 @@ export const bookingRequestSchema = z
     message: "Anreisedatum muss vor dem Abreisedatum liegen",
     path: ["endDate"],
   })
-  .refine((data) => data.startDate >= new Date(new Date().toDateString()), {
-    message: "Anreisedatum darf nicht in der Vergangenheit liegen",
-    path: ["startDate"],
-  });
+  .refine(
+    (data) => {
+      // `z.coerce.date()` parst "YYYY-MM-DD"-Strings (aus <input type="date">)
+      // als UTC-Mitternacht. Der Vergleichswert für "heute" muss deshalb
+      // ebenfalls in UTC gebildet werden, sonst verschiebt sich die Prüfung
+      // für Besucher außerhalb UTC um einen Tag.
+      const now = new Date();
+      const todayUtc = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      );
+      return data.startDate >= todayUtc;
+    },
+    {
+      message: "Anreisedatum darf nicht in der Vergangenheit liegen",
+      path: ["startDate"],
+    },
+  );
 
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;

@@ -1,14 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { isDateBlocked } from "@/lib/calendar";
+import { isDateBlocked, buildMonthDays } from "@/lib/calendar";
 
 type Period = { startDate: Date; endDate: Date };
-
-function buildMonthDays(year: number, month: number): Date[] {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  return Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
-}
 
 export function AvailabilityCalendar({ blockedPeriods }: { blockedPeriods: Period[] }) {
   const today = new Date();
@@ -50,7 +45,7 @@ export function AvailabilityCalendar({ blockedPeriods }: { blockedPeriods: Perio
               }
               title={blocked ? "belegt" : "frei"}
             >
-              {day.getDate()}
+              {day.getUTCDate()}
             </div>
           );
         })}
