@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# lokale Tooling-Artefakte (u.a. eine ~50 MB grosse Speicherdatei)
+/.claude/
+/.closedloop-ai/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
