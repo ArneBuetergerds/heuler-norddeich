@@ -2,28 +2,46 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
+/**
+ * Nur für Sperrzeiträume ohne Gast – daher ohne Rückfrage und ohne Begründung.
+ * Belegungen werden stattdessen über die Storno-Aktion der Aufenthaltsliste
+ * entfernt, weil dort ein Gast zu benachrichtigen ist.
+ */
 export function DeleteBlockedPeriodButton({ id }: { id: number }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
-  async function handleDelete() {
+  async function handleDelete(): Promise<void> {
     setPending(true);
-    await fetch(`/api/admin/blocked-period?id=${id}`, {
-      method: "DELETE",
-    });
-    setPending(false);
-    router.refresh();
+    try {
+      const response = await fetch(`/api/admin/blocked-period?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        toast.error("Der Sperrzeitraum konnte nicht entfernt werden.");
+        return;
+      }
+
+      toast.success("Sperrzeitraum entfernt.");
+      router.refresh();
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
-    <button
-      type="button"
+    <Button
+      size="sm"
+      variant="outline"
       disabled={pending}
       onClick={handleDelete}
-      className="rounded bg-red-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+      className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700"
     >
-      Löschen
-    </button>
+      Entfernen
+    </Button>
   );
 }

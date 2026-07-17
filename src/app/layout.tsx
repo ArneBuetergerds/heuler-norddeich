@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { cn } from "@/lib/utils";
 import "./globals.css";
-import { NavBar } from "@/components/NavBar";
-import { Footer } from "@/components/Footer";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "Ferienwohnung Heuler, Norddeich",
@@ -10,12 +12,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de">
-      <body className="min-h-screen bg-white text-slate-900">
-        <NavBar />
-        <main className="mx-auto max-w-5xl p-4">{children}</main>
-        <Footer />
-      </body>
+    <html lang="de" className={cn("font-sans", inter.variable)}>
+      {/* Header und Footer kommen aus den Bereichs-Layouts: der öffentliche
+          Bereich und der Admin-Bereich haben bewusst unterschiedliche Rahmen. */}
+      <body className="min-h-screen bg-zinc-50 antialiased">{children}</body>
     </html>
   );
 }

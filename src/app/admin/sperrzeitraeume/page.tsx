@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getBlockedPeriods } from "@/db/queries";
+import { getOccupancy } from "@/db/queries";
+import { formatDateRange } from "@/lib/format";
 import { ManualBlockedPeriodForm } from "@/components/ManualBlockedPeriodForm";
 import { DeleteBlockedPeriodButton } from "@/components/DeleteBlockedPeriodButton";
 
@@ -10,27 +11,46 @@ export default async function SperrzeitraeumePage() {
     redirect("/admin/login");
   }
 
-  const periods = await getBlockedPeriods();
+  // Nur Sperrzeiträume ohne Gast: Belegungen werden über die Storno-Aktion der
+  // Belegungsübersicht entfernt, damit der Gast eine Absage erhält und die
+  // zugehörige Anfrage nicht verwaist zurückbleibt.
+  const { maintenance } = await getOccupancy();
+  const blocks = [...maintenance].sort(
+    (a, b) => a.startDate.getTime() - b.startDate.getTime(),
+  );
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Sperrzeiträume</h1>
-      <ManualBlockedPeriodForm />
-      <ul className="space-y-2">
-        {periods.map((period) => (
-          <li
-            key={period.id}
-            className="flex items-center justify-between rounded border p-3 text-sm"
-          >
-            <span>
-              {period.startDate.toLocaleDateString("de-DE")} –{" "}
-              {period.endDate.toLocaleDateString("de-DE")}
-              {period.note ? ` (${period.note})` : ""}
-            </span>
-            <DeleteBlockedPeriodButton id={period.id} />
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section className="mx-auto max-w-[900px] px-6 pt-12 pb-20">
+      <h1 className="mb-6 text-2xl font-extrabold">Manuelle Sperrzeiträume</h1>
+
+      <div className="grid items-start gap-6 md:grid-cols-[1fr_1.4fr]">
+        <ManualBlockedPeriodForm />
+
+        <div className="flex flex-col gap-2.5">
+          {blocks.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card p-7 text-center text-sm text-zinc-400">
+              Keine Sperrzeiträume angelegt.
+            </div>
+          ) : (
+            blocks.map((block) => (
+              <div
+                key={block.id}
+                className="flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3.5"
+              >
+                <div>
+                  <p className="text-sm font-bold">
+                    {formatDateRange(block.startDate, block.endDate)}
+                  </p>
+                  {block.note && (
+                    <p className="text-[13px] text-zinc-500">{block.note}</p>
+                  )}
+                </div>
+                <DeleteBlockedPeriodButton id={block.id} />
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
