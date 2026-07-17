@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isDateBlocked, buildMonthDays } from "./calendar";
+import { isDateBlocked, buildMonthDays, buildCalendarGrid } from "./calendar";
 
 describe("isDateBlocked", () => {
   const periods = [
@@ -46,5 +46,30 @@ describe("buildMonthDays (Regression: UTC- statt Lokalzeit-Konstruktion)", () =>
   it("erzeugt die korrekte Anzahl an Tagen für den Monat", () => {
     expect(buildMonthDays(2026, 7)).toHaveLength(31); // August
     expect(buildMonthDays(2026, 1)).toHaveLength(28); // Februar 2026 (kein Schaltjahr)
+  });
+});
+
+describe("buildCalendarGrid", () => {
+  it("richtet den Monatsersten unter seinem Wochentag aus", () => {
+    // Der 1. August 2026 ist ein Samstag: fünf Leerzellen (Mo–Fr) davor.
+    const grid = buildCalendarGrid(2026, 7);
+
+    expect(grid.slice(0, 5)).toEqual([null, null, null, null, null]);
+    expect(grid[5]).toEqual(new Date("2026-08-01T00:00:00Z"));
+  });
+
+  it("beginnt ohne Leerzelle, wenn der Monat auf einen Montag fällt", () => {
+    // Der 1. Juni 2026 ist ein Montag.
+    const grid = buildCalendarGrid(2026, 5);
+
+    expect(grid[0]).toEqual(new Date("2026-06-01T00:00:00Z"));
+  });
+
+  it("liefert immer 42 Zellen und füllt den Rest mit Leerzellen", () => {
+    const grid = buildCalendarGrid(2026, 1); // Februar 2026, 28 Tage ab Sonntag
+
+    expect(grid).toHaveLength(42);
+    expect(grid.filter((day) => day !== null)).toHaveLength(28);
+    expect(grid.at(-1)).toBeNull();
   });
 });
