@@ -3,7 +3,10 @@ import { db } from "@/db/client";
 import { bookingRequest, blockedPeriod } from "@/db/schema";
 import { bookingRequestSchema } from "@/lib/validation";
 import { isRangeAvailable } from "@/lib/booking";
-import { sendBookingRequestNotification } from "@/lib/email";
+import {
+  sendBookingRequestNotification,
+  sendGuestRequestReceived,
+} from "@/lib/email";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -40,11 +43,18 @@ export async function POST(request: Request) {
     .values({ name, email, phone, startDate, endDate, message })
     .returning();
 
-  try {
-    await sendBookingRequestNotification(created);
-  } catch (error) {
-    console.error("Benachrichtigungs-E-Mail konnte nicht gesendet werden", error);
-  }
+  // Die Anfrage ist gespeichert – ein Mailfehler darf sie nicht verwerfen,
+  // sonst verliert der Gast seine Eingabe wegen eines Problems beim Versand.
+  // Beide Mails unabhängig versenden: schlägt eine fehl, soll die andere
+  // trotzdem rausgehen.
+  await Promise.allSettled([
+    sendBookingRequestNotification(created).catch((error: unknown) => {
+      console.error("Benachrichtigung des Betreibers fehlgeschlagen", error);
+    }),
+    sendGuestRequestReceived(created).catch((error: unknown) => {
+      console.error("Eingangsbestätigung an den Gast fehlgeschlagen", error);
+    }),
+  ]);
 
   return NextResponse.json({ id: created.id }, { status: 201 });
 }
