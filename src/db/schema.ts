@@ -1,33 +1,28 @@
 import { sql } from "drizzle-orm";
 import {
-  pgTable,
-  serial,
+  mysqlTable,
+  int,
   text,
   date,
   timestamp,
-  pgEnum,
-  integer,
+  mysqlEnum,
   check,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/mysql-core";
 
-export const bookingRequestStatus = pgEnum("booking_request_status", [
-  "pending",
-  "confirmed",
-  "declined",
-]);
+export const bookingRequestStatus = ["pending", "confirmed", "declined"] as const;
 
-export const bookingRequest = pgTable("booking_request", {
-  id: serial("id").primaryKey(),
+export const bookingRequest = mysqlTable("booking_request", {
+  id: int("id").autoincrement().primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
   startDate: date("start_date", { mode: "date" }).notNull(),
   endDate: date("end_date", { mode: "date" }).notNull(),
   message: text("message"),
-  status: bookingRequestStatus("status").notNull().default("pending"),
+  status: mysqlEnum("status", bookingRequestStatus).notNull().default("pending"),
   // Freitext-Begründung, die der Gast bei Ablehnung oder Storno per Mail erhält.
   reasonNote: text("reason_note"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 
 /**
@@ -39,19 +34,19 @@ export const bookingRequest = pgTable("booking_request", {
  *   guestName gesetzt        → manuell eingetragener Aufenthalt (z. B. telefonisch vereinbart)
  *   beide null               → echter Sperrzeitraum (Wartung, Eigennutzung), `note` erklärt ihn
  */
-export const blockedPeriod = pgTable(
+export const blockedPeriod = mysqlTable(
   "blocked_period",
   {
-    id: serial("id").primaryKey(),
+    id: int("id").autoincrement().primaryKey(),
     startDate: date("start_date", { mode: "date" }).notNull(),
     endDate: date("end_date", { mode: "date" }).notNull(),
     note: text("note"),
     guestName: text("guest_name"),
-    bookingRequestId: integer("booking_request_id").references(
+    bookingRequestId: int("booking_request_id").references(
       () => bookingRequest.id,
       { onDelete: "cascade" },
     ),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
     // Ein Aufenthalt bezieht seinen Gastnamen entweder aus der Anfrage oder aus

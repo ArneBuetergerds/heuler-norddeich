@@ -25,7 +25,7 @@ function check(label: string, ok: boolean): void {
 }
 
 async function main(): Promise<void> {
-  const [request] = await db
+  const [{ id }] = await db
     .insert(bookingRequest)
     .values({
       name: "E2E Pruefgast",
@@ -33,20 +33,20 @@ async function main(): Promise<void> {
       startDate: new Date("2027-05-01"),
       endDate: new Date("2027-05-08"),
     })
-    .returning();
+    .$returningId();
 
   try {
     // 1. Bestätigen verknüpft den Sperrzeitraum mit der Anfrage.
-    await confirmBookingRequest(db, request.id);
+    await confirmBookingRequest(db, id);
     let blocks = await db
       .select()
       .from(blockedPeriod)
-      .where(eq(blockedPeriod.bookingRequestId, request.id));
+      .where(eq(blockedPeriod.bookingRequestId, id));
     check("Bestaetigen legt genau eine verknuepfte Belegung an", blocks.length === 1);
     check("Belegung traegt keinen Magic-String mehr", blocks[0]?.note === null);
 
     let occupancy = await getOccupancy();
-    const stay = occupancy.stays.find((s) => s.bookingRequestId === request.id);
+    const stay = occupancy.stays.find((s) => s.bookingRequestId === id);
     check(
       "Belegung erscheint mit Gastnamen aus der Anfrage",
       stay?.guestName === "E2E Pruefgast",
@@ -57,11 +57,11 @@ async function main(): Promise<void> {
     );
 
     // 2. Der Kern des Bugfixes: Ablehnen gibt den Zeitraum wieder frei.
-    await declineBookingRequest(db, request.id, "E2E-Test");
+    await declineBookingRequest(db, id, "E2E-Test");
     blocks = await db
       .select()
       .from(blockedPeriod)
-      .where(eq(blockedPeriod.bookingRequestId, request.id));
+      .where(eq(blockedPeriod.bookingRequestId, id));
     check(
       "Ablehnen entfernt die Belegung (Regression: Zeitraum blieb dauerhaft gesperrt)",
       blocks.length === 0,
@@ -70,7 +70,7 @@ async function main(): Promise<void> {
     const [after] = await db
       .select()
       .from(bookingRequest)
-      .where(eq(bookingRequest.id, request.id));
+      .where(eq(bookingRequest.id, id));
     check(
       "Ablehnen speichert Status und Grund",
       after.status === "declined" && after.reasonNote === "E2E-Test",
@@ -105,14 +105,14 @@ async function main(): Promise<void> {
         startDate: new Date("2027-07-01"),
         endDate: new Date("2027-07-02"),
         guestName: "Ungueltig",
-        bookingRequestId: request.id,
+        bookingRequestId: id,
       })
       .then(() => false)
       .catch(() => true);
     check("Datenbank lehnt Gastname UND Anfrage gleichzeitig ab", violated);
   } finally {
-    await db.delete(blockedPeriod).where(eq(blockedPeriod.bookingRequestId, request.id));
-    await db.delete(bookingRequest).where(eq(bookingRequest.id, request.id));
+    await db.delete(blockedPeriod).where(eq(blockedPeriod.bookingRequestId, id));
+    await db.delete(bookingRequest).where(eq(bookingRequest.id, id));
   }
 
   console.log(results.join("\n"));

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { bookingRequest, blockedPeriod } from "@/db/schema";
 import { bookingRequestSchema } from "@/lib/validation";
@@ -38,10 +39,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const [created] = await db
+  const [{ id }] = await db
     .insert(bookingRequest)
     .values({ name, email, phone, startDate, endDate, message })
-    .returning();
+    .$returningId();
+
+  // Hole den vollständigen Datensatz für die E-Mails
+  const [created] = await db
+    .select()
+    .from(bookingRequest)
+    .where(eq(bookingRequest.id, id));
 
   // Die Anfrage ist gespeichert – ein Mailfehler darf sie nicht verwerfen,
   // sonst verliert der Gast seine Eingabe wegen eines Problems beim Versand.
@@ -56,5 +63,5 @@ export async function POST(request: Request) {
     }),
   ]);
 
-  return NextResponse.json({ id: created.id }, { status: 201 });
+  return NextResponse.json({ id }, { status: 201 });
 }
