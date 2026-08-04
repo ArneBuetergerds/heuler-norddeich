@@ -28,6 +28,7 @@
 - Modify: `src/db/schema.ts`
 - Modify: `src/db/client.ts`
 - Modify: `drizzle.config.ts`
+- Modify: `src/app/api/booking-request/route.ts` (**Nachtrag, während Task 1 entdeckt:** diese Route nutzt ebenfalls `.insert(...).returning()`, das unter `drizzle-orm/mysql2` nicht existiert. War im ursprünglichen Scope von Task 1 nicht erfasst — ohne den Fix hier hätte Step 6 (`tsc --noEmit`, 0 Fehler) gar nicht erfüllbar sein können. Fix analog zu `scripts/verify-booking-flow.ts`: `.returning()` → `.$returningId()`, anschließend die vollständige Zeile per `db.select().from(bookingRequest).where(eq(bookingRequest.id, id))` nachladen, da der volle Datensatz für die E-Mail-Templates gebraucht wird.)
 - Delete: `drizzle/0000_adorable_otto_octavius.sql`, `drizzle/0001_sturdy_wasp.sql`, `drizzle/meta/*`
 - Create: neue `drizzle/0000_*.sql` + `drizzle/meta/*` (per `drizzle-kit generate`)
 
@@ -160,73 +161,34 @@ git commit -m "feat(db): switch database layer from Neon Postgres to MySQL"
 
 ---
 
-### Task 2: E2E-Verify-Skript für MySQL reparieren und gegen die lokale DB ausführen
+### Task 2: E2E-Verify-Skript gegen die lokale MySQL-DB verifizieren
 
 **Files:**
-- Modify: `scripts/verify-booking-flow.ts`
+- Keine eigene Code-Änderung mehr — `scripts/verify-booking-flow.ts` wurde bereits in Task 1 auf MySQL umgestellt (siehe Nachtrag unten). Diese Task führt nur noch die Verifikation gegen eine echte lokale MySQL-Datenbank durch.
 
 **Interfaces:**
 - Consumes: `db` aus `src/db/client.ts` (Task 1), `bookingRequest`/`blockedPeriod` aus `src/db/schema.ts` (Task 1), `confirmBookingRequest`/`declineBookingRequest`/`createManualStay`/`cancelStay` aus `src/db/adminQueries.ts` (unverändert), `getOccupancy` aus `src/db/queries.ts` (unverändert).
 
-- [ ] **Step 1: `.returning()` durch `$returningId()` ersetzen**
+**Bereits erledigt (Nachtrag):** Die `.returning()` → `$returningId()`-Umstellung in `scripts/verify-booking-flow.ts` wurde schon als Teil von Task 1 durchgeführt — sie war zwingend nötig, damit Task 1s eigener Erfolgstest (`tsc --noEmit`, 0 Fehler) überhaupt erfüllbar war, da das Skript sonst nicht mehr kompiliert hätte. Der Task-1-Implementer hat dabei die Variable `id` statt `requestId` genannt (funktional identisch, keine weitere Code-Änderung nötig) und den Fix bereits im Task-1-Commit `feat(db): switch database layer from Neon Postgres to MySQL` mit committet. Task 2 besteht deshalb nur noch aus Verifikation gegen eine echte lokale MySQL-Datenbank — keine weitere Code-Änderung, kein eigener Commit.
 
-`drizzle-orm/mysql2` unterstützt kein `RETURNING` (MySQL kennt das nicht) — dafür bietet Drizzle `$returningId()`, das bei einem `autoincrement()`-Primärschlüssel die erzeugte ID zurückgibt. Da im Skript von der eingefügten Anfrage ausschließlich `request.id` verwendet wird (nirgends `request.name`, `.startDate` etc.), genügt die ID allein.
-
-In `scripts/verify-booking-flow.ts`, ersetze:
-
-```ts
-  const [request] = await db
-    .insert(bookingRequest)
-    .values({
-      name: "E2E Pruefgast",
-      email: "e2e@example.invalid",
-      startDate: new Date("2027-05-01"),
-      endDate: new Date("2027-05-08"),
-    })
-    .returning();
-```
-
-durch:
-
-```ts
-  const [{ id: requestId }] = await db
-    .insert(bookingRequest)
-    .values({
-      name: "E2E Pruefgast",
-      email: "e2e@example.invalid",
-      startDate: new Date("2027-05-01"),
-      endDate: new Date("2027-05-08"),
-    })
-    .$returningId();
-```
-
-- [ ] **Step 2: Alle weiteren `request.id`-Referenzen im Skript auf `requestId` umstellen**
-
-Im restlichen Skript ersetzt `request.id` (8 Vorkommen, in `confirmBookingRequest`, `declineBookingRequest`, den `blockedPeriod`/`bookingRequest`-`where`-Klauseln und dem Check-Constraint-Test am Ende) jeweils durch `requestId`. Die Variable `request` existiert nach Step 1 nicht mehr — jeder verbleibende Verweis darauf ist ein Kompilierfehler und muss ersetzt werden.
-
-- [ ] **Step 3: Typecheck**
+- [ ] **Step 1: Typecheck zur Bestätigung**
 
 Run: `npx tsc --noEmit`
-Expected: 0 Fehler (insbesondere keine verbliebenen Referenzen auf `request`).
+Expected: 0 Fehler.
 
-- [ ] **Step 4: Migrationen gegen die lokale MySQL-Instanz anwenden**
+- [ ] **Step 2: Migrationen gegen die lokale MySQL-Instanz anwenden**
 
 Trage in `.env.local` die `DATABASE_URL` für die bereits laufende lokale MySQL-Instanz ein (Format `mysql://<user>:<passwort>@<host>:<port>/<datenbank>`), dann:
 
 Run: `npx drizzle-kit migrate`
 Expected: Meldung, dass die neue MySQL-Migration erfolgreich angewendet wurde; `booking_request` und `blocked_period` existieren danach in der lokalen Datenbank.
 
-- [ ] **Step 5: E2E-Skript ausführen**
+- [ ] **Step 3: E2E-Skript ausführen**
 
 Run: `npx tsx --env-file=.env.local scripts/verify-booking-flow.ts`
 Expected: Alle Zeilen beginnen mit `OK` (kein `FAIL`), Exit-Code 0. Dies bestätigt Transaktionsverhalten, Check-Constraint und Occupancy-Logik gegen eine echte MySQL-Datenbank.
 
-- [ ] **Step 6: Commit**
-
-```bash
-git add scripts/verify-booking-flow.ts
-git commit -m "fix(scripts): adapt e2e verify script to MySQL's lack of RETURNING"
-```
+Da diese Task keine eigene Code-Änderung mehr enthält, entfällt der Commit-Step — der Review prüft stattdessen, dass die Verifikation tatsächlich (mit echter Ausgabe) gegen die lokale MySQL gelaufen ist.
 
 ---
 
