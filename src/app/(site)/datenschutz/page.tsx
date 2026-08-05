@@ -15,11 +15,11 @@ const SECTIONS: readonly PrivacySection[] = [
   },
   {
     heading: "3. Benachrichtigung",
-    body: "Nach Eingang einer Anfrage wird automatisch eine Benachrichtigungs-E-Mail über den Dienst Resend an den Betreiber versendet, damit die Anfrage zeitnah bearbeitet werden kann.",
+    body: "Nach Eingang einer Anfrage wird automatisch eine Benachrichtigungs-E-Mail über den eigenen Mailserver an den Betreiber versendet, damit die Anfrage zeitnah bearbeitet werden kann. Es ist kein externer E-Mail-Dienstleister eingebunden.",
   },
   {
     heading: "4. Hosting",
-    body: "Diese Website wird bei Vercel Inc. gehostet. Beim Aufruf der Seite werden technisch bedingt Zugriffsdaten (z. B. IP-Adresse, Zeitpunkt des Zugriffs) durch den Hosting-Anbieter verarbeitet.",
+    body: "Diese Website wird auf einem eigenen Server (VPS) betrieben, nicht bei einem externen Cloud-Anbieter. Beim Aufruf der Seite werden technisch bedingt Zugriffsdaten (z. B. IP-Adresse, Zeitpunkt des Zugriffs) auf dieser eigenen Infrastruktur verarbeitet.",
   },
   {
     heading: "5. Ihre Rechte",
