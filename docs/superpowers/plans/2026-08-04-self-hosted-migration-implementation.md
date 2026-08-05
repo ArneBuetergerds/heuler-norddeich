@@ -188,7 +188,40 @@ Expected: Meldung, dass die neue MySQL-Migration erfolgreich angewendet wurde; `
 Run: `npx tsx --env-file=.env.local scripts/verify-booking-flow.ts`
 Expected: Alle Zeilen beginnen mit `OK` (kein `FAIL`), Exit-Code 0. Dies bestätigt Transaktionsverhalten, Check-Constraint und Occupancy-Logik gegen eine echte MySQL-Datenbank.
 
-Da diese Task keine eigene Code-Änderung mehr enthält, entfällt der Commit-Step — der Review prüft stattdessen, dass die Verifikation tatsächlich (mit echter Ausgabe) gegen die lokale MySQL gelaufen ist.
+**Nachtrag, während Task 2 entdeckt:** Der Lauf gegen echtes MySQL zeigte, dass sich `scripts/verify-booking-flow.ts` nach Abschluss aller Checks nicht von selbst beendet (Prozess hängt, statt zu terminieren) — der `mysql2`-Connection-Pool aus `src/db/client.ts` hält den Node-Prozess offen, da er nie geschlossen wird. Unter dem alten Neon-Treiber (WebSocket-basiert) trat das nicht auf. Funktional ist das kein Bug in der Migration selbst (alle 9 Checks laufen korrekt durch), aber ein „einmal laufen und beenden"-Skript, das hängen bleibt, ist ein echter Papercut. Fix in `scripts/verify-booking-flow.ts`:
+
+Ersetze:
+```ts
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});
+```
+
+durch:
+```ts
+main()
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await db.$client.end();
+  });
+```
+
+(`process.exitCode` statt `process.exit(1)`, damit der Prozess erst nach dem `.finally()` sauber beendet wird, statt den Pool-Schluss abzuwürgen.)
+
+- [ ] **Step 4: Fix verifizieren**
+
+Run: `npx tsx --env-file=.env.local scripts/verify-booking-flow.ts` — erwartet: alle 9 Zeilen `OK`, Prozess beendet sich von selbst (kein Hängenbleiben, kein manuelles Abbrechen nötig).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add scripts/verify-booking-flow.ts
+git commit -m "fix(scripts): close the mysql2 pool so the verify script exits cleanly"
+```
 
 ---
 
