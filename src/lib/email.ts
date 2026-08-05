@@ -1,7 +1,19 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import type { BookingRequest } from "@/db/schema";
 
-const FROM = "Ferienwohnung Heuler <onboarding@resend.dev>";
+const FROM = "Ferienwohnung Heuler <noreply@norddeich-heuler.de>";
+
+const transporter = nodemailer.createTransport({
+  pool: true,
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT ?? 587),
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString("de-DE");
@@ -19,19 +31,11 @@ type Mail = {
 };
 
 async function send(mail: Mail): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY ist nicht konfiguriert");
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("SMTP-Zugangsdaten sind nicht konfiguriert");
   }
 
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({ from: FROM, ...mail });
-
-  // Resend meldet Zustellfehler im Ergebnis statt per Exception. Ohne diese
-  // Prüfung würde ein fehlgeschlagener Versand als Erfolg durchgehen.
-  if (error) {
-    throw new Error(`E-Mail-Versand fehlgeschlagen: ${error.message}`);
-  }
+  await transporter.sendMail({ from: FROM, ...mail });
 }
 
 /** Benachrichtigt den Betreiber über eine neu eingegangene Anfrage. */
