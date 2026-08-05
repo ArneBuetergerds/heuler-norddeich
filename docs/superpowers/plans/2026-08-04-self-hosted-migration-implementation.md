@@ -487,7 +487,7 @@ Alt:
 
 Neu:
 ```ts
-    body: "Nach Eingang einer Anfrage wird automatisch eine Benachrichtigungs-E-Mail über den eigenen Mailserver an den Betreiber versendet, damit die Anfrage zeitnah bearbeitet werden kann. Es ist kein externer E-Mail-Dienstleister eingebunden.",
+    body: "Nach Eingang einer Anfrage wird automatisch eine Benachrichtigungs-E-Mail über unseren E-Mail-Provider IONOS versendet, damit die Anfrage zeitnah bearbeitet werden kann.",
 ```
 
 - [ ] **Step 2: Abschnitt 4 (Hosting) anpassen**
