@@ -669,7 +669,7 @@ Alle drei Punkte sind in Step 6s Commit `4281b63` bereits mit enthalten (`Docker
 Diese Schritte sind nicht Teil der Implementierung, sondern der eigentliche Go-live (siehe `docs/superpowers/specs/2026-08-04-self-hosted-migration-design.md`, Abschnitt A):
 
 1. Domain `norddeich-heuler.de` + E-Mail-Paket bei IONOS registrieren, Mailboxen `noreply@` und `kontakt@` anlegen.
-2. In Coolify: Project/Environment + Application (Source: GitHub-Repo, Build Pack: Dockerfile) sowie eine interne MySQL-Resource anlegen.
+2. In Coolify: Project/Environment + Application (Source: GitHub-Repo, Build Pack: Dockerfile) sowie eine interne MySQL-Resource anlegen. **Explizit MySQL ≥ 8.0.16 wählen** (Global Constraint) — ältere Versionen parsen `CHECK`-Constraints stillschweigend, ohne sie durchzusetzen; der `blocked_period_guest_source`-Constraint wäre dann wirkungslos, ohne dass die Migration einen Fehler wirft. Nach dem ersten `drizzle-kit migrate` einmal mit `SHOW CREATE TABLE blocked_period;` verifizieren, dass der CHECK-Constraint tatsächlich in der Tabellendefinition steht.
 3. Alle Secrets (`DATABASE_URL`, `SMTP_PASS`, `ADMIN_PASSWORD_HASH`, `AUTH_SECRET`) mit „Build Variable" AUS in Coolify eintragen.
-4. Erst unter einer Coolify-Plattform-Subdomain deployen und testen.
-5. DNS bei IONOS setzen (Apex `@` → A-Record auf VPS-IP, `www` → CNAME/A auf denselben Host), Domain in Coolify eintragen, redeployen.
+4. Erst unter einer Coolify-Plattform-Subdomain deployen und testen. **`AUTH_URL` in dieser Phase noch NICHT setzen** — mit gesetztem `AUTH_URL=https://norddeich-heuler.de` erzeugt next-auth v5 Callback-/Redirect-URLs auf die noch nicht auflösende Zieldomain, wodurch der Admin-Login im Testdeploy fehlschlägt (leicht mit „`AUTH_TRUST_HOST` wirkt nicht" zu verwechseln — ist es aber nicht: `AUTH_TRUST_HOST=true` allein lässt next-auth die URL korrekt aus den `X-Forwarded-*`-Headern ableiten). `AUTH_URL` erst in Schritt 5, zusammen mit der echten Domain, setzen.
+5. DNS bei IONOS setzen (Apex `@` → A-Record auf VPS-IP, `www` → CNAME/A auf denselben Host), Domain in Coolify eintragen, `AUTH_URL=https://norddeich-heuler.de` setzen, redeployen.
