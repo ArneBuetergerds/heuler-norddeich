@@ -2,6 +2,12 @@ import { getBlockedPeriods } from "@/db/queries";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
 import { BookingRequestForm } from "@/components/BookingRequestForm";
 
+// Ohne dynamische API (cookies/headers) würde Next.js diese Seite beim Build
+// statisch vorrendern und die Belegung als Snapshot vom Deploy-Zeitpunkt
+// einfrieren – Gäste sähen dann veraltete Verfügbarkeit. Zusätzlich ist beim
+// Docker-Build (Coolify) noch keine erreichbare DB vorhanden.
+export const dynamic = "force-dynamic";
+
 export default async function VerfuegbarkeitPage() {
   // Bewusst nur die Zeiträume, nicht Notiz oder Gastname: Gäste sehen, dass ein
   // Tag belegt ist – nicht durch wen oder warum.
