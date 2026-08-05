@@ -651,6 +651,17 @@ git add Dockerfile .dockerignore .env.example
 git commit -m "feat(deploy): add Dockerfile for Coolify deployment with automatic migrations"
 ```
 
+**Nachtrag, während Task 5 entdeckt:** Der lokale `docker build`/`docker run`-Test (Steps 3-4) deckte drei Probleme auf, die im ursprünglichen Plan nicht vorgesehen waren:
+
+1. **Platzhalter-`DATABASE_URL` im `builder`-Stage nötig.** `next build` importiert beim Sammeln der Seiten-/Routendaten transitiv `src/db/client.ts`, das ohne `DATABASE_URL` sofort wirft. `mysql.createPool()` verbindet aber erst bei der ersten echten Query (lazy) — ein Fake-Wert ist während des Builds also gefahrlos. Nur im `builder`-Stage gesetzt (Docker-`ENV` ist Stage-scoped), landet also nicht im finalen Image. Ergänze im Dockerfile vor `RUN npm run build`:
+   ```dockerfile
+   ENV DATABASE_URL="mysql://build:build@localhost:3306/build"
+   ```
+2. **`package-lock.json` muss mit npm 10 (nicht npm 11) neu erzeugt werden.** `node:20-alpine` bringt npm 10.8.2 mit; eine mit npm 11 erzeugte Lockfile wird von `npm ci` als "not in sync" abgelehnt (betrifft verschachtelte `optionalDependencies` von `esbuild`, transitiv über `tsx`). Fix: `npm install --package-lock-only` innerhalb eines `node:20-alpine`-Containers ausführen. Keine Dependency-Version ändert sich dabei (`git diff package.json` bleibt leer).
+3. **`src/app/(site)/verfuegbarkeit/page.tsx` braucht `export const dynamic = "force-dynamic";`.** Diese Seite fragt `getBlockedPeriods()` direkt ab, ohne `cookies()`/`headers()` — Next.js hätte sie sonst beim Build statisch vorgerendert und die Belegung als Snapshot vom Deploy-Zeitpunkt eingefroren, sodass Gäste dauerhaft veraltete Verfügbarkeit sähen. Das ist ein eigenständiger, vom Docker-Umzug unabhängiger Korrektheits-Bug (auf Vercel+Neon wäre die DB beim Build erreichbar gewesen, das Einfrieren der Daten also lautlos passiert, statt wie hier als Build-Fehler aufzufallen). Die beiden Admin-Seiten, die ebenfalls die DB abfragen, rufen vorher `auth()` auf und sind dadurch bereits dynamisch — nur diese eine Seite war betroffen.
+
+Alle drei Punkte sind in Step 6s Commit `4281b63` bereits mit enthalten (`Dockerfile`, `.dockerignore`, `package-lock.json`, `src/app/(site)/verfuegbarkeit/page.tsx`) — bewusst ein gemeinsamer Commit, da Punkt 2 und 3 beide zwingende Voraussetzungen dafür waren, den in Step 3/4 dokumentierten Build-und-Run-Test überhaupt erfolgreich durchzuführen.
+
 ---
 
 ## Nach Abschluss aller Tasks (manuell, außerhalb des Repos)
