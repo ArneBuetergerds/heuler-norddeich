@@ -15,7 +15,7 @@ const SECTIONS: readonly PrivacySection[] = [
   },
   {
     heading: "3. Benachrichtigung",
-    body: "Nach Eingang einer Anfrage wird automatisch eine Benachrichtigungs-E-Mail über den eigenen Mailserver an den Betreiber versendet, damit die Anfrage zeitnah bearbeitet werden kann. Es ist kein externer E-Mail-Dienstleister eingebunden.",
+    body: "Nach Eingang einer Anfrage wird automatisch eine Benachrichtigungs-E-Mail über unseren E-Mail-Provider IONOS versendet, damit die Anfrage zeitnah bearbeitet werden kann.",
   },
   {
     heading: "4. Hosting",
