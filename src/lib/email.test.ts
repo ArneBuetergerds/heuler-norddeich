@@ -7,14 +7,21 @@ import {
 } from "./email";
 import type { BookingRequest } from "@/db/schema";
 
-const sendMail = vi.fn();
+// email.ts erzeugt den Transporter beim Modul-Import (Top-Level-Aufruf von
+// createTransport), noch bevor die restlichen Top-Level-Konstanten dieser
+// Testdatei initialisiert sind. vi.hoisted stellt sicher, dass die Mocks
+// bereits existieren, wenn der (ebenfalls gehoistete) vi.mock-Factory beim
+// Import von "./email" ausgeführt wird.
+const { sendMail, createTransport } = vi.hoisted(() => {
+  const sendMail = vi.fn();
+  const createTransport = vi.fn((_config: unknown) => ({
+    sendMail: (...args: unknown[]) => sendMail(...args),
+  }));
+  return { sendMail, createTransport };
+});
 
 vi.mock("nodemailer", () => ({
-  default: {
-    createTransport: () => ({
-      sendMail: (...args: unknown[]) => sendMail(...args),
-    }),
-  },
+  default: { createTransport },
 }));
 
 const request: BookingRequest = {
@@ -31,6 +38,15 @@ const request: BookingRequest = {
 };
 
 describe("email", () => {
+  // Der Transporter wird beim Modul-Import einmalig erzeugt (vor jedem
+  // beforeEach), daher prüfen wir hier nur die statische Sicherheits-
+  // konfiguration und nicht den zur Importzeit noch ungesetzten SMTP_HOST.
+  it("konfiguriert den SMTP-Transport mit STARTTLS-Erzwingung", () => {
+    expect(createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({ port: 587, secure: false, requireTLS: true }),
+    );
+  });
+
   beforeEach(() => {
     sendMail.mockReset();
     sendMail.mockResolvedValue(undefined);

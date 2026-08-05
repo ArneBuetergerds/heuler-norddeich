@@ -19,7 +19,7 @@ const SECTIONS: readonly PrivacySection[] = [
   },
   {
     heading: "4. Hosting",
-    body: "Diese Website wird auf einem eigenen Server (VPS) betrieben, nicht bei einem externen Cloud-Anbieter. Beim Aufruf der Seite werden technisch bedingt Zugriffsdaten (z. B. IP-Adresse, Zeitpunkt des Zugriffs) auf dieser eigenen Infrastruktur verarbeitet.",
+    body: "Diese Website wird auf einem von uns angemieteten Server (VPS) der netcup GmbH in Deutschland betrieben. Beim Aufruf der Seite werden technisch bedingt Zugriffsdaten (z. B. IP-Adresse, Zeitpunkt des Zugriffs) verarbeitet.",
   },
   {
     heading: "5. Ihre Rechte",

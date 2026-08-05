@@ -24,5 +24,10 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 
+# TODO (Hardening vor Public-Cutover): Container läuft aktuell als root.
+# Beim Umstieg auf USER node: next/image schreibt zur Laufzeit nach
+# .next/cache/images - ohne COPY --chown=node:node bzw. chown auf /app
+# bricht die Bildoptimierung still.
+
 EXPOSE 3000
-CMD ["sh", "-c", "node_modules/.bin/drizzle-kit migrate && node_modules/.bin/next start"]
+CMD ["sh", "-c", "node_modules/.bin/drizzle-kit migrate && exec node_modules/.bin/next start"]
