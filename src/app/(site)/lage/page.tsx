@@ -55,6 +55,8 @@ const ACTIVITIES_IN_DER_NAEHE: readonly string[] = [
   "Historische Mühlen",
 ];
 
+const ADDRESS = "Ankerweg 6, 26506 Norden";
+
 export default function LagePage() {
   return (
     <section className="mx-auto max-w-[1120px] px-6 pt-14 pb-20">
@@ -97,7 +99,21 @@ export default function LagePage() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 rounded-xl border bg-card p-6 shadow-sm sm:grid-cols-2">
+      <div className="mt-8 rounded-xl border bg-card p-6 shadow-sm">
+        <h2 className="mb-1 text-[17px] font-bold">Anfahrt</h2>
+        <p className="mb-3 text-[13px] text-zinc-500">{ADDRESS}</p>
+        <div className="overflow-hidden rounded-lg">
+          <iframe
+            src={`https://www.google.com/maps?q=${encodeURIComponent(ADDRESS)}&output=embed`}
+            className="h-[340px] w-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            title={`Kartenausschnitt: ${ADDRESS}`}
+          />
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 rounded-xl border bg-card p-6 shadow-sm sm:grid-cols-2">
         <div>
           <h2 className="mb-2 text-[17px] font-bold">Freizeit in Norddeich</h2>
           <ul className="list-disc pl-5 text-[13px] text-zinc-600 marker:text-zinc-400">

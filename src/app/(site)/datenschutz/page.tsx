@@ -21,11 +21,15 @@ const SECTIONS: readonly PrivacySection[] = [
     body: "Diese Website wird auf einem von uns angemieteten Server (VPS) der netcup GmbH in Deutschland betrieben. Beim Aufruf der Seite werden technisch bedingt Zugriffsdaten (z. B. IP-Adresse, Zeitpunkt des Zugriffs) verarbeitet.",
   },
   {
-    heading: "5. Ihre Rechte",
+    heading: "5. Google Maps",
+    body: 'Auf der Seite "Lage" ist eine Karte von Google Maps eingebunden (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland). Beim Aufruf dieser Seite wird automatisch eine Verbindung zu Servern von Google aufgebaut, wobei u. a. Ihre IP-Adresse übertragen und Cookies gesetzt werden können – unabhängig davon, ob Sie mit der Karte interagieren. Weitere Informationen entnehmen Sie der Datenschutzerklärung von Google: https://policies.google.com/privacy.',
+  },
+  {
+    heading: "6. Ihre Rechte",
     body: "Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer personenbezogenen Daten. Wenden Sie sich hierzu an kontakt@norddeich-heuler.de.",
   },
   {
-    heading: "6. Speicherdauer",
+    heading: "7. Speicherdauer",
     body: "Anfragedaten werden gelöscht, sobald sie für die Bearbeitung nicht mehr erforderlich sind, spätestens jedoch nach Ablauf gesetzlicher Aufbewahrungsfristen.",
   },
 ];
