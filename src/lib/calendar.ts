@@ -5,20 +5,56 @@ export function isDateBlocked(
   return periods.some((p) => date >= p.startDate && date < p.endDate);
 }
 
+export type DayOccupancy = "free" | "occupied" | "departure" | "arrival";
+
+function addDays(date: Date, amount: number): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + amount),
+  );
+}
+
 /**
- * Übergabetag: Die Wohnung wird bis 10 Uhr geräumt und kann ab 14 Uhr neu
- * bezogen werden. Ein Tag zählt deshalb als Übergabetag, wenn er Abreisetag
- * eines Zeitraums ist, ohne selbst noch belegt zu sein (z. B. weil ein
- * anderer Zeitraum – etwa ein Sperrzeitraum – genau dort beginnt).
+ * Belegungszustand eines Tages inklusive Übergabetage: Die Wohnung wird bis
+ * 10 Uhr geräumt und kann ab 14 Uhr neu bezogen werden.
+ *
+ * - "departure": Abreisetag eines Aufenthalts, ab 14 Uhr wieder frei.
+ * - "arrival": Anreisetag eines Aufenthalts nach einem Vortag, der nicht in
+ *   einem Sperrzeitraum lag – vormittags frei, ab 14 Uhr belegt. Liegt der
+ *   Vortag in einem Sperrzeitraum, gilt der Tag als ganz normal "occupied":
+ *   Ohne konkreten Vorgänger-Gast, von dem man abgrenzen könnte, wirkt der
+ *   Übergabetag-Look hier eher irreführend als hilfreich.
+ * - "occupied": Sperrzeitraum, ein durchgehender Aufenthalt, oder Abreise-
+ *   und Anreisetag zweier verschiedener Aufenthalte fallen auf denselben Tag
+ *   (beide Tageshälften sind dann belegt, nur von unterschiedlichen Gästen).
+ * - "free": kein Zeitraum berührt den Tag.
+ *
+ * Sperrzeiträume selbst kennen keinen Übergabetag (siehe
+ * `createMaintenanceBlock`) – sie tragen hier nur zur "occupied"-Erkennung
+ * bei, nie zu "departure"/"arrival".
  */
-export function isHandoverDay(
+export function dayOccupancy(
   date: Date,
-  periods: { startDate: Date; endDate: Date }[],
-): boolean {
-  if (isDateBlocked(date, periods)) {
-    return false;
+  stays: { startDate: Date; endDate: Date }[],
+  maintenance: { startDate: Date; endDate: Date }[],
+): DayOccupancy {
+  if (isDateBlocked(date, maintenance)) {
+    return "occupied";
   }
-  return periods.some((p) => p.endDate.getTime() === date.getTime());
+
+  const isDeparture = stays.some((p) => p.endDate.getTime() === date.getTime());
+  const isArrival = stays.some((p) => p.startDate.getTime() === date.getTime());
+
+  if (isDeparture && isArrival) {
+    return "occupied";
+  }
+  if (isDeparture) {
+    return "departure";
+  }
+  if (isArrival) {
+    return isDateBlocked(addDays(date, -1), maintenance) ? "occupied" : "arrival";
+  }
+
+  return isDateBlocked(date, stays) ? "occupied" : "free";
 }
 
 // Blocked-period-Daten kommen aus Drizzle `date`-Spalten und werden als

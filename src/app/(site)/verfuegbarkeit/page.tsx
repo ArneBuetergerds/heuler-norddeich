@@ -1,4 +1,4 @@
-import { getBlockedPeriods } from "@/db/queries";
+import { getOccupancy } from "@/db/queries";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
 import { BookingRequestForm } from "@/components/BookingRequestForm";
 
@@ -9,9 +9,18 @@ import { BookingRequestForm } from "@/components/BookingRequestForm";
 export const dynamic = "force-dynamic";
 
 export default async function VerfuegbarkeitPage() {
-  // Bewusst nur die Zeiträume, nicht Notiz oder Gastname: Gäste sehen, dass ein
-  // Tag belegt ist – nicht durch wen oder warum.
-  const blockedPeriods = await getBlockedPeriods();
+  // getOccupancy() liefert Gastname/Notiz mit, weil der Admin-Kalender sie
+  // braucht – für den öffentlichen Kalender werden beide Listen unten auf
+  // {startDate, endDate} zusammengestrichen. Gäste sehen, dass ein Tag belegt
+  // ist, nicht durch wen oder warum.
+  const occupancy = await getOccupancy();
+  const publicOccupancy = {
+    stays: occupancy.stays.map(({ startDate, endDate }) => ({ startDate, endDate })),
+    maintenance: occupancy.maintenance.map(({ startDate, endDate }) => ({
+      startDate,
+      endDate,
+    })),
+  };
 
   return (
     <section className="mx-auto max-w-[1120px] px-6 pt-14 pb-20">
@@ -23,12 +32,7 @@ export default async function VerfuegbarkeitPage() {
       </h1>
 
       <div className="grid items-start gap-8 md:grid-cols-2">
-        <AvailabilityCalendar
-          blockedPeriods={blockedPeriods.map((period) => ({
-            startDate: period.startDate,
-            endDate: period.endDate,
-          }))}
-        />
+        <AvailabilityCalendar occupancy={publicOccupancy} />
         <BookingRequestForm />
       </div>
 

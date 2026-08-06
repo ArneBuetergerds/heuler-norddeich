@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isDateBlocked, isHandoverDay, buildMonthDays, buildCalendarGrid } from "./calendar";
+import { isDateBlocked, dayOccupancy, buildMonthDays, buildCalendarGrid } from "./calendar";
 
 describe("isDateBlocked", () => {
   const periods = [
@@ -19,39 +19,56 @@ describe("isDateBlocked", () => {
   });
 });
 
-describe("isHandoverDay", () => {
-  it("erkennt den Abreisetag eines Zeitraums als Übergabetag", () => {
-    const periods = [
-      { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") },
-    ];
+describe("dayOccupancy", () => {
+  const stayA = { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") };
 
-    expect(isHandoverDay(new Date("2026-08-10"), periods)).toBe(true);
+  it("gibt \"free\" zurück, wenn kein Zeitraum den Tag berührt", () => {
+    expect(dayOccupancy(new Date("2026-08-15"), [stayA], [])).toBe("free");
   });
 
-  it("markiert einen gewöhnlichen freien Tag nicht als Übergabetag", () => {
-    const periods = [
-      { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") },
-    ];
-
-    expect(isHandoverDay(new Date("2026-08-15"), periods)).toBe(false);
+  it("gibt \"occupied\" zurück für einen Tag mitten in einem Aufenthalt", () => {
+    expect(dayOccupancy(new Date("2026-08-07"), [stayA], [])).toBe("occupied");
   });
 
-  it("markiert einen tatsächlich belegten Tag nicht als Übergabetag", () => {
-    const periods = [
-      { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") },
+  it("gibt \"occupied\" zurück für einen Tag in einem Sperrzeitraum", () => {
+    const maintenance = [
+      { startDate: new Date("2026-08-20"), endDate: new Date("2026-08-23") },
     ];
 
-    expect(isHandoverDay(new Date("2026-08-07"), periods)).toBe(false);
+    expect(dayOccupancy(new Date("2026-08-21"), [], maintenance)).toBe("occupied");
   });
 
-  it("bleibt false, wenn der Abreisetag des einen Zeitraums durch einen anderen Zeitraum weiterhin belegt ist", () => {
-    // z. B. ein Sperrzeitraum (Wartung), der genau am Abreisetag beginnt.
-    const periods = [
-      { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") },
-      { startDate: new Date("2026-08-10"), endDate: new Date("2026-08-12") },
+  it("gibt \"departure\" zurück für den Abreisetag eines Aufenthalts", () => {
+    expect(dayOccupancy(new Date("2026-08-10"), [stayA], [])).toBe("departure");
+  });
+
+  it("gibt \"arrival\" zurück für den Anreisetag nach einem freien Vortag", () => {
+    const stayB = { startDate: new Date("2026-08-20"), endDate: new Date("2026-08-25") };
+
+    expect(dayOccupancy(new Date("2026-08-20"), [stayB], [])).toBe("arrival");
+  });
+
+  it("gibt \"arrival\" zurück, wenn der Vortag der Abreisetag eines anderen Aufenthalts ohne Anschlussbuchung war", () => {
+    // stayA endet 2026-08-10, stayC beginnt erst zwei Tage später – kein
+    // direkter Anschluss, 2026-08-10 selbst bleibt ein reiner Abreisetag.
+    const stayC = { startDate: new Date("2026-08-12"), endDate: new Date("2026-08-15") };
+
+    expect(dayOccupancy(new Date("2026-08-12"), [stayA, stayC], [])).toBe("arrival");
+  });
+
+  it("gibt \"occupied\" zurück, statt \"arrival\", wenn der Vortag in einem Sperrzeitraum liegt", () => {
+    const stayB = { startDate: new Date("2026-08-20"), endDate: new Date("2026-08-25") };
+    const maintenance = [
+      { startDate: new Date("2026-08-15"), endDate: new Date("2026-08-20") },
     ];
 
-    expect(isHandoverDay(new Date("2026-08-10"), periods)).toBe(false);
+    expect(dayOccupancy(new Date("2026-08-20"), [stayB], maintenance)).toBe("occupied");
+  });
+
+  it("gibt \"occupied\" zurück, wenn am selben Tag ein Aufenthalt endet und der nächste beginnt", () => {
+    const stayB = { startDate: new Date("2026-08-10"), endDate: new Date("2026-08-15") };
+
+    expect(dayOccupancy(new Date("2026-08-10"), [stayA, stayB], [])).toBe("occupied");
   });
 });
 

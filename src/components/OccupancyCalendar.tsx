@@ -1,17 +1,19 @@
 "use client";
 
-import { isDateBlocked, isHandoverDay } from "@/lib/calendar";
+import { isDateBlocked, dayOccupancy } from "@/lib/calendar";
 import type { Occupancy } from "@/lib/occupancy";
 import { MonthCalendar, CalendarLegendItem, type DayAppearance } from "./MonthCalendar";
 
 const FREE = "bg-green-50 text-green-800 border-green-200";
 const OCCUPIED = "bg-red-50 text-red-700 border-red-200";
 const BLOCKED = "bg-zinc-100 text-zinc-600 border-zinc-200";
-// Diagonal von oben links (noch belegt, Abreise bis 10 Uhr) nach unten
-// rechts (schon frei, Anreise ab 14 Uhr) – dieselben Farbtöne wie
-// OCCUPIED/FREE, damit der Übergang stimmig aussieht.
-const HANDOVER =
+// Diagonal von oben links nach unten rechts. Abreise: noch belegt (rot) oben
+// links, ab 14 Uhr frei (grün) unten rechts. Anreise: umgekehrt – der
+// Vormittag war noch frei, ab 14 Uhr zieht der Gast ein.
+const DEPARTURE =
   "bg-[linear-gradient(to_bottom_right,var(--color-red-50)_50%,var(--color-green-50)_50%)] text-zinc-700 border-zinc-300";
+const ARRIVAL =
+  "bg-[linear-gradient(to_bottom_right,var(--color-green-50)_50%,var(--color-red-50)_50%)] text-zinc-700 border-zinc-300";
 
 /**
  * Der Admin sieht mehr als der Gast: Belegungen tragen den Namen des Gasts,
@@ -22,21 +24,46 @@ const HANDOVER =
  */
 export function OccupancyCalendar({ occupancy }: { occupancy: Occupancy }) {
   function appearanceFor(day: Date): DayAppearance {
-    const stay = occupancy.stays.find((entry) => isDateBlocked(day, [entry]));
-    if (stay) {
-      return { className: OCCUPIED, title: stay.guestName };
+    const state = dayOccupancy(day, occupancy.stays, occupancy.maintenance);
+
+    if (state === "free") {
+      return { className: FREE, title: "Frei" };
     }
 
+    if (state === "departure") {
+      const stay = occupancy.stays.find((entry) => entry.endDate.getTime() === day.getTime());
+      return { className: DEPARTURE, title: `${stay?.guestName ?? "Gast"} (Abreise bis 10 Uhr)` };
+    }
+
+    if (state === "arrival") {
+      const stay = occupancy.stays.find(
+        (entry) => entry.startDate.getTime() === day.getTime(),
+      );
+      return { className: ARRIVAL, title: `${stay?.guestName ?? "Gast"} (Anreise ab 14 Uhr)` };
+    }
+
+    // state === "occupied": Sperrzeitraum, ein durchgehender Aufenthalt,
+    // oder Ab- und Anreise zweier verschiedener Gäste am selben Tag.
     const block = occupancy.maintenance.find((entry) => isDateBlocked(day, [entry]));
     if (block) {
       return { className: BLOCKED, title: block.note ?? "Gesperrt" };
     }
 
-    if (isHandoverDay(day, occupancy.stays)) {
-      return { className: HANDOVER, title: "Anreise möglich (Abreise bis 10 Uhr)" };
+    const stay = occupancy.stays.find((entry) => isDateBlocked(day, [entry]));
+    if (stay) {
+      return { className: OCCUPIED, title: stay.guestName };
     }
 
-    return { className: FREE, title: "Frei" };
+    const departing = occupancy.stays.find(
+      (entry) => entry.endDate.getTime() === day.getTime(),
+    );
+    const arriving = occupancy.stays.find(
+      (entry) => entry.startDate.getTime() === day.getTime(),
+    );
+    return {
+      className: OCCUPIED,
+      title: `${departing?.guestName ?? "Gast"} (Abreise) / ${arriving?.guestName ?? "Gast"} (Anreise)`,
+    };
   }
 
   return (

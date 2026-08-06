@@ -1,16 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "./client";
-import {
-  blockedPeriod,
-  bookingRequest,
-  type BlockedPeriod,
-  type BookingRequest,
-} from "./schema";
+import { blockedPeriod, bookingRequest, type BookingRequest } from "./schema";
 import { splitOccupancy, type Occupancy } from "../lib/occupancy";
-
-export async function getBlockedPeriods(): Promise<BlockedPeriod[]> {
-  return db.select().from(blockedPeriod);
-}
 
 /**
  * Belegte und gesperrte Zeiträume, getrennt nach Herkunft – für den
