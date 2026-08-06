@@ -34,7 +34,7 @@ export default async function VerfuegbarkeitPage() {
 
       <div className="grid items-start gap-8 md:grid-cols-2">
         <AvailabilityCalendar occupancy={publicOccupancy} />
-        <BookingRequestForm />
+        <BookingRequestForm occupancy={publicOccupancy} />
       </div>
 
       <div className="mt-8 rounded-xl border bg-card p-6 shadow-sm">

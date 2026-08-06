@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DateRangePicker, toDateInputValue } from "@/components/DateRangePicker";
 
 type Status = "idle" | "sending" | "success";
+type Period = { startDate: Date; endDate: Date };
+type Occupancy = { stays: Period[]; maintenance: Period[] };
 
-export function BookingRequestForm() {
+export function BookingRequestForm({ occupancy }: { occupancy: Occupancy }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -18,6 +23,11 @@ export function BookingRequestForm() {
     // `reset()` würde werfen.
     const form = event.currentTarget;
     const formData = new FormData(form);
+
+    if (!range?.from || !range?.to) {
+      setError("Bitte wählen Sie Anreise- und Abreisedatum.");
+      return;
+    }
 
     setStatus("sending");
     setError(null);
@@ -29,8 +39,8 @@ export function BookingRequestForm() {
         name: formData.get("name"),
         email: formData.get("email"),
         phone: formData.get("phone"),
-        startDate: formData.get("startDate"),
-        endDate: formData.get("endDate"),
+        startDate: toDateInputValue(range.from),
+        endDate: toDateInputValue(range.to),
         message: formData.get("message"),
       }),
     });
@@ -47,6 +57,7 @@ export function BookingRequestForm() {
     }
 
     form.reset();
+    setRange(undefined);
     setStatus("success");
   }
 
@@ -102,15 +113,9 @@ export function BookingRequestForm() {
             <Input id="phone" name="phone" placeholder="0176 12345678" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="startDate">Anreise</Label>
-              <Input id="startDate" name="startDate" type="date" required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="endDate">Abreise</Label>
-              <Input id="endDate" name="endDate" type="date" required />
-            </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="date-range">Anreise / Abreise</Label>
+            <DateRangePicker occupancy={occupancy} range={range} onRangeChange={setRange} />
           </div>
 
           <div className="grid gap-1.5">
