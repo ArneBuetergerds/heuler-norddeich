@@ -7,11 +7,11 @@ import { MonthCalendar, CalendarLegendItem, type DayAppearance } from "./MonthCa
 const FREE = "bg-green-50 text-green-800 border-green-200";
 const OCCUPIED = "bg-red-50 text-red-700 border-red-200";
 const BLOCKED = "bg-zinc-100 text-zinc-600 border-zinc-200";
-// Diagonal von unten links (noch belegt, Abreise bis 10 Uhr) nach oben
+// Diagonal von oben links (noch belegt, Abreise bis 10 Uhr) nach unten
 // rechts (schon frei, Anreise ab 14 Uhr) – dieselben Farbtöne wie
 // OCCUPIED/FREE, damit der Übergang stimmig aussieht.
 const HANDOVER =
-  "bg-[linear-gradient(to_top_right,var(--color-red-50)_50%,var(--color-green-50)_50%)] text-zinc-700 border-zinc-300";
+  "bg-[linear-gradient(to_bottom_right,var(--color-red-50)_50%,var(--color-green-50)_50%)] text-zinc-700 border-zinc-300";
 
 /**
  * Der Admin sieht mehr als der Gast: Belegungen tragen den Namen des Gasts,
@@ -45,7 +45,7 @@ export function OccupancyCalendar({ occupancy }: { occupancy: Occupancy }) {
       legend={
         <>
           <CalendarLegendItem colorClassName="bg-green-500">Frei</CalendarLegendItem>
-          <CalendarLegendItem colorClassName="bg-[linear-gradient(to_top_right,var(--color-red-500)_50%,var(--color-green-500)_50%)]">
+          <CalendarLegendItem colorClassName="bg-[linear-gradient(to_bottom_right,var(--color-red-500)_50%,var(--color-green-500)_50%)]">
             Anreise möglich
           </CalendarLegendItem>
           <CalendarLegendItem colorClassName="bg-red-500">Gast da</CalendarLegendItem>
