@@ -18,15 +18,41 @@ const TONE_CLASS: Record<Tone, string> = {
 };
 
 const PLACES: readonly Place[] = [
-  { name: "Seehundstation", distance: "~2 Gehminuten", tone: "nah" },
-  { name: "Schwimmbad", distance: "fußläufig", tone: "fusslaeufig" },
-  { name: "Spielplatz", distance: "fußläufig", tone: "fusslaeufig" },
+  { name: "Spielplatz", distance: "1 Gehminute", tone: "nah" },
   {
-    name: "Restaurants & Supermarkt",
-    distance: "fußläufig",
+    name: "Seehundstation, Kinderspielhaus, Mini Golf & Labyrinth",
+    distance: "2 Gehminuten",
+    tone: "nah",
+  },
+  { name: "Schwimmbad & Kurpark", distance: "3 Gehminuten", tone: "fusslaeufig" },
+  {
+    name: "Supermarkt & Restaurants",
+    distance: "5 Gehminuten",
     tone: "fusslaeufig",
   },
-  { name: "Deich & Park", distance: "zum Spazieren", tone: "neutral" },
+  { name: "Sandstrand", distance: "10 Gehminuten", tone: "neutral" },
+];
+
+const ACTIVITIES_VOR_ORT: readonly string[] = [
+  "Seehundstation",
+  'Schwimmbad "Ocean Wave"',
+  "Wattwanderungen",
+  "Fährfahrten zu den Ostfriesischen Inseln",
+  "Kinderspielhaus, Irrgarten & Mini Golf",
+  "Segway-Touren & Mini-Zugfahrten",
+  "Sandstrand & Fahrradverleih",
+  "Reiten & Swing Golf",
+];
+
+const ACTIVITIES_IN_DER_NAEHE: readonly string[] = [
+  "Waloseum",
+  "Spielzeug- und Automuseum",
+  "Teemuseum",
+  "Historische Eisenbahn",
+  "Bootsfahrten zu den Seehundbänken",
+  "Stadt Norden",
+  "Greetsiel (Fischerort)",
+  "Historische Mühlen",
 ];
 
 export default function LagePage() {
@@ -39,8 +65,10 @@ export default function LagePage() {
         Zentral in Norddeich
       </h1>
       <p className="mb-8 max-w-[640px] text-[15px] text-zinc-600">
-        Die Wohnung liegt mitten in Norddeich – alles Wichtige ist bequem zu Fuß
-        erreichbar.
+        Norddeich ist ein Stadtteil der Stadt Norden im Nordwesten Ostfrieslands
+        und seit 2010 anerkanntes Nordseeheilbad – vom Ruhrgebiet aus in unter
+        3 Stunden erreichbar. Die Wohnung liegt im Ankerweg mitten im Zentrum,
+        alles Wichtige ist bequem zu Fuß erreichbar.
       </p>
 
       <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-[1.1fr_1fr]">
@@ -66,6 +94,25 @@ export default function LagePage() {
               </Badge>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-6 rounded-xl border bg-card p-6 shadow-sm sm:grid-cols-2">
+        <div>
+          <h2 className="mb-2 text-[17px] font-bold">Freizeit in Norddeich</h2>
+          <ul className="list-disc pl-5 text-[13px] text-zinc-600 marker:text-zinc-400">
+            {ACTIVITIES_VOR_ORT.map((activity) => (
+              <li key={activity}>{activity}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h2 className="mb-2 text-[17px] font-bold">In der Nähe</h2>
+          <ul className="list-disc pl-5 text-[13px] text-zinc-600 marker:text-zinc-400">
+            {ACTIVITIES_IN_DER_NAEHE.map((activity) => (
+              <li key={activity}>{activity}</li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>
