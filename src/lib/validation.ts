@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { seasonForDate, nightsBetween } from "./pricing";
 
 export const bookingRequestSchema = z
   .object({
@@ -29,6 +30,20 @@ export const bookingRequestSchema = z
       message: "Anreisedatum darf nicht in der Vergangenheit liegen",
       path: ["startDate"],
     },
-  );
+  )
+  .superRefine((data, ctx) => {
+    // `.refine()`s Funktions-Form für dynamische Messages wird bei der
+    // Schema-Erstellung ausgewertet statt pro Validierung (in dieser
+    // Zod-Version wirkungslos) - für eine vom Anreisedatum abhängige
+    // Meldung braucht es `.superRefine()` mit `ctx.addIssue()`.
+    const season = seasonForDate(data.startDate);
+    if (nightsBetween(data.startDate, data.endDate) < season.minNights) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endDate"],
+        message: `Für Anreisen in diesem Zeitraum (${season.label}) sind mindestens ${season.minNights} Nächte erforderlich`,
+      });
+    }
+  });
 
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;
