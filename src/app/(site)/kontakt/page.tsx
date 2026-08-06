@@ -5,11 +5,11 @@ type ContactEntry = {
   readonly value: string;
 };
 
-// Platzhalter bleiben stehen, bis die echten Betreiberdaten vorliegen.
+// Telefonnummer noch als Platzhalter, bis sie vorliegt.
 const CONTACT_ENTRIES: readonly ContactEntry[] = [
-  { label: "Ansprechpartner", value: "[Name des Betreibers]" },
+  { label: "Ansprechpartner", value: "Sabrina Rönne" },
   { label: "Telefon", value: "[Telefonnummer]" },
-  { label: "E-Mail", value: "[E-Mail-Adresse]" },
+  { label: "E-Mail", value: "kontakt@norddeich-heuler.de" },
 ];
 
 export default function KontaktPage() {

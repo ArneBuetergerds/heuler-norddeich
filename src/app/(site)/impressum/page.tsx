@@ -5,17 +5,17 @@ type LegalSection = {
   readonly body: ReactNode;
 };
 
-// Platzhalter bleiben stehen, bis die echten Betreiberdaten vorliegen.
+// Telefonnummer noch als Platzhalter, bis sie vorliegt.
 const SECTIONS: readonly LegalSection[] = [
   {
     heading: "Angaben gemäß § 5 TMG",
     body: (
       <>
-        [Name des Betreibers]
+        Sabrina Rönne
         <br />
-        [Straße, Hausnummer]
+        Am Tannenkamp 1
         <br />
-        [PLZ, Ort]
+        48465 Schüttorf
       </>
     ),
   },
@@ -25,7 +25,7 @@ const SECTIONS: readonly LegalSection[] = [
       <>
         Telefon: [Telefonnummer]
         <br />
-        E-Mail: [E-Mail-Adresse]
+        E-Mail: kontakt@norddeich-heuler.de
       </>
     ),
   },
@@ -33,9 +33,9 @@ const SECTIONS: readonly LegalSection[] = [
     heading: "Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV",
     body: (
       <>
-        [Name des Betreibers]
+        Sabrina Rönne
         <br />
-        [Anschrift wie oben]
+        Am Tannenkamp 1, 48465 Schüttorf
       </>
     ),
   },

@@ -3,11 +3,10 @@ type PrivacySection = {
   readonly body: string;
 };
 
-// Platzhalter bleiben stehen, bis die echten Betreiberdaten vorliegen.
 const SECTIONS: readonly PrivacySection[] = [
   {
     heading: "1. Verantwortlicher",
-    body: "[Name des Betreibers], [Anschrift], [E-Mail-Adresse]",
+    body: "Sabrina Rönne, Am Tannenkamp 1, 48465 Schüttorf, kontakt@norddeich-heuler.de",
   },
   {
     heading: "2. Verarbeitung bei Buchungsanfragen",
@@ -23,7 +22,7 @@ const SECTIONS: readonly PrivacySection[] = [
   },
   {
     heading: "5. Ihre Rechte",
-    body: "Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer personenbezogenen Daten. Wenden Sie sich hierzu an [E-Mail-Adresse].",
+    body: "Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer personenbezogenen Daten. Wenden Sie sich hierzu an kontakt@norddeich-heuler.de.",
   },
   {
     heading: "6. Speicherdauer",
