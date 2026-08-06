@@ -1,4 +1,5 @@
 import { getOccupancy } from "@/db/queries";
+import { SEASONS } from "@/lib/pricing";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
 import { BookingRequestForm } from "@/components/BookingRequestForm";
 
@@ -67,36 +68,13 @@ export default async function VerfuegbarkeitPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              <tr>
-                <td className="py-2">09.01. – 31.03.</td>
-                <td className="py-2 font-semibold">54 €</td>
-                <td className="py-2">3 Nächte</td>
-              </tr>
-              <tr>
-                <td className="py-2">01.04. – 30.06.</td>
-                <td className="py-2 font-semibold">74 €</td>
-                <td className="py-2">4 Nächte</td>
-              </tr>
-              <tr>
-                <td className="py-2">01.07. – 30.08.</td>
-                <td className="py-2 font-semibold">94 €</td>
-                <td className="py-2">7 Nächte</td>
-              </tr>
-              <tr>
-                <td className="py-2">01.09. – 04.11.</td>
-                <td className="py-2 font-semibold">74 €</td>
-                <td className="py-2">3 Nächte</td>
-              </tr>
-              <tr>
-                <td className="py-2">05.11. – 22.12.</td>
-                <td className="py-2 font-semibold">54 €</td>
-                <td className="py-2">3 Nächte</td>
-              </tr>
-              <tr>
-                <td className="py-2">23.12. – 05.01.</td>
-                <td className="py-2 font-semibold">74 €</td>
-                <td className="py-2">3 Nächte</td>
-              </tr>
+              {SEASONS.map((season) => (
+                <tr key={season.label}>
+                  <td className="py-2">{season.label}</td>
+                  <td className="py-2 font-semibold">{season.pricePerNight} €</td>
+                  <td className="py-2">{season.minNights} Nächte</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
