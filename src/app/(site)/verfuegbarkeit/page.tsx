@@ -124,6 +124,40 @@ export default async function VerfuegbarkeitPage() {
           Restbetrag spätestens 14 Tage vor Anreise.
         </p>
       </div>
+
+      <div className="mt-6 rounded-xl border bg-card p-6 shadow-sm">
+        <h2 className="mb-1 text-[17px] font-bold">Kurkarte</h2>
+        <p className="mb-3 text-[13px] text-zinc-500">
+          Die Kurtaxe wird von uns eingezogen und an die Stadt Norden
+          weitergeleitet. Im Gegenzug erhalten Sie die Kurkarte mit folgenden
+          Vorteilen:
+        </p>
+        <ul className="mb-4 list-disc pl-5 text-[13px] text-zinc-600 marker:text-zinc-400">
+          <li>Kostenloser Veranstaltungskalender „Norderland"</li>
+          <li>Freier Zugang zum Lesezimmer in Norddeich</li>
+          <li>Vergünstigte Busfahrten (2 € pro Strecke, 15.03. – 31.10.)</li>
+          <li>Reduzierter Eintritt im Erlebnisbad Ocean Wave</li>
+          <li>Ermäßigung bei diversen Veranstaltungen und geführten Touren</li>
+        </ul>
+
+        <div className="border-t pt-4 text-[13px] text-zinc-600">
+          <p className="font-semibold text-zinc-900">Fragen zur Kurkarte?</p>
+          <p>Kurbeitragskasse</p>
+          <p>Telefon: (0 49 31) 98 6-2 16</p>
+          <p>Fax: (0 49 31) 98 6-92 16</p>
+          <p>E-Mail: kurbeitragskasse@norddeich.de</p>
+          <p>
+            <a
+              href="http://www.norddeich.de/service/nordsee-urlaub-planen/kurkarte/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:no-underline"
+            >
+              norddeich.de – Service: Kurkarte
+            </a>
+          </p>
+        </div>
+      </div>
     </section>
   );
 }
