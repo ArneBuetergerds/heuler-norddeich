@@ -104,6 +104,11 @@ export function DateRangePicker({ occupancy, range, onRangeChange }: Props) {
             disabled={isDisabled}
             numberOfMonths={2}
             defaultMonth={range?.from}
+            // Ohne min setzt react-day-pickers addToRange() beim ersten
+            // Klick from UND to auf denselben Tag (siehe addToRange.js:
+            // `to: min > 0 ? undefined : date`) – der Picker würde dann
+            // sofort schließen, ohne dass ein Enddatum gewählt wurde.
+            min={1}
           />
         </PopoverContent>
       </Popover>
