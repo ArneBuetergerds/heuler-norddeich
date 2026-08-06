@@ -5,6 +5,23 @@ import { formatDateRange } from "@/lib/format";
 import { ManualBlockedPeriodForm } from "@/components/ManualBlockedPeriodForm";
 import { DeleteBlockedPeriodButton } from "@/components/DeleteBlockedPeriodButton";
 
+/**
+ * `block.endDate` ist intern exklusiv gespeichert (siehe
+ * `createMaintenanceBlock`), damit Kalender-Highlighting und
+ * Konfliktprüfung dieselbe Konvention wie Gastaufenthalte nutzen. Für die
+ * Anzeige hier soll aber wieder der Tag erscheinen, den der Admin beim
+ * Anlegen als Ende eingetragen hat – daher ein Tag zurückrechnen.
+ */
+function lastBlockedDay(exclusiveEndDate: Date): Date {
+  return new Date(
+    Date.UTC(
+      exclusiveEndDate.getUTCFullYear(),
+      exclusiveEndDate.getUTCMonth(),
+      exclusiveEndDate.getUTCDate() - 1,
+    ),
+  );
+}
+
 export default async function SperrzeitraeumePage() {
   const session = await auth();
   if (!session) {
@@ -39,7 +56,7 @@ export default async function SperrzeitraeumePage() {
               >
                 <div>
                   <p className="text-sm font-bold">
-                    {formatDateRange(block.startDate, block.endDate)}
+                    {formatDateRange(block.startDate, lastBlockedDay(block.endDate))}
                   </p>
                   {block.note && (
                     <p className="text-[13px] text-zinc-500">{block.note}</p>

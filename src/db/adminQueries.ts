@@ -135,17 +135,33 @@ export async function createManualStay(
   });
 }
 
-/** Legt einen Sperrzeitraum ohne Gast an (Wartung, Eigennutzung, …). */
+/**
+ * Legt einen Sperrzeitraum ohne Gast an (Wartung, Eigennutzung, …).
+ *
+ * `block.endDate` ist der letzte gesperrte Tag (inklusiv) – anders als bei
+ * Gastaufenthalten gibt es hier keinen Abreisetag, an dem schon wieder
+ * jemand einchecken könnte. Die übrige Verfügbarkeitslogik (`isDateBlocked`,
+ * `rangesOverlap`) behandelt `endDate` aber durchgängig exklusiv, deshalb
+ * hier vor Prüfung und Speicherung ein Tag addieren.
+ */
 export async function createMaintenanceBlock(
   db: DbLike,
   block: { startDate: Date; endDate: Date; note?: string },
 ): Promise<void> {
+  const exclusiveEndDate = new Date(
+    Date.UTC(
+      block.endDate.getUTCFullYear(),
+      block.endDate.getUTCMonth(),
+      block.endDate.getUTCDate() + 1,
+    ),
+  );
+
   await db.transaction(async (tx) => {
-    await assertRangeFree(tx, block.startDate, block.endDate);
+    await assertRangeFree(tx, block.startDate, exclusiveEndDate);
 
     await tx.insert(blockedPeriod).values({
       startDate: block.startDate,
-      endDate: block.endDate,
+      endDate: exclusiveEndDate,
       note: block.note ?? null,
     });
   });

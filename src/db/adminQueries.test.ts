@@ -4,6 +4,7 @@ import {
   declineBookingRequest,
   cancelStay,
   createManualStay,
+  createMaintenanceBlock,
   RANGE_TAKEN_ERROR,
 } from "./adminQueries";
 
@@ -218,6 +219,78 @@ describe("createManualStay", () => {
           guestName: "Familie Janssen",
           startDate: new Date("2026-09-01"),
           endDate: new Date("2026-09-08"),
+        },
+      ),
+    ).rejects.toThrow(RANGE_TAKEN_ERROR);
+
+    expect(fakeDb.inserted).toHaveLength(0);
+  });
+});
+
+describe("createMaintenanceBlock", () => {
+  it("speichert das Enddatum inklusiv, indem intern ein Tag addiert wird", async () => {
+    // Anders als bei Gastaufenthalten gibt es bei einem Sperrzeitraum keinen
+    // Abreisetag – "Ende" soll der letzte gesperrte Tag sein, nicht der Tag
+    // danach. Intern wird trotzdem die exklusive Enddatum-Konvention der
+    // übrigen Verfügbarkeitslogik verwendet, daher +1 Tag beim Speichern.
+    const fakeDb = createFakeDb({});
+
+    await createMaintenanceBlock(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      {
+        startDate: new Date("2026-08-09"),
+        endDate: new Date("2026-08-22"),
+        note: "Wartung",
+      },
+    );
+
+    expect(fakeDb.inserted).toEqual([
+      {
+        startDate: new Date("2026-08-09"),
+        endDate: new Date("2026-08-23"),
+        note: "Wartung",
+      },
+    ]);
+  });
+
+  it("addiert den Tag auch über einen Monatswechsel hinweg korrekt", async () => {
+    const fakeDb = createFakeDb({});
+
+    await createMaintenanceBlock(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      {
+        startDate: new Date("2026-08-30"),
+        endDate: new Date("2026-08-31"),
+      },
+    );
+
+    expect(fakeDb.inserted).toEqual([
+      {
+        startDate: new Date("2026-08-30"),
+        endDate: new Date("2026-09-01"),
+        note: null,
+      },
+    ]);
+  });
+
+  it("prüft die Verfügbarkeit bereits gegen das inklusive Enddatum", async () => {
+    const fakeDb = createFakeDb({
+      existingBlockedPeriods: [
+        { startDate: new Date("2026-08-22"), endDate: new Date("2026-08-25") },
+      ],
+    });
+
+    // Ohne die +1-Tag-Korrektur würde die Prüfung mit dem exklusiven
+    // 2026-08-22 laufen und den echten Konflikt am 22. übersehen.
+    await expect(
+      createMaintenanceBlock(
+        // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+        fakeDb,
+        {
+          startDate: new Date("2026-08-09"),
+          endDate: new Date("2026-08-22"),
         },
       ),
     ).rejects.toThrow(RANGE_TAKEN_ERROR);
