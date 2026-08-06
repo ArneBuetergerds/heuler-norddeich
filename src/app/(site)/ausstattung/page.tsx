@@ -26,7 +26,7 @@ const ICON_PROPS = {
 const FEATURES: readonly Feature[] = [
   {
     title: "Wohn- und Essbereich",
-    text: "Gemütliches Ecksofa und ein Essplatz für gemeinsame Mahlzeiten.",
+    text: "Leder-Ecksofa mit Schlaffunktion, Couchtisch und Sideboard sowie Esstisch mit 4 Stühlen. Flachbildfernseher mit SAT-TV und Radio (CD/MP3/Kassette).",
     icon: (
       <svg {...ICON_PROPS}>
         <path d="M3 12v6a1 1 0 001 1h16a1 1 0 001-1v-6" />
@@ -38,7 +38,7 @@ const FEATURES: readonly Feature[] = [
   },
   {
     title: "Küche",
-    text: "Herd, Backofen, Geschirrspüler und Mikrowelle – vollausgestattet zum Selberkochen.",
+    text: "Spülmaschine, Backofen, Cerankochfeld, Kühlschrank mit Gefrierfach und Mikrowelle. Kapselkaffeemaschine (Nespresso) und Filtermaschine, außerdem Wasserkocher und Mixer.",
     icon: (
       <svg {...ICON_PROPS}>
         <path d="M4 3v6a3 3 0 003 3h1v9" />
@@ -48,8 +48,20 @@ const FEATURES: readonly Feature[] = [
     ),
   },
   {
-    title: "Zwei Schlafzimmer",
-    text: "Ruhige Schlafzimmer bieten Platz für bis zu vier Personen.",
+    title: "Bad",
+    text: "Dusche, WC und Waschbecken, beleuchteter Spiegelschrank, Fön und Ablagemöglichkeiten.",
+    icon: (
+      <svg {...ICON_PROPS}>
+        <path d="M9 6a3 3 0 016 0v1" />
+        <path d="M4 10h16" />
+        <path d="M6 10v9a1 1 0 001 1h10a1 1 0 001-1v-9" />
+        <path d="M9 14v3M12 14v3M15 14v3" />
+      </svg>
+    ),
+  },
+  {
+    title: "Schlafzimmer (klein)",
+    text: "2 Betten à 90 cm, Kleiderschrank mit Kleiderstange und Schubladen, großes Fenster.",
     icon: (
       <svg {...ICON_PROPS}>
         <path d="M3 18v-6a2 2 0 012-2h14a2 2 0 012 2v6" />
@@ -59,19 +71,19 @@ const FEATURES: readonly Feature[] = [
     ),
   },
   {
-    title: "Unterhaltung",
-    text: "TV mit DVD/Blu-ray-Player sowie Gesellschaftsspiele und Bücher für Regentage.",
+    title: "Schlafzimmer (groß)",
+    text: "Bett 180 cm mit Nachttischen und großem Kleiderschrank. Babyreisebett und kleine Abstellkammer vorhanden.",
     icon: (
       <svg {...ICON_PROPS}>
-        <rect x="3" y="5" width="18" height="13" rx="2" />
-        <path d="M9 21h6M12 18v3" />
+        <path d="M3 18v-6a2 2 0 012-2h14a2 2 0 012 2v6" />
+        <path d="M3 18h18" />
+        <path d="M3 12v-3a1 1 0 011-1h13a1 1 0 011 1v3" />
       </svg>
     ),
   },
   {
     title: "Südwest-Balkon",
-    text: "Sonniger Balkon mit Südwest-Ausrichtung – perfekt für den Feierabend an der frischen Luft.",
-    wide: true,
+    text: "Sonniger Balkon mit Südwest-Ausrichtung, Tisch, Stühlen und Sonnenschirm – perfekt für den Feierabend an der frischen Luft.",
     icon: (
       <svg {...ICON_PROPS}>
         <circle cx="12" cy="12" r="4" />
@@ -79,6 +91,29 @@ const FEATURES: readonly Feature[] = [
       </svg>
     ),
   },
+  {
+    title: "Sonstiges",
+    text: "Staubsauger und Reinigungsmaterial, Gesellschaftsspiele und Bücher sowie ein Kinderhochstuhl.",
+    wide: true,
+    icon: (
+      <svg {...ICON_PROPS}>
+        <path d="M9 6h11M9 12h11M9 18h11" />
+        <path d="M4 6h.01M4 12h.01M4 18h.01" />
+      </svg>
+    ),
+  },
+];
+
+type Policy = {
+  readonly label: string;
+  readonly value: string;
+};
+
+const POLICIES: readonly Policy[] = [
+  { label: "Rauchen", value: "Nichtraucherwohnung" },
+  { label: "Haustiere", value: "Nicht erlaubt" },
+  { label: "WLAN", value: "Nicht vorhanden" },
+  { label: "Waschmaschine", value: "Nicht vorhanden" },
 ];
 
 const GALLERY: readonly GalleryImage[] = [
@@ -93,6 +128,14 @@ const GALLERY: readonly GalleryImage[] = [
   {
     src: "/images/schlafzimmer-gross/schlafzimmer-gross-01.jpg",
     alt: "Großes Schlafzimmer mit Doppelbett",
+  },
+  {
+    src: "/images/schlafzimmer-klein/schlafzimmer-klein-01.jpg",
+    alt: "Kleines Schlafzimmer mit zwei Betten",
+  },
+  {
+    src: "/images/bad/bad-01.jpg",
+    alt: "Bad mit Dusche und beleuchtetem Spiegelschrank",
   },
 ];
 
@@ -127,6 +170,20 @@ export default function AusstattungPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-6 rounded-xl border bg-card p-6 shadow-sm">
+        <h2 className="mb-3 text-[17px] font-bold">Gut zu wissen</h2>
+        <div className="flex flex-wrap gap-x-8 gap-y-3">
+          {POLICIES.map((policy) => (
+            <div key={policy.label}>
+              <p className="text-[11px] font-bold tracking-[0.06em] text-zinc-400 uppercase">
+                {policy.label}
+              </p>
+              <p className="text-sm font-semibold">{policy.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
