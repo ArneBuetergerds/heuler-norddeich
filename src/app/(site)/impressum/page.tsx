@@ -5,7 +5,6 @@ type LegalSection = {
   readonly body: ReactNode;
 };
 
-// Telefonnummer noch als Platzhalter, bis sie vorliegt.
 const SECTIONS: readonly LegalSection[] = [
   {
     heading: "Angaben gemäß § 5 TMG",
@@ -21,13 +20,7 @@ const SECTIONS: readonly LegalSection[] = [
   },
   {
     heading: "Kontakt",
-    body: (
-      <>
-        Telefon: [Telefonnummer]
-        <br />
-        E-Mail: kontakt@norddeich-heuler.de
-      </>
-    ),
+    body: <>E-Mail: kontakt@norddeich-heuler.de</>,
   },
   {
     heading: "Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV",

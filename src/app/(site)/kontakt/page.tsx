@@ -5,10 +5,8 @@ type ContactEntry = {
   readonly value: string;
 };
 
-// Telefonnummer noch als Platzhalter, bis sie vorliegt.
 const CONTACT_ENTRIES: readonly ContactEntry[] = [
   { label: "Ansprechpartner", value: "Sabrina Rönne" },
-  { label: "Telefon", value: "[Telefonnummer]" },
   { label: "E-Mail", value: "kontakt@norddeich-heuler.de" },
 ];
 
