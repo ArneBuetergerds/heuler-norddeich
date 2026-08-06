@@ -36,32 +36,93 @@ export default async function VerfuegbarkeitPage() {
         <BookingRequestForm />
       </div>
 
-      <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <h2 className="mb-1 text-[17px] font-bold">Preise</h2>
-          <p className="text-[13px] text-zinc-500">
-            [Preisinformationen des Betreibers ergänzen, z. B. Preis pro Nacht,
-            Nebenkosten, Mindestaufenthaltsdauer.]
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <h2 className="mb-3 text-[17px] font-bold">An- und Abreise</h2>
-          <div className="flex gap-8">
-            <div>
-              <p className="text-[11px] font-bold tracking-[0.06em] text-zinc-400 uppercase">
-                Anreise
-              </p>
-              <p className="text-xl font-extrabold tracking-tight">ab 14 Uhr</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold tracking-[0.06em] text-zinc-400 uppercase">
-                Abreise
-              </p>
-              <p className="text-xl font-extrabold tracking-tight">bis 10 Uhr</p>
-            </div>
+      <div className="mt-8 rounded-xl border bg-card p-6 shadow-sm">
+        <h2 className="mb-3 text-[17px] font-bold">An- und Abreise</h2>
+        <div className="flex gap-8">
+          <div>
+            <p className="text-[11px] font-bold tracking-[0.06em] text-zinc-400 uppercase">
+              Anreise
+            </p>
+            <p className="text-xl font-extrabold tracking-tight">ab 14 Uhr</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-bold tracking-[0.06em] text-zinc-400 uppercase">
+              Abreise
+            </p>
+            <p className="text-xl font-extrabold tracking-tight">bis 10 Uhr</p>
           </div>
         </div>
+      </div>
+
+      <div className="mt-6 rounded-xl border bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-[17px] font-bold">Preise</h2>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="border-b text-left text-zinc-500">
+                <th className="pb-2 font-semibold">Zeitraum</th>
+                <th className="pb-2 font-semibold">Preis/Nacht</th>
+                <th className="pb-2 font-semibold">Mindestaufenthalt</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              <tr>
+                <td className="py-2">09.01. – 31.03.</td>
+                <td className="py-2 font-semibold">54 €</td>
+                <td className="py-2">3 Nächte</td>
+              </tr>
+              <tr>
+                <td className="py-2">01.04. – 30.06.</td>
+                <td className="py-2 font-semibold">74 €</td>
+                <td className="py-2">4 Nächte</td>
+              </tr>
+              <tr>
+                <td className="py-2">01.07. – 30.08.</td>
+                <td className="py-2 font-semibold">94 €</td>
+                <td className="py-2">7 Nächte</td>
+              </tr>
+              <tr>
+                <td className="py-2">01.09. – 04.11.</td>
+                <td className="py-2 font-semibold">74 €</td>
+                <td className="py-2">3 Nächte</td>
+              </tr>
+              <tr>
+                <td className="py-2">05.11. – 22.12.</td>
+                <td className="py-2 font-semibold">54 €</td>
+                <td className="py-2">3 Nächte</td>
+              </tr>
+              <tr>
+                <td className="py-2">23.12. – 05.01.</td>
+                <td className="py-2 font-semibold">74 €</td>
+                <td className="py-2">3 Nächte</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 grid gap-4 border-t pt-4 text-[13px] text-zinc-600 sm:grid-cols-2">
+          <div>
+            <p className="font-semibold text-zinc-900">
+              Einmalige Nebenkosten (bar bei Schlüsselübergabe)
+            </p>
+            <p>Endreinigung: 55 €</p>
+            <p>Servicegebühr: 30 €</p>
+          </div>
+          <div>
+            <p className="font-semibold text-zinc-900">
+              Kurtaxe (Gemeindeabgabe, pro Erwachsenem)
+            </p>
+            <p>Hauptsaison (15.03. – 31.10.): 2,50 €</p>
+            <p>Nebensaison (01.01. – 14.03., 01.11. – 31.12.): 1,20 €</p>
+            <p className="text-zinc-400">Kinder bis 15 Jahre kostenfrei</p>
+          </div>
+        </div>
+
+        <p className="mt-4 border-t pt-4 text-[13px] text-zinc-500">
+          Bei Buchung werden 30 % des Mietpreises als Anzahlung fällig, der
+          Restbetrag spätestens 14 Tage vor Anreise.
+        </p>
       </div>
     </section>
   );
