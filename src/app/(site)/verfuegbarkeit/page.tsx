@@ -36,12 +36,23 @@ export default async function VerfuegbarkeitPage() {
         <BookingRequestForm />
       </div>
 
-      <div className="mt-8 rounded-xl border bg-card p-6 shadow-sm">
-        <h2 className="mb-1 text-[17px] font-bold">Preise</h2>
-        <p className="text-[13px] text-zinc-500">
-          [Preisinformationen des Betreibers ergänzen, z. B. Preis pro Nacht,
-          Nebenkosten, Mindestaufenthaltsdauer.]
-        </p>
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <h2 className="mb-1 text-[17px] font-bold">Preise</h2>
+          <p className="text-[13px] text-zinc-500">
+            [Preisinformationen des Betreibers ergänzen, z. B. Preis pro Nacht,
+            Nebenkosten, Mindestaufenthaltsdauer.]
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <h2 className="mb-1 text-[17px] font-bold">An- und Abreise</h2>
+          <p className="text-[13px] text-zinc-500">
+            Anreise ist ab 14 Uhr möglich, Abreise bis 10 Uhr. So kann
+            derselbe Tag sowohl Abreise- als auch Anreisetag sein – im
+            Kalender oben diagonal markiert.
+          </p>
+        </div>
       </div>
     </section>
   );
