@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isDateBlocked, buildMonthDays, buildCalendarGrid } from "./calendar";
+import { isDateBlocked, isHandoverDay, buildMonthDays, buildCalendarGrid } from "./calendar";
 
 describe("isDateBlocked", () => {
   const periods = [
@@ -16,6 +16,42 @@ describe("isDateBlocked", () => {
 
   it("gibt false zurück für ein Datum außerhalb aller Zeiträume", () => {
     expect(isDateBlocked(new Date("2026-09-01"), periods)).toBe(false);
+  });
+});
+
+describe("isHandoverDay", () => {
+  it("erkennt den Abreisetag eines Zeitraums als Übergabetag", () => {
+    const periods = [
+      { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") },
+    ];
+
+    expect(isHandoverDay(new Date("2026-08-10"), periods)).toBe(true);
+  });
+
+  it("markiert einen gewöhnlichen freien Tag nicht als Übergabetag", () => {
+    const periods = [
+      { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") },
+    ];
+
+    expect(isHandoverDay(new Date("2026-08-15"), periods)).toBe(false);
+  });
+
+  it("markiert einen tatsächlich belegten Tag nicht als Übergabetag", () => {
+    const periods = [
+      { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") },
+    ];
+
+    expect(isHandoverDay(new Date("2026-08-07"), periods)).toBe(false);
+  });
+
+  it("bleibt false, wenn der Abreisetag des einen Zeitraums durch einen anderen Zeitraum weiterhin belegt ist", () => {
+    // z. B. ein Sperrzeitraum (Wartung), der genau am Abreisetag beginnt.
+    const periods = [
+      { startDate: new Date("2026-08-05"), endDate: new Date("2026-08-10") },
+      { startDate: new Date("2026-08-10"), endDate: new Date("2026-08-12") },
+    ];
+
+    expect(isHandoverDay(new Date("2026-08-10"), periods)).toBe(false);
   });
 });
 

@@ -5,6 +5,22 @@ export function isDateBlocked(
   return periods.some((p) => date >= p.startDate && date < p.endDate);
 }
 
+/**
+ * Übergabetag: Die Wohnung wird bis 10 Uhr geräumt und kann ab 14 Uhr neu
+ * bezogen werden. Ein Tag zählt deshalb als Übergabetag, wenn er Abreisetag
+ * eines Zeitraums ist, ohne selbst noch belegt zu sein (z. B. weil ein
+ * anderer Zeitraum – etwa ein Sperrzeitraum – genau dort beginnt).
+ */
+export function isHandoverDay(
+  date: Date,
+  periods: { startDate: Date; endDate: Date }[],
+): boolean {
+  if (isDateBlocked(date, periods)) {
+    return false;
+  }
+  return periods.some((p) => p.endDate.getTime() === date.getTime());
+}
+
 // Blocked-period-Daten kommen aus Drizzle `date`-Spalten und werden als
 // UTC-Mitternacht geparst (z.B. "2026-08-01" -> 2026-08-01T00:00:00Z). Die
 // Kalendertage müssen deshalb ebenfalls in UTC konstruiert werden, sonst
