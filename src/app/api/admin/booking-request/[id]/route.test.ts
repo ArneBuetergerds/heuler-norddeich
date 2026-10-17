@@ -20,6 +20,7 @@ const mails = vi.hoisted(() => ({
   sendGuestDecline: vi.fn(),
 }));
 const pdf = vi.hoisted(() => ({ renderInvoicePdf: vi.fn() }));
+const termsPdf = vi.hoisted(() => ({ renderRentalTermsPdf: vi.fn() }));
 
 // Vitest kennt den Pfad-Alias `@/` nicht (keine vitest-Konfiguration). Die
 // echten Module über relative Pfade; Datenbank, Anmeldung, Rechnungsablage
@@ -28,6 +29,8 @@ vi.mock("@/db/schema", () => import("../../../../../db/schema"));
 vi.mock("@/lib/validation", () => import("../../../../../lib/validation"));
 vi.mock("@/lib/invoice", () => import("../../../../../lib/invoice"));
 vi.mock("@/lib/invoicePdf", () => pdf);
+vi.mock("@/lib/rentalTermsPdf", () => termsPdf);
+vi.mock("@/lib/rentalTerms", () => import("../../../../../lib/rentalTerms"));
 vi.mock("@/lib/safeError", () => import("../../../../../lib/safeError"));
 vi.mock("@/lib/routeErrors", () => import("../../../../../lib/routeErrors"));
 vi.mock("@/lib/retention", () => ({ berlinDay: vi.fn() }));
@@ -54,6 +57,7 @@ import { PATCH } from "./route";
 import { NOT_PENDING_ERROR } from "../../../../../db/adminQueries";
 import { buildInvoiceSnapshot, formatInvoiceNumber } from "../../../../../lib/invoice";
 import { renderInvoicePdf } from "../../../../../lib/invoicePdf";
+import { renderRentalTermsPdf } from "../../../../../lib/rentalTermsPdf";
 import { buildGuestConfirmation, type InvoiceForMail } from "../../../../../lib/email";
 
 const PENDING: BookingRequest = {
@@ -77,6 +81,8 @@ const PENDING: BookingRequest = {
   createdAt: new Date("2027-02-03"),
   decidedAt: null,
   anonymizedAt: null,
+  termsAcceptedAt: null,
+  termsVersion: null,
 };
 
 const OHNE_ANSCHRIFT: Partial<BookingRequest> = {
@@ -128,6 +134,12 @@ function mailedInvoice(): InvoiceForMail | undefined {
   return mails.sendGuestConfirmation.mock.calls[0][1] as InvoiceForMail | undefined;
 }
 
+/** Drittes Argument von sendGuestConfirmation: das Mietbedingungen-PDF. */
+function mailedRentalTerms(): Uint8Array | undefined {
+  expect(mails.sendGuestConfirmation).toHaveBeenCalledTimes(1);
+  return mails.sendGuestConfirmation.mock.calls[0][2] as Uint8Array | undefined;
+}
+
 beforeEach(() => {
   state.request = { ...PENDING };
   // Bestätigen wie confirmBookingRequest: Status setzen, Anschrift aus dem
@@ -144,6 +156,7 @@ beforeEach(() => {
   );
   invoiceQueries.createInvoice.mockImplementation(async (input) => invoiceFrom(input));
   pdf.renderInvoicePdf.mockImplementation(renderInvoicePdf);
+  termsPdf.renderRentalTermsPdf.mockImplementation(renderRentalTermsPdf);
   mails.sendGuestConfirmation.mockResolvedValue(undefined);
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -173,12 +186,21 @@ describe("PATCH /api/admin/booking-request/[id] – Bestätigen mit Rechnung", (
     expect(invoice?.number).toBe("RE-2027-0001");
     expect(new TextDecoder().decode(invoice!.pdf.slice(0, 5))).toBe("%PDF-");
 
-    // Die Mail, die daraus entsteht: PDF im Anhang mit Rechnungsnummer im Namen.
-    const mail = buildGuestConfirmation(state.request!, invoice);
+    const rentalTerms = mailedRentalTerms();
+    expect(new TextDecoder().decode(rentalTerms!.slice(0, 5))).toBe("%PDF-");
+
+    // Die Mail, die daraus entsteht: Rechnung mit Nummer im Namen und
+    // Mietbedingungen als zweites PDF.
+    const mail = buildGuestConfirmation(state.request!, invoice, rentalTerms);
     expect(mail.attachments).toEqual([
       {
         filename: "Rechnung-RE-2027-0001.pdf",
         content: Buffer.from(invoice!.pdf),
+        contentType: "application/pdf",
+      },
+      {
+        filename: "Mietbedingungen-Heuler.pdf",
+        content: Buffer.from(rentalTerms!),
         contentType: "application/pdf",
       },
     ]);
@@ -272,6 +294,54 @@ describe("PATCH /api/admin/booking-request/[id] – Bestätigen mit Rechnung", (
     expect(mailedInvoice()).toBeUndefined();
   });
 
+  it("schickt die Bestätigung mit Rechnung, aber ohne Mietbedingungen und warnt, wenn deren PDF scheitert", async () => {
+    termsPdf.renderRentalTermsPdf.mockRejectedValue(new Error("Schrift fehlt"));
+
+    const response = await PATCH(...patch({ action: "confirm" }));
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      invoice: { number: string };
+      warning: string;
+      warningCode: string;
+      rentalTermsMissing: boolean;
+    };
+    expect(body.invoice.number).toBe("RE-2027-0001");
+    expect(body.warningCode).toBe("terms_attachment_failed");
+    expect(body.warning).toContain("Mietbedingungen");
+    expect(body.warning).toContain("https://norddeich-heuler.de/mietbedingungen/pdf");
+    expect(body.rentalTermsMissing).toBe(true);
+    expect(state.request?.status).toBe("confirmed");
+    expect(mailedInvoice()?.number).toBe("RE-2027-0001");
+    expect(mailedRentalTerms()).toBeUndefined();
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it("behält die Rechnungswarnung und ergänzt sie, wenn auch die Mietbedingungen fehlen", async () => {
+    pdf.renderInvoicePdf.mockRejectedValue(new Error("Schrift fehlt"));
+    termsPdf.renderRentalTermsPdf.mockRejectedValue(new Error("Schrift fehlt"));
+
+    const response = await PATCH(...patch({ action: "confirm" }));
+
+    const body = (await response.json()) as { warning: string; warningCode: string; rentalTermsMissing: boolean };
+    expect(body.warningCode).toBe("attachment_failed");
+    expect(body.warning).toContain("RE-2027-0001");
+    expect(body.warning).toContain("Auch die Mietbedingungen fehlen");
+    expect(body.rentalTermsMissing).toBe(true);
+    expect(mailedInvoice()).toBeUndefined();
+    expect(mailedRentalTerms()).toBeUndefined();
+  });
+
+  it("nennt die Mietbedingungen in der Warnung, wenn die Mail scheitert", async () => {
+    mails.sendGuestConfirmation.mockRejectedValue(new Error("SMTP weg"));
+
+    const response = await PATCH(...patch({ action: "confirm" }));
+
+    const body = (await response.json()) as { warning: string; warningCode: string };
+    expect(body.warningCode).toBe("mail_failed");
+    expect(body.warning).toContain("https://norddeich-heuler.de/mietbedingungen/pdf");
+  });
+
   it("hängt eine schon vorhandene Rechnung an, statt eine zweite zu erstellen", async () => {
     invoiceQueries.createInvoice.mockRejectedValue(new Error(invoiceQueries.INVOICE_EXISTS_ERROR));
     invoiceQueries.getInvoiceForBookingRequest.mockImplementation(async () =>
@@ -350,6 +420,7 @@ describe("PATCH /api/admin/booking-request/[id] – Bestätigen mit Rechnung", (
     expect(await response.json()).toEqual({ ok: true, invoice: null });
     expect(invoiceQueries.createInvoice).not.toHaveBeenCalled();
     expect(mails.sendGuestConfirmation).not.toHaveBeenCalled();
+    expect(termsPdf.renderRentalTermsPdf).not.toHaveBeenCalled();
   });
 
   it("meldet bei einer nicht mehr offenen Anfrage 409, nicht die fehlende Anschrift", async () => {

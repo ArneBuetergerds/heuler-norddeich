@@ -41,6 +41,7 @@ export const PUBLIC_PAGES = [
   { path: "/lage", priority: 0.8 },
   { path: "/faq", priority: 0.6 },
   { path: "/kontakt", priority: 0.5 },
+  { path: "/mietbedingungen", priority: 0.3 },
   { path: "/impressum", priority: 0.1 },
   { path: "/datenschutz", priority: 0.1 },
 ] as const;

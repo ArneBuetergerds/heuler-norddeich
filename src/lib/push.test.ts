@@ -56,6 +56,8 @@ const request: BookingRequest = {
   createdAt: new Date("2027-01-01"),
   decidedAt: null,
   anonymizedAt: null,
+  termsAcceptedAt: null,
+  termsVersion: null,
 };
 
 function goneError(statusCode: number) {

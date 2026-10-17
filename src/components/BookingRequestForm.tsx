@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { DateRange } from "react-day-picker";
+import { ExternalLink } from "lucide-react";
 import {
   DateRangePicker,
   toDateInputValue,
@@ -17,6 +18,8 @@ import {
 } from "@/lib/pricing";
 import { RESPONSE_HOURS } from "@/lib/terms";
 import { ADDRESS_LIMITS } from "@/lib/invoice";
+import { RENTAL_TERMS_PATH } from "@/lib/rentalTerms";
+import { cn } from "@/lib/utils";
 import { FELD, Feld, FehlerText, Zahlenfeld, type Fehler } from "./FormFields";
 import { PriceQuote } from "./PriceQuote";
 
@@ -40,6 +43,7 @@ const FELD_ID: Record<string, string> = {
   guests: "guests",
   linens: "extras",
   towels: "extras",
+  termsAccepted: "termsAccepted",
 };
 type Period = { startDate: Date; endDate: Date };
 type Occupancy = { stays: Period[]; maintenance: Period[] };
@@ -165,6 +169,7 @@ export function BookingRequestForm({ occupancy, range, onRangeChange }: Props) {
         guests,
         linens: waescheMoeglich ? extras.linens : 0,
         towels: waescheMoeglich ? extras.towels : 0,
+        termsAccepted: formData.get("termsAccepted") === "on",
         website: formData.get("website"),
         formMs: Date.now() - shownAt.current,
       }),
@@ -445,6 +450,58 @@ export function BookingRequestForm({ occupancy, range, onRangeChange }: Props) {
         />
       </Feld>
 
+      {/* Pflicht-Haken für die Mietbedingungen: Sie werden Teil des
+          Mietvertrags (Vertragsbedingung, keine Einwilligung). Das Label
+          umschließt Haken und Text, damit die ganze Fläche (mind. 44px) tippt.
+          Ein Klick auf den Link darin schaltet den Haken nicht um (HTML:
+          interaktiver Inhalt im Label). Link im neuen Tab, damit das
+          ausgefüllte Formular stehen bleibt. Der Server prüft den Haken selbst
+          und speichert Zeitpunkt und Stand. */}
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="termsAccepted"
+          className={cn(
+            "flex min-h-11 cursor-pointer items-start gap-3 rounded-sm border bg-sand px-3.5 py-3 text-klein text-schlick transition-colors",
+            fehler?.feld === "termsAccepted"
+              ? "border-destructive"
+              : "border-linie hover:border-schlick-3",
+          )}
+        >
+          <input
+            id="termsAccepted"
+            name="termsAccepted"
+            type="checkbox"
+            required
+            {...fehlerAttribute("termsAccepted")}
+            onChange={() => {
+              if (fehler?.feld === "termsAccepted") setFehler(null);
+            }}
+            className="size-5 shrink-0 cursor-pointer accent-schlick"
+          />
+          <span className="min-w-0">
+            Ich habe die{" "}
+            <a
+              href={RENTAL_TERMS_PATH}
+              target="_blank"
+              rel="noopener"
+              className="font-medium text-priel underline underline-offset-2 hover:no-underline"
+            >
+              Mietbedingungen
+              <ExternalLink
+                aria-hidden="true"
+                className="ml-0.5 inline size-3.5 align-[-0.125em]"
+              />
+              <span className="sr-only"> (öffnet in neuem Tab)</span>
+            </a>{" "}
+            gelesen und akzeptiere sie für den Fall, dass die Buchung bestätigt
+            wird.
+          </span>
+        </label>
+        {fehler?.feld === "termsAccepted" && (
+          <FehlerText id="termsAccepted-fehler">{fehler.text}</FehlerText>
+        )}
+      </div>
+
       {fehler && fehler.feld === null && (
         <p
           id="anfrage-fehler"
@@ -463,17 +520,17 @@ export function BookingRequestForm({ occupancy, range, onRangeChange }: Props) {
         {status === "sending" ? "Wird gesendet …" : "Anfrage senden"}
       </button>
 
-      {/* Kein Einwilligungshaken: Die Verarbeitung stützt sich auf Art. 6
-          Abs. 1 lit. b DSGVO (vorvertragliche Maßnahme auf Ihre Anfrage hin).
-          Eine zusätzlich eingeholte Einwilligung würde die Rechtsgrundlage
-          nur verwässern – ein Hinweis mit Link ist das, was hierher gehört. */}
+      {/* Kein Einwilligungshaken für die Datenverarbeitung: Sie stützt sich
+          auf Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahme auf Ihre
+          Anfrage hin). Eine zusätzlich eingeholte Einwilligung würde die
+          Rechtsgrundlage nur verwässern – ein Hinweis mit Link ist das, was
+          hierher gehört. Der Haken oben betrifft etwas anderes: die
+          Mietbedingungen als Vertragsbedingung; Storno und alle übrigen
+          Regeln stehen dort, deshalb hier kein zweiter Link darauf. */}
       <p className="text-center text-mikro text-schlick-2">
         Unverbindlich – keine Onlinebuchung, keine Zahlung. Antwort innerhalb
-        von {RESPONSE_HOURS} Stunden.{" "}
-        <a href="#storno" className="text-priel underline-offset-2 hover:underline">
-          Stornobedingungen
-        </a>
-        . Wie wir Ihre Angaben verarbeiten, steht in der{" "}
+        von {RESPONSE_HOURS} Stunden. Wie wir Ihre Angaben verarbeiten, steht
+        in der{" "}
         <a
           href="/datenschutz"
           className="text-priel underline-offset-2 hover:underline"

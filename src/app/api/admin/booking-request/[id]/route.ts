@@ -30,6 +30,8 @@ import {
   postalAddressLines,
 } from "@/lib/invoice";
 import { renderInvoicePdf } from "@/lib/invoicePdf";
+import { renderRentalTermsPdf } from "@/lib/rentalTermsPdf";
+import { RENTAL_TERMS_PDF_URL } from "@/lib/rentalTerms";
 import { sendGuestConfirmation, sendGuestDecline, type InvoiceForMail } from "@/lib/email";
 import { postalAddressSchema } from "@/lib/validation";
 import { safeError } from "@/lib/safeError";
@@ -61,6 +63,17 @@ function mailFailedWarning(number: string): string {
 const INVOICE_AND_MAIL_FAILED_WARNING =
   "Die Buchung ist bestätigt, aber die Rechnung konnte nicht erstellt und die E-Mail an den Gast nicht verschickt werden. Bitte die Rechnung im Detaildialog der Buchung erstellen und dem Gast selbst mit der Bestätigung senden.";
 
+/** Woher der Admin die Mietbedingungen holt, wenn sie nicht angehängt sind. */
+const RENTAL_TERMS_DOWNLOAD = RENTAL_TERMS_PDF_URL;
+
+const TERMS_ATTACHMENT_FAILED_WARNING = `Die Buchung ist bestätigt und die Bestätigungsmail mit Rechnung ist raus, die Mietbedingungen konnten aber nicht als PDF angehängt werden. Bitte das PDF unter ${RENTAL_TERMS_DOWNLOAD} herunterladen und dem Gast schicken.`;
+
+/** Zusatz zu einer anderen Warnung, wenn auch die Mietbedingungen fehlen. */
+const TERMS_ALSO_MISSING = `Auch die Mietbedingungen fehlen im Anhang – bitte das PDF unter ${RENTAL_TERMS_DOWNLOAD} mitschicken.`;
+
+/** Zusatz, wenn der Gast gar keine Mail bekommen hat: Er braucht beide PDFs. */
+const TERMS_TO_SEND = `Die Mietbedingungen dazu als PDF: ${RENTAL_TERMS_DOWNLOAD}.`;
+
 type ConfirmWarning = { code: ConfirmWarningCode; message: string };
 
 export const PATCH = withRouteErrors("PATCH /api/admin/booking-request/[id]", patchBookingRequest);
@@ -74,11 +87,13 @@ export const PATCH = withRouteErrors("PATCH /api/admin/booking-request/[id]", pa
  * Body, wird nichts bestätigt: 400 mit `code: "address_required"`.
  *
  * Antwort beim Bestätigen:
- * `{ ok, invoice: { id, number } | null, warning?, warningCode? }`.
+ * `{ ok, invoice: { id, number } | null, warning?, warningCode?, rentalTermsMissing? }`.
  * `warning` sagt dem Admin, was von Hand nachzuholen ist (Rechnung nicht
- * erstellt oder nicht angehängt, Mail nicht verschickt); `warningCode`
- * (CONFIRM_WARNING in src/lib/invoice.ts) unterscheidet die Fälle für die
- * Oberfläche. Die Bestätigung bleibt in jedem Fall.
+ * erstellt oder nicht angehängt, Mietbedingungen nicht angehängt, Mail nicht
+ * verschickt); `warningCode` (CONFIRM_WARNING in src/lib/invoice.ts)
+ * unterscheidet die Fälle für die Oberfläche. `rentalTermsMissing: true`
+ * steht nur da, wenn das Mietbedingungen-PDF fehlt. Die Bestätigung bleibt in
+ * jedem Fall.
  */
 async function patchBookingRequest(
   request: Request,
@@ -158,11 +173,15 @@ async function patchBookingRequest(
     return NextResponse.json({ ok: true });
   }
 
-  const { invoice, warning } = await invoiceAndConfirmGuest(id, authorized.actor);
+  const { invoice, warning, rentalTermsMissing } = await invoiceAndConfirmGuest(
+    id,
+    authorized.actor,
+  );
   return NextResponse.json({
     ok: true,
     invoice: invoice ? { id: invoice.id, number: invoice.number } : null,
     ...(warning ? { warning: warning.message, warningCode: warning.code } : {}),
+    ...(rentalTermsMissing ? { rentalTermsMissing: true } : {}),
   });
 }
 
@@ -235,13 +254,16 @@ async function notifyGuestOfDecline(id: number, reason?: string): Promise<void> 
 }
 
 /**
- * Nach der Bestätigung: Rechnung erstellen, als PDF an die Bestätigungsmail
- * hängen und diese verschicken. Jeder Schritt darf scheitern, ohne die
- * Bestätigung zurückzudrehen:
+ * Nach der Bestätigung: Rechnung erstellen, als PDF zusammen mit den
+ * Mietbedingungen (PDF) an die Bestätigungsmail hängen und diese verschicken.
+ * Jeder Schritt darf scheitern, ohne die Bestätigung zurückzudrehen:
  *
- * - Rechnung scheitert → Mail ohne Anhang (sie kündigt die Rechnung an),
+ * - Rechnung scheitert → Mail ohne Rechnung (sie kündigt die Rechnung an),
  *   Warnung an den Admin.
- * - PDF scheitert → Rechnung bleibt, Mail ohne Anhang, Warnung.
+ * - Rechnungs-PDF scheitert → Rechnung bleibt, Mail ohne Rechnung, Warnung.
+ * - Mietbedingungen-PDF scheitert → Mail ohne dieses PDF (sie verlinkt die
+ *   Seite), Warnung `terms_attachment_failed` bzw. Zusatz zur
+ *   Rechnungswarnung und `rentalTermsMissing`.
  * - Mail scheitert → Rechnung bleibt, Warnung (mit oder ohne Rechnung), damit
  *   die Oberfläche den Versand nicht behauptet.
  *
@@ -252,11 +274,18 @@ async function notifyGuestOfDecline(id: number, reason?: string): Promise<void> 
 async function invoiceAndConfirmGuest(
   id: number,
   actor: string,
-): Promise<{ invoice: Invoice | null; warning?: ConfirmWarning }> {
+): Promise<{ invoice: Invoice | null; warning?: ConfirmWarning; rentalTermsMissing?: boolean }> {
   const guest = await loadGuest(id);
   if (!guest) {
     return { invoice: null };
   }
+
+  // Unabhängig von der Rechnung, deshalb schon jetzt angestoßen. Ein Fehler
+  // wird hier abgefangen, damit die Mail trotzdem rausgeht.
+  const rentalTermsPdf = renderRentalTermsPdf().catch((error: unknown) => {
+    console.error("Mietbedingungen-PDF zur Bestätigung konnte nicht erzeugt werden", id, safeError(error));
+    return undefined;
+  });
 
   let invoice: Invoice | null = null;
   let warning: ConfirmWarning | undefined;
@@ -280,18 +309,29 @@ async function invoiceAndConfirmGuest(
     }
   }
 
+  const rentalTerms = await rentalTermsPdf;
+  if (!rentalTerms) {
+    warning = warning
+      ? { ...warning, message: `${warning.message} ${TERMS_ALSO_MISSING}` }
+      : { code: CONFIRM_WARNING.termsAttachmentFailed, message: TERMS_ATTACHMENT_FAILED_WARNING };
+  }
+
   try {
-    await sendGuestConfirmation(guest, forMail);
+    await sendGuestConfirmation(guest, forMail, rentalTerms);
   } catch (error) {
     console.error("Benachrichtigung des Gasts konnte nicht gesendet werden", safeError(error));
     // Ersetzt eine frühere Warnung: Ohne Mail ist egal, ob die Rechnung
-    // angehängt gewesen wäre – der Gast hat nichts bekommen.
+    // angehängt gewesen wäre – der Gast hat nichts bekommen, braucht also
+    // auch die Mietbedingungen von Hand.
     warning = invoice
-      ? { code: CONFIRM_WARNING.mailFailed, message: mailFailedWarning(invoice.number) }
-      : { code: CONFIRM_WARNING.invoiceAndMailFailed, message: INVOICE_AND_MAIL_FAILED_WARNING };
+      ? { code: CONFIRM_WARNING.mailFailed, message: `${mailFailedWarning(invoice.number)} ${TERMS_TO_SEND}` }
+      : {
+          code: CONFIRM_WARNING.invoiceAndMailFailed,
+          message: `${INVOICE_AND_MAIL_FAILED_WARNING} ${TERMS_TO_SEND}`,
+        };
   }
 
-  return { invoice, warning };
+  return { invoice, warning, rentalTermsMissing: !rentalTerms };
 }
 
 async function invoiceFor(guest: BookingRequest, actor: string): Promise<Invoice> {

@@ -199,10 +199,22 @@ function addExtrasWithinGuestsIssues(
   }
 }
 
+/** Meldung, wenn der Haken für die Mietbedingungen fehlt. */
+export const TERMS_REQUIRED_MESSAGE =
+  "Bitte bestätigen Sie, dass Sie die Mietbedingungen gelesen haben.";
+
 export const bookingRequestSchema = bookingRequestFields
   // Online ist die Rechnungsanschrift Pflicht: Die Rechnung entsteht beim
   // Bestätigen automatisch und geht mit der Bestätigungsmail an den Gast.
   .extend(postalAddressFields)
+  // Pflicht-Haken für die Mietbedingungen (Vertragsbedingung, keine
+  // Einwilligung nach DSGVO). Nur online – manuelle Buchungen haben keinen
+  // Haken (`manualBookingSchema`). Als letztes Feld, damit Fehler in den
+  // Eingaben davor zuerst gemeldet werden. Die Route speichert Zeitpunkt
+  // und Stand (`termsAcceptedAt`, `termsVersion`).
+  .extend({
+    termsAccepted: z.literal(true, { error: TERMS_REQUIRED_MESSAGE }),
+  })
   .refine((data) => data.startDate < data.endDate, {
     message: "Anreisedatum muss vor dem Abreisedatum liegen",
     path: ["endDate"],

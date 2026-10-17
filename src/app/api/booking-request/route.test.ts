@@ -13,6 +13,7 @@ vi.mock("@/lib/rateLimit", () => import("../../../lib/rateLimit"));
 vi.mock("@/lib/safeError", () => import("../../../lib/safeError"));
 vi.mock("@/lib/bookingNotifications", () => import("../../../lib/bookingNotifications"));
 vi.mock("@/lib/routeErrors", () => import("../../../lib/routeErrors"));
+vi.mock("@/lib/rentalTerms", () => import("../../../lib/rentalTerms"));
 vi.mock("@/db/client", () => ({ db: { insert } }));
 // `after()` braucht den Request-Kontext von Next.js; Benachrichtigungen sind
 // hier nicht Gegenstand.
@@ -33,6 +34,7 @@ vi.mock("@/lib/push", () => ({
 }));
 
 import { POST } from "./route";
+import { RENTAL_TERMS_VERSION } from "../../../lib/rentalTerms";
 
 const GUEST = {
   name: "Erika Mustermann",
@@ -59,6 +61,7 @@ function bookingRequest(overrides: Record<string, unknown> = {}): Request {
       startDate: isoDay(30),
       endDate: isoDay(44),
       guests: 2,
+      termsAccepted: true,
       formMs: 10_000,
       ...overrides,
     }),
@@ -127,6 +130,39 @@ describe("POST /api/booking-request", () => {
         country: null,
       }),
     );
+  });
+
+  it("speichert Zeitpunkt und Stand der bestätigten Mietbedingungen", async () => {
+    const values = vi.fn();
+    insert.mockReturnValue({
+      values: (v: Record<string, unknown>) => {
+        values(v);
+        return { $returningId: async () => [{ id: 43 }] };
+      },
+    });
+    const vorher = Date.now();
+
+    const response = await POST(bookingRequest());
+
+    expect(response.status).toBe(201);
+    const gespeichert = values.mock.calls[0][0] as { termsAcceptedAt: Date; termsVersion: string };
+    expect(gespeichert.termsVersion).toBe(RENTAL_TERMS_VERSION);
+    expect(gespeichert.termsAcceptedAt).toBeInstanceOf(Date);
+    expect(gespeichert.termsAcceptedAt.getTime()).toBeGreaterThanOrEqual(vorher);
+    expect(gespeichert.termsAcceptedAt.getTime()).toBeLessThanOrEqual(Date.now());
+    // Das Formularfeld selbst ist keine Spalte.
+    expect(gespeichert).not.toHaveProperty("termsAccepted");
+  });
+
+  it("lehnt eine Anfrage ohne Haken für die Mietbedingungen mit Meldung am Feld ab", async () => {
+    const response = await POST(bookingRequest({ termsAccepted: false }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Bitte bestätigen Sie, dass Sie die Mietbedingungen gelesen haben.",
+      field: "termsAccepted",
+    });
+    expect(insert).not.toHaveBeenCalled();
   });
 
   it("lehnt eine Anfrage ohne Anschrift mit Meldung am Feld ab und speichert nichts", async () => {

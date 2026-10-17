@@ -19,6 +19,14 @@ import {
   PARKING,
   RESPONSE_HOURS,
 } from "@/lib/terms";
+import { CANCELLATION_ANCHOR, rentalTermsHref } from "@/lib/rentalTerms";
+import { RentalTermsMoreLink } from "@/components/RentalTermsMoreLink";
+
+/**
+ * Verweis unter einer Antwort auf den passenden Abschnitt der Mietbedingungen.
+ * `thema` hört nur der Screenreader („Mehr in den Mietbedingungen: Zahlung“).
+ */
+type Verweis = { readonly href: string; readonly thema: string };
 
 const minNights = SEASONS.map((season) => season.minNights);
 const euro = (betrag: number) => betrag.toLocaleString("de-DE", { minimumFractionDigits: 2 });
@@ -28,7 +36,7 @@ const euro = (betrag: number) => betrag.toLocaleString("de-DE", { minimumFractio
  * Preistabelle, Formular und Mails – ändert sich ein Betrag oder eine Frist,
  * stimmt die FAQ automatisch mit.
  */
-const FAQ: readonly { frage: string; antwort: string }[] = [
+const FAQ: readonly { frage: string; antwort: string; verweis?: Verweis }[] = [
   {
     frage: "Für wie viele Personen ist die Wohnung geeignet?",
     antwort: `Für bis zu ${MAX_GUESTS} Personen: ein Schlafzimmer mit 180-cm-Bett, eines mit zwei Einzelbetten à 90 cm. Das Ecksofa im Wohnbereich hat zusätzlich eine Schlaffunktion.`,
@@ -44,10 +52,12 @@ const FAQ: readonly { frage: string; antwort: string }[] = [
   {
     frage: "Wie und wann bezahle ich?",
     antwort: `Nach der Zusage überweisen Sie innerhalb von ${DEPOSIT_DUE_DAYS} Tagen ${Math.round(DEPOSIT_SHARE * 100)} % des Mietpreises als Anzahlung, den Rest spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise. Endreinigung (${CLEANING_FEE} €), Servicegebühr (${SERVICE_FEE} €), bestellte Wäsche und der Gästebeitrag werden bar bei der Schlüsselübergabe bezahlt.`,
+    verweis: { href: rentalTermsHref("zahlung"), thema: "Zahlung" },
   },
   {
     frage: "Was kostet eine Stornierung?",
     antwort: `${CANCELLATION_TIERS.map((tier) => `${tier.label[0].toUpperCase()}${tier.label.slice(1)}: ${tier.cost}`).join(". ")}. Gelingt eine Weitervermietung, erstatten wir die Stornokosten. Eine Reiserücktrittsversicherung empfehlen wir.`,
+    verweis: { href: rentalTermsHref(CANCELLATION_ANCHOR), thema: "Stornierung" },
   },
   {
     frage: "Gibt es einen Parkplatz?",
@@ -77,6 +87,7 @@ const FAQ: readonly { frage: string; antwort: string }[] = [
   {
     frage: "Sind Haustiere erlaubt? Darf geraucht werden?",
     antwort: "Nein, Haustiere sind nicht erlaubt, und die Wohnung ist eine Nichtraucherwohnung.",
+    verweis: { href: rentalTermsHref("haustiere-rauchen"), thema: "Haustiere und Rauchen" },
   },
   {
     frage: "Gibt es eine Waschmaschine?",
@@ -120,7 +131,7 @@ export default function FaqPage() {
       <h1 className="mt-4 text-h1 text-schlick">Häufige Fragen</h1>
 
       <div className="mt-8 flex flex-col divide-y divide-linie border-y border-linie">
-        {FAQ.map(({ frage, antwort }) => (
+        {FAQ.map(({ frage, antwort, verweis }) => (
           <details key={frage} className="group py-4">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 text-body font-medium text-schlick [&::-webkit-details-marker]:hidden">
               <h2>{frage}</h2>
@@ -132,6 +143,11 @@ export default function FaqPage() {
               </span>
             </summary>
             <p className="mt-2 text-klein text-schlick-2">{antwort}</p>
+            {verweis && (
+              <p className="mt-1 sm:mt-2">
+                <RentalTermsMoreLink href={verweis.href} thema={verweis.thema} />
+              </p>
+            )}
           </details>
         ))}
       </div>

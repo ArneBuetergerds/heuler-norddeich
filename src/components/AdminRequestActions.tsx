@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ADDRESS_REQUIRED_CODE, CONFIRM_WARNING } from "@/lib/invoice";
+import { RENTAL_TERMS_PDF_PATH } from "@/lib/rentalTerms";
 import { DecisionDialog } from "./DecisionDialog";
 import { ConfirmAddressDialog, type ConfirmAddress } from "./ConfirmAddressDialog";
 import type { Fehler } from "./FormFields";
@@ -22,6 +23,7 @@ type DecisionResponse = {
   invoice?: { number?: unknown } | null;
   warning?: unknown;
   warningCode?: unknown;
+  rentalTermsMissing?: unknown;
 };
 
 const ADDRESS_FIELDS = new Set(["street", "postalCode", "city", "country"]);
@@ -80,14 +82,17 @@ export function AdminRequestActions({ requestId, guestName }: Props) {
       if (action === "confirm") {
         const number = typeof data?.invoice?.number === "string" ? data.invoice.number : null;
         const warning = typeof data?.warning === "string" ? data.warning : null;
+        // Fehlt nur das Mietbedingungen-PDF, ging die Rechnung trotzdem mit.
+        const invoiceMailed =
+          !warning || data?.warningCode === CONFIRM_WARNING.termsAttachmentFailed;
         // Nur Wortlaut: Mit Warnung hängt die Rechnung nicht an der Mail (oder
         // die Mail ging gar nicht raus), dann verspricht die Erfolgsmeldung
         // das auch nicht.
         toast.success(`Aufenthalt von ${guestName} bestätigt`, {
           description: number
-            ? warning
-              ? `Rechnung ${number} ist erstellt.`
-              : `Rechnung ${number} ging als PDF mit der Bestätigungsmail an den Gast.`
+            ? invoiceMailed
+              ? `Rechnung ${number} ging als PDF mit der Bestätigungsmail an den Gast.`
+              : `Rechnung ${number} ist erstellt.`
             : undefined,
         });
         // Was von Hand nachzuholen ist – bleibt stehen, bis es weggeklickt
@@ -97,7 +102,11 @@ export function AdminRequestActions({ requestId, guestName }: Props) {
         if (warning) {
           toast.warning(
             data?.warningCode === CONFIRM_WARNING.invoiceFailed
-              ? "Die Bestätigung ist raus, die Rechnung konnte nicht erstellt werden – bitte im Detaildialog erstellen und selbst senden."
+              ? `Die Bestätigung ist raus, die Rechnung konnte nicht erstellt werden – bitte im Detaildialog erstellen und selbst senden.${
+                  data.rentalTermsMissing === true
+                    ? ` Auch die Mietbedingungen fehlen im Anhang – PDF unter ${RENTAL_TERMS_PDF_PATH}.`
+                    : ""
+                }`
               : warning,
             { duration: Infinity, closeButton: true },
           );

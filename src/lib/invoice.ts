@@ -144,7 +144,8 @@ export const ADDRESS_REQUIRED_CODE = "address_required";
  * Kennzeichen `warningCode` in der Antwort von PATCH
  * /api/admin/booking-request/[id] beim Bestätigen: was nach der (gespeicherten)
  * Bestätigung nicht geklappt hat. Die Oberfläche behauptet den Mailversand nur
- * ohne Warnung oder bei `invoice_failed`/`attachment_failed`.
+ * ohne Warnung oder bei `invoice_failed`/`attachment_failed`/
+ * `terms_attachment_failed`.
  */
 export const CONFIRM_WARNING = {
   /** Keine Rechnung erstellt, Bestätigungsmail ohne Rechnung verschickt. */
@@ -155,6 +156,12 @@ export const CONFIRM_WARNING = {
   mailFailed: "mail_failed",
   /** Weder Rechnung erstellt noch Bestätigungsmail verschickt. */
   invoiceAndMailFailed: "invoice_and_mail_failed",
+  /**
+   * Rechnung angehängt und Mail verschickt, nur das Mietbedingungen-PDF fehlt
+   * im Anhang. Scheitert außerdem die Rechnung oder ihr PDF, bleibt deren
+   * Code, und die Antwort trägt zusätzlich `rentalTermsMissing: true`.
+   */
+  termsAttachmentFailed: "terms_attachment_failed",
 } as const;
 
 export type ConfirmWarningCode = (typeof CONFIRM_WARNING)[keyof typeof CONFIRM_WARNING];

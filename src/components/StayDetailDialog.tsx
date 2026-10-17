@@ -1,5 +1,6 @@
 "use client";
 
+import { Download } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,10 +13,15 @@ import type { InvoiceSummary } from "@/db/invoiceQueries";
 import { InvoiceSection } from "./InvoiceSection";
 import { DeleteRequestButton } from "./DeleteRequestButton";
 import type { Stay } from "@/lib/occupancy";
-import { formatDate, formatDateRange } from "@/lib/format";
+import { formatBerlinDateTime, formatDate, formatDateRange } from "@/lib/format";
 import { postalAddressLines } from "@/lib/invoice";
 import { EXTRAS, extrasTotal, nightsBetween, priceBreakdown, stayTotal } from "@/lib/pricing";
 import { adminDeletionDecision, berlinDay } from "@/lib/retention";
+import {
+  RENTAL_TERMS_FILE_NAME,
+  RENTAL_TERMS_PDF_PATH,
+  formatTermsVersion,
+} from "@/lib/rentalTerms";
 
 /**
  * Alles zu einem bestätigten Aufenthalt an einer Stelle: Kontaktdaten,
@@ -97,6 +103,28 @@ export function StayDetailDialog({
               {formatDate(request.createdAt)}
             </Zeile>
             {request.message && <Zeile label="Nachricht">{request.message}</Zeile>}
+            {/* Online bestätigt der Gast die Mietbedingungen im Formular und
+                bekommt sie mit der Zusage; manuelle Buchungen haben keinen
+                Haken und keine Mail – hier liegt das PDF zum Weitergeben. */}
+            <Zeile label="Mietbedingungen">
+              {request.termsAcceptedAt ? (
+                <span className="block">
+                  bestätigt am {formatBerlinDateTime(request.termsAcceptedAt)}
+                  {request.termsVersion && ` (Stand ${formatTermsVersion(request.termsVersion)})`}
+                </span>
+              ) : (
+                <span className="block text-schlick-3">nicht online bestätigt</span>
+              )}
+              {/* Mobil 44px hoch wie die übrigen Tippziele im Admin. */}
+              <a
+                href={RENTAL_TERMS_PDF_PATH}
+                download={RENTAL_TERMS_FILE_NAME}
+                className="inline-flex min-h-11 items-center gap-1.5 underline underline-offset-2 sm:min-h-0"
+              >
+                <Download aria-hidden="true" className="size-3.5 shrink-0" />
+                Mietbedingungen (PDF)
+              </a>
+            </Zeile>
           </dl>
         ) : (
           <p className="text-[13px] text-schlick-2">

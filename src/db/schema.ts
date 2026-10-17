@@ -68,6 +68,15 @@ export const bookingRequest = mysqlTable(
     // Gesetzt, sobald Name, E-Mail, Telefon, Anschrift und Nachricht entfernt wurden,
     // weil eine aufzubewahrende Rechnung das Löschen der Zeile verhindert.
     anonymizedAt: timestamp("anonymized_at", { mode: "date" }),
+    // Nachweis des Vertragsinhalts: wann der Gast im Online-Formular die
+    // Mietbedingungen bestätigt hat und welchen Stand
+    // (RENTAL_TERMS_VERSION, src/lib/rentalTerms.ts, "YYYY-MM-DD"). Nullable:
+    // Anfragen von vor diesen Spalten und manuelle Buchungen haben keinen
+    // Haken. Bleiben bei der Anonymisierung stehen – sie sagen ohne Name und
+    // Kontaktdaten nichts über eine Person, belegen aber, welche Bedingungen
+    // für die aufbewahrte Rechnung galten.
+    termsAcceptedAt: timestamp("terms_accepted_at", { mode: "date" }),
+    termsVersion: varchar("terms_version", { length: 20 }),
   },
   (table) => [
     check(

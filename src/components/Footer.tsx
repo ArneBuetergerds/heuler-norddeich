@@ -1,12 +1,16 @@
 import Link from "next/link";
+import { RENTAL_TERMS_PATH } from "@/lib/rentalTerms";
 
 const LINKS = [
   { href: "/ausstattung", label: "Ausstattung" },
   { href: "/lage", label: "Lage" },
   { href: "/faq", label: "FAQ" },
   { href: "/kontakt", label: "Kontakt" },
+  // Rechtliches am Ende: erst Anbieterangaben und Datenschutz, dann die
+  // Mietbedingungen, die erst mit einer Buchung gelten.
   { href: "/impressum", label: "Impressum" },
   { href: "/datenschutz", label: "Datenschutz" },
+  { href: RENTAL_TERMS_PATH, label: "Mietbedingungen" },
 ] as const;
 
 export function Footer() {

@@ -1,4 +1,6 @@
 import { formatEuro } from "@/lib/format";
+import { CANCELLATION_ANCHOR, rentalTermsHref } from "@/lib/rentalTerms";
+import { RentalTermsMoreLink } from "./RentalTermsMoreLink";
 import {
   CANCELLATION_NOTES,
   CANCELLATION_TIERS,
@@ -279,8 +281,9 @@ export function KurkarteInfo() {
 }
 
 /**
- * Stornobedingungen. Eigener Anker `#storno`, damit das Anfrageformular und
- * die FAQ direkt darauf verlinken können.
+ * Stornobedingungen, mit eigenem Anker `#storno` auf der Startseite. Formular
+ * und FAQ verlinken seit BDS-005 auf den Storno-Abschnitt der Mietbedingungen
+ * (/mietbedingungen#storno); dieser Block verweist ebenfalls dorthin.
  */
 export function CancellationTerms() {
   return (
@@ -302,6 +305,17 @@ export function CancellationTerms() {
           <li key={note}>{note}</li>
         ))}
       </ul>
+      {/* Neuer Tab: Diese Box steht in der Preistabelle der Startseite, auf
+          der auch das Anfrageformular liegt – ein Sprung im selben Tab ließe
+          dort begonnene Eingaben verloren gehen. */}
+      <p className="mt-3">
+        <RentalTermsMoreLink
+          href={rentalTermsHref(CANCELLATION_ANCHOR)}
+          thema="Stornierung"
+          target="_blank"
+          rel="noopener"
+        />
+      </p>
     </div>
   );
 }

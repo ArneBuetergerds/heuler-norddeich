@@ -14,10 +14,11 @@
  * BANK_TRANSFER_DETAILS. OWNER_NOTIFICATION_EMAIL wird nicht gebraucht – auch
  * die Mail an die Betreiberin geht an die angegebene Adresse.
  *
- * Die Zusage geht wie im Betrieb mit einer Rechnung als PDF-Anhang raus. Die
- * Rechnung ist ein Beispiel (Nummer RE-0000-0000), erzeugt aus der
- * Beispielanfrage mit denselben Funktionen wie im Betrieb, aber ohne Datenbank
- * und ohne Nummernkreis.
+ * Die Zusage geht wie im Betrieb mit zwei PDF-Anhängen raus: Rechnung und
+ * Mietbedingungen. Die Rechnung ist ein Beispiel (Nummer RE-0000-0000),
+ * erzeugt aus der Beispielanfrage mit denselben Funktionen wie im Betrieb,
+ * aber ohne Datenbank und ohne Nummernkreis; die Mietbedingungen sind die
+ * echten (renderRentalTermsPdf).
  *
  * Texte und Versand sind dieselben wie im Betrieb: die `build…`-Funktionen und
  * `sendMail` aus src/lib/email.ts. Nur der Empfänger und der Betreff werden vor
@@ -27,6 +28,8 @@
 import type { BookingRequest } from "../src/db/schema";
 import { buildInvoiceSnapshot, postalAddressLines } from "../src/lib/invoice";
 import { renderInvoicePdf } from "../src/lib/invoicePdf";
+import { renderRentalTermsPdf } from "../src/lib/rentalTermsPdf";
+import { RENTAL_TERMS_VERSION } from "../src/lib/rentalTerms";
 import {
   buildBookingRequestNotification,
   buildGuestConfirmation,
@@ -78,6 +81,8 @@ const BEISPIEL: BookingRequest = {
   createdAt: new Date("2027-02-03"),
   decidedAt: null,
   anonymizedAt: null,
+  termsAcceptedAt: new Date("2027-02-03T09:15:00Z"),
+  termsVersion: RENTAL_TERMS_VERSION,
 };
 
 /** Beispielrechnung zur Beispielanfrage, wie sie beim Bestätigen entstünde. */
@@ -100,8 +105,12 @@ async function testMails(): Promise<Array<[string, Mail]>> {
     ["Eingangsbestätigung an den Gast", buildGuestRequestReceived(BEISPIEL)],
     ["Info an die Betreiberin", buildBookingRequestNotification(BEISPIEL, empfaenger)],
     [
-      "Zusage an den Gast (mit Beispielrechnung im Anhang)",
-      buildGuestConfirmation({ ...BEISPIEL, status: "confirmed" }, await beispielRechnung()),
+      "Zusage an den Gast (mit Beispielrechnung und Mietbedingungen im Anhang)",
+      buildGuestConfirmation(
+        { ...BEISPIEL, status: "confirmed" },
+        await beispielRechnung(),
+        await renderRentalTermsPdf(),
+      ),
     ],
     [
       "Absage an den Gast",

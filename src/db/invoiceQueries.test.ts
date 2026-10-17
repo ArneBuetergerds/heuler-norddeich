@@ -129,6 +129,8 @@ const confirmed: BookingRequest = {
   createdAt: new Date("2027-02-03"),
   decidedAt: null,
   anonymizedAt: null,
+  termsAcceptedAt: null,
+  termsVersion: null,
 };
 
 function existingInvoice(overrides: Partial<Invoice>): Invoice {
