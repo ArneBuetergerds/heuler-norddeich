@@ -14,6 +14,7 @@ import {
 } from "./pricing";
 import { formatDate, formatEuro } from "./format";
 import { DEPOSIT_DUE_DAYS, PARKING, RESPONSE_HOURS, cancellationLines } from "./terms";
+import { SITE_URL } from "./site";
 
 const FROM = "Ferienwohnung Heuler <noreply@norddeich-heuler.de>";
 
@@ -115,12 +116,22 @@ export type Mail = {
 /** Absender und Antwortziel, wie sie beim Versand gesetzt werden. */
 export const MAIL_ABSENDER = { from: FROM, replyTo: REPLY_TO } as const;
 
-async function send(mail: Mail): Promise<void> {
+/**
+ * Versendet eine fertige Mail über den konfigurierten SMTP-Zugang. Exportiert
+ * für `scripts/send-test-mails.ts`, das die echten Texte an eine Testadresse
+ * schickt; im Betrieb laufen alle Mails über die `send…`-Funktionen unten.
+ */
+export async function sendMail(mail: Mail): Promise<void> {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error("SMTP-Zugangsdaten sind nicht konfiguriert");
   }
 
   await transporter.sendMail({ from: FROM, ...mail });
+}
+
+/** Schließt die SMTP-Verbindungen, damit ein Skript danach endet. */
+export function closeMailTransport(): void {
+  transporter.close();
 }
 
 /**
@@ -159,7 +170,51 @@ export async function sendBookingRequestNotification(
     throw new Error("OWNER_NOTIFICATION_EMAIL ist nicht konfiguriert");
   }
 
-  await send(buildBookingRequestNotification(request, ownerEmail));
+  await sendMail(buildBookingRequestNotification(request, ownerEmail));
+}
+
+/**
+ * Sammelmeldung über dem Gesamtlimit: nur die Anzahl, keine Gastdaten. Die
+ * Anfragen selbst stehen im Admin – die Mail soll dorthin führen, nicht den
+ * Inhalt von möglicherweise automatisch erzeugten Anfragen weitertragen.
+ */
+export function buildOperatorDigest(
+  count: number,
+  ownerEmail: string,
+  { limit, windowHours }: { limit: number; windowHours: number },
+): Mail {
+  const eingang =
+    count === 1
+      ? "ist eine weitere Buchungsanfrage"
+      : `sind ${count} weitere Buchungsanfragen`;
+  return {
+    to: ownerEmail,
+    subject: `Ungewöhnlich viele Buchungsanfragen: ${count} weitere eingegangen`,
+    text: [
+      `In der letzten Stunde ${eingang} eingegangen.`,
+      "",
+      `Weil mehr als ${limit} Anfragen in ${windowHours} Stunden eingegangen sind, kommen`,
+      "vorübergehend keine einzelnen Mails und Push-Nachrichten mehr, sondern höchstens",
+      "eine solche Sammelmeldung je Stunde. Die Absender bekommen in dieser Zeit keine",
+      "Eingangsbestätigung. Das kann ein Bot sein – oder einfach ein sehr gefragter Termin.",
+      "",
+      "Alle Anfragen sind gespeichert und im Admin zu sehen:",
+      `${SITE_URL}/admin`,
+    ].join("\n"),
+  };
+}
+
+/** Schickt die Sammelmeldung an die Betreiberin. */
+export async function sendOperatorDigest(
+  count: number,
+  threshold: { limit: number; windowHours: number },
+): Promise<void> {
+  const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
+  if (!ownerEmail) {
+    throw new Error("OWNER_NOTIFICATION_EMAIL ist nicht konfiguriert");
+  }
+
+  await sendMail(buildOperatorDigest(count, ownerEmail, threshold));
 }
 
 export function buildGuestRequestReceived(request: BookingRequest): Mail {
@@ -188,7 +243,7 @@ export function buildGuestRequestReceived(request: BookingRequest): Mail {
 
 /** Bestätigt dem Gast den Eingang seiner Anfrage. */
 export async function sendGuestRequestReceived(request: BookingRequest): Promise<void> {
-  await send(buildGuestRequestReceived(request));
+  await sendMail(buildGuestRequestReceived(request));
 }
 
 export function buildGuestConfirmation(request: BookingRequest): Mail {
@@ -226,7 +281,7 @@ export function buildGuestConfirmation(request: BookingRequest): Mail {
 
 /** Sagt dem Gast den Aufenthalt verbindlich zu. */
 export async function sendGuestConfirmation(request: BookingRequest): Promise<void> {
-  await send(buildGuestConfirmation(request));
+  await sendMail(buildGuestConfirmation(request));
 }
 
 /**
@@ -262,5 +317,5 @@ export async function sendGuestDecline(
   request: BookingRequest,
   reason?: string | null,
 ): Promise<void> {
-  await send(buildGuestDecline(request, reason));
+  await sendMail(buildGuestDecline(request, reason));
 }

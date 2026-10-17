@@ -81,9 +81,10 @@ markierten Stellen ausfüllen.
 
 ## 6. Löschkonzept
 
-**Vorschlag, bitte mit der Steuerberatung abstimmen.** Die Fristen sind derzeit
-weder festgelegt noch technisch umgesetzt — die Anwendung kennt keine
-Löschfunktion für Buchungsanfragen.
+**Noch mit der Steuerberatung abzustimmen.** Die Fristen für Anfragen,
+Buchungen und Rechnungen sind in der Anwendung umgesetzt (zentral in
+`src/lib/retention.ts`); geändert wird eine Frist dort, die Datenschutzerklärung
+(Abschnitt 9) übernimmt sie automatisch.
 
 | Datenbestand | Vorgeschlagene Frist | Begründung |
 |---|---|---|
@@ -95,8 +96,10 @@ Löschfunktion für Buchungsanfragen.
 | Meldescheine | exakt 1 Jahr, Vernichtung binnen 3 Monaten danach | § 30 Abs. 4 BMG, zwingend |
 | Sicherungskopien | `[nach Einrichtung der Backups festlegen, Vorschlag 30 Tage]` | Wiederherstellbarkeit nach Art. 32 Abs. 1 lit. c |
 
-**Offener Punkt, der Code betrifft:** Es gibt keinen Weg, eine Buchungsanfrage
-zu löschen — weder im Administrationsbereich noch automatisiert. Solange das so
-ist, lässt sich keine der oben genannten Fristen einhalten, und die Zusage in
-der Datenschutzerklärung („werden gelöscht, sobald nicht mehr erforderlich")
-wird nicht eingelöst.
+**Technische Umsetzung:** Die Anwendung löscht abgelaufene Anfragen, Buchungen
+und Rechnungen einmal täglich automatisch. Hängt an einer Buchung eine Rechnung,
+die noch aufzubewahren ist, werden Name, E-Mail-Adresse, Telefonnummer und
+Nachricht der Anfrage entfernt (anonymisiert); Rechnung und Anfrage werden mit
+Ablauf der Rechnungsfrist gelöscht. Im Administrationsbereich lässt sich eine
+Anfrage zusätzlich von Hand löschen bzw. anonymisieren. Offen bleibt die
+Abstimmung der Fristen mit der Steuerberatung.

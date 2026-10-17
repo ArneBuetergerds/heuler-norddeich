@@ -1,25 +1,52 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { bookingRequest, blockedPeriod } from "@/db/schema";
+import { bookingRequest } from "@/db/schema";
+import { isRangeFree } from "@/db/queries";
 import { bookingRequestSchema } from "@/lib/validation";
-import { isRangeAvailable } from "@/lib/booking";
 import {
   sendBookingRequestNotification,
   sendGuestRequestReceived,
+  sendOperatorDigest,
 } from "@/lib/email";
-import { buildBookingRequestPush, sendPushToAdmins } from "@/lib/push";
+import {
+  buildBookingRequestPush,
+  buildOperatorDigestPush,
+  sendPushToAdmins,
+} from "@/lib/push";
 import { clientIp, createRateLimiter } from "@/lib/rateLimit";
-import { notifyAboutBookingRequest } from "@/lib/bookingNotifications";
+import {
+  GLOBAL_REQUEST_LIMIT,
+  GLOBAL_REQUEST_WINDOW_MS,
+  createOperatorDigest,
+  notifyAboutBookingRequest,
+} from "@/lib/bookingNotifications";
 
 // Je Besucher genügen ein paar Versuche (Tippfehler, zweiter Zeitraum); das
 // Limit je IP ist die einzige harte Ablehnung. Das Gesamtlimit fängt verteilte
 // Bots ab, die viele IPs nutzen – es lehnt aber niemanden ab (sonst könnte ein
 // Angreifer das Formular für alle Gäste sperren), sondern unterdrückt nur die
 // Eingangsbestätigung an die angegebene Adresse, damit die Seite nie zur
-// Spam-Schleuder an fremde Postfächer wird. Siehe notifyAboutBookingRequest.
+// Spam-Schleuder an fremde Postfächer wird, und fasst die Meldungen an die
+// Betreiberin zu höchstens einer Sammelmeldung je Stunde zusammen. Siehe
+// notifyAboutBookingRequest und createOperatorDigest.
 const perIp = createRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 });
-const allVisitors = createRateLimiter({ limit: 40, windowMs: 24 * 60 * 60 * 1000 });
+const allVisitors = createRateLimiter({
+  limit: GLOBAL_REQUEST_LIMIT,
+  windowMs: GLOBAL_REQUEST_WINDOW_MS,
+});
+
+const DIGEST_THRESHOLD = {
+  limit: GLOBAL_REQUEST_LIMIT,
+  windowHours: GLOBAL_REQUEST_WINDOW_MS / (60 * 60 * 1000),
+};
+
+const operatorDigest = createOperatorDigest({
+  notifiers: {
+    mail: (count) => sendOperatorDigest(count, DIGEST_THRESHOLD),
+    push: (count) => sendPushToAdmins(buildOperatorDigestPush(count)),
+  },
+});
 
 // Menschen brauchen für das Formular deutlich länger; Bots füllen sofort aus.
 const MIN_FORM_MS = 3000;
@@ -75,16 +102,15 @@ export async function POST(request: Request) {
     );
   }
 
-  // Kein Abbruch bei Überschreitung: Die Anfrage wird gespeichert und die
-  // Betreiberin benachrichtigt, nur die Mail an den Gast entfällt. Die Antwort
+  // Kein Abbruch bei Überschreitung: Die Anfrage wird gespeichert, nur die
+  // Einzelmeldungen entfallen (siehe notifyAboutBookingRequest). Die Antwort
   // an den Client bleibt dieselbe.
   const withinGlobalLimit = allVisitors.hit("alle");
 
   const { name, email, phone, startDate, endDate, message, guests, linens, towels } =
     parsed.data;
 
-  const existingBlockedPeriods = await db.select().from(blockedPeriod);
-  if (!isRangeAvailable(existingBlockedPeriods, startDate, endDate)) {
+  if (!(await isRangeFree(startDate, endDate))) {
     return NextResponse.json(
       { error: "Der gewählte Zeitraum ist bereits belegt." },
       { status: 409 },
@@ -96,23 +122,39 @@ export async function POST(request: Request) {
     .values({ name, email, phone, startDate, endDate, message, guests, linens, towels })
     .$returningId();
 
-  // Hole den vollständigen Datensatz für die E-Mails
-  const [created] = await db
-    .select()
-    .from(bookingRequest)
-    .where(eq(bookingRequest.id, id));
+  // Die Anfrage ist gespeichert, der Gast bekommt sofort seine Antwort. Mails
+  // und Push laufen nach dem Senden der Antwort (`after`, vom Standalone-
+  // Server `server.js` im Container unterstützt) – ein langsamer SMTP-Server
+  // hält das Formular so nicht auf. Fehler werden geloggt; die Anfrage bleibt
+  // in jedem Fall gespeichert und steht im Admin.
+  after(async () => {
+    try {
+      // Vollständiger Datensatz (Status, Eingangszeit) für die Benachrichtigungen.
+      const [created] = await db
+        .select()
+        .from(bookingRequest)
+        .where(eq(bookingRequest.id, id));
+      if (!created) {
+        console.error("Gespeicherte Anfrage für die Benachrichtigung nicht gefunden", id);
+        return;
+      }
 
-  await notifyAboutBookingRequest(
-    created,
-    { withinGlobalLimit },
-    {
-      // Das Ergebnis des Push-Versands interessiert hier nicht – die Mail an
-      // die Betreiberin geht ohnehin raus.
-      pushAdmins: (stored) => sendPushToAdmins(buildBookingRequestPush(stored)),
-      notifyOperator: sendBookingRequestNotification,
-      confirmToGuest: sendGuestRequestReceived,
-    },
-  );
+      await notifyAboutBookingRequest(
+        created,
+        { withinGlobalLimit },
+        {
+          // Das Ergebnis des Push-Versands interessiert hier nicht – die Mail an
+          // die Betreiberin geht ohnehin raus.
+          pushAdmins: (stored) => sendPushToAdmins(buildBookingRequestPush(stored)),
+          notifyOperator: sendBookingRequestNotification,
+          confirmToGuest: sendGuestRequestReceived,
+        },
+        operatorDigest,
+      );
+    } catch (error) {
+      console.error("Benachrichtigungen zur neuen Anfrage fehlgeschlagen", id, error);
+    }
+  });
 
   return NextResponse.json({ id }, { status: 201 });
 }

@@ -17,6 +17,30 @@ export const MAX_MONTHS_AHEAD = 24;
  */
 const NAME_PATTERN = /^[\p{L}][\p{L}\p{M} .'’-]*$/u;
 
+/**
+ * Web- oder Mailadressen im Namen. Das Zeichenmuster oben lässt Punkte zu
+ * (für „Dr.“, „St.“, „J. R. R.“) – damit käme aber „www.beispiel.com Jetzt
+ * gewinnen“ durch und stünde als Werbung in der Mail an eine fremde Adresse.
+ *
+ * Domain-artig heißt: auf einen Punkt folgen ohne Leerzeichen mindestens zwei
+ * Buchstaben („beispiel.com“, „x.de“). Abkürzungen haben nach dem Punkt ein
+ * Leerzeichen oder nur einen einzelnen Buchstaben („J.R.R.“). Dazu „www“ und
+ * „http“ als eigenes Wort sowie „://“ und „@“ – die beiden letzten verbietet
+ * schon das Zeichenmuster, sie stehen hier, damit die Regel für sich allein
+ * vollständig ist.
+ */
+const ADDRESS_IN_NAME = [
+  /\p{L}\.[\p{L}\p{M}]{2,}/u,
+  /(?<!\p{L})www(?!\p{L})/iu,
+  /(?<!\p{L})https?(?!\p{L})/iu,
+  /:\/\//,
+  /@/,
+];
+
+export function looksLikeAddress(name: string): boolean {
+  return ADDRESS_IN_NAME.some((pattern) => pattern.test(name));
+}
+
 export const bookingRequestSchema = z
   .object({
     name: z
@@ -24,7 +48,11 @@ export const bookingRequestSchema = z
       .trim()
       .min(1, "Name ist erforderlich")
       .max(100, "Der Name ist zu lang")
-      .regex(NAME_PATTERN, "Bitte nur den Namen angeben (Buchstaben, Leerzeichen, Bindestrich)"),
+      .regex(NAME_PATTERN, "Bitte nur den Namen angeben (Buchstaben, Leerzeichen, Bindestrich)")
+      .refine(
+        (name) => !looksLikeAddress(name),
+        "Bitte nur den Namen angeben, ohne Web- oder E-Mail-Adresse",
+      ),
     email: z.string().trim().max(254, "Die E-Mail-Adresse ist zu lang").email("Ungültige E-Mail-Adresse"),
     phone: z
       .string()

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { BookingRequest, Invoice } from "@/db/schema";
+import type { BookingRequest } from "@/db/schema";
+import type { InvoiceSummary } from "@/db/invoiceQueries";
 import { formatDate } from "@/lib/format";
 
 /**
@@ -23,7 +24,7 @@ export function InvoiceSection({
   invoice,
 }: {
   request: BookingRequest;
-  invoice: Invoice | undefined;
+  invoice: InvoiceSummary | undefined;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -35,7 +36,7 @@ export function InvoiceSection({
         <div>
           <p className="text-[13px] font-semibold">Rechnung {invoice.number}</p>
           <p className="text-xs text-schlick-2">
-            ausgestellt am {formatDate(new Date(invoice.snapshot.issuedAt))}
+            ausgestellt am {formatDate(new Date(invoice.issuedAt))}
           </p>
         </div>
         <Button asChild size="sm">

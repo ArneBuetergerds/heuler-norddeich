@@ -1,4 +1,5 @@
 import { pageMetadata } from "@/lib/site";
+import { retentionNotice } from "@/lib/retention";
 
 type PrivacySection = {
   readonly heading: string;
@@ -40,7 +41,8 @@ const SECTIONS: readonly PrivacySection[] = [
   },
   {
     heading: "9. Speicherdauer",
-    body: "Anfragedaten werden gelöscht, sobald sie für die Bearbeitung nicht mehr erforderlich sind, spätestens jedoch nach Ablauf gesetzlicher Aufbewahrungsfristen.",
+    // Aus den Konstanten erzeugt, nach denen die Anwendung tatsächlich löscht.
+    body: retentionNotice(),
   },
 ];
 

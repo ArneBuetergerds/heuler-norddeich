@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getOccupancy } from "@/db/queries";
+import { getPublicOccupancy } from "@/db/queries";
 import { GALLERY } from "@/lib/gallery";
 import { BALANCE_DUE_DAYS, DEPOSIT_SHARE, SEASONS } from "@/lib/pricing";
 import { DEPOSIT_DUE_DAYS, RESPONSE_HOURS } from "@/lib/terms";
@@ -80,18 +80,15 @@ export const metadata = pageMetadata({
 });
 
 export default async function HomePage() {
-  // getOccupancy() liefert Gastname/Notiz mit, weil der Admin-Kalender sie
-  // braucht – für den öffentlichen Kalender werden beide Listen auf
-  // {startDate, endDate} zusammengestrichen. Gäste sehen, dass ein Tag belegt
-  // ist, nicht durch wen oder warum.
-  const occupancy = await getOccupancy();
-  const publicOccupancy = {
-    stays: occupancy.stays.map(({ startDate, endDate }) => ({ startDate, endDate })),
-    maintenance: occupancy.maintenance.map(({ startDate, endDate }) => ({
-      startDate,
-      endDate,
-    })),
-  };
+  // Nur Zeiträume, die heute oder später noch sperren, ohne Gastname oder
+  // Notiz: Gäste sehen, dass ein Tag belegt ist, nicht durch wen oder warum.
+  // "Heute" in UTC wie Kalender und Validierung (die `date`-Spalten sind
+  // UTC-Mitternacht).
+  const now = new Date();
+  const todayUtc = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const publicOccupancy = await getPublicOccupancy(todayUtc);
 
   return (
     <>

@@ -9,6 +9,7 @@ import {
   priceBreakdown,
   stayTotal,
 } from "./pricing";
+import { berlinIsoDate } from "./format";
 
 /**
  * Rechnungsnummern der Form RE-2026-0001: Jahr plus laufende Nummer, die mit
@@ -124,7 +125,10 @@ export function buildInvoiceSnapshot(input: {
 
   return {
     number: input.number,
-    issuedAt: isoDate(input.issuedAt),
+    // Ausstellungszeitpunkt nach deutscher Zeit, passend zum Nummernkreis
+    // (`berlinYear` in createInvoice). Die Leistungsdaten darunter sind
+    // UTC-Mitternacht aus `date`-Spalten und bleiben in UTC.
+    issuedAt: berlinIsoDate(input.issuedAt),
     seller: { ...SELLER, address: [...SELLER.address], taxNumber: input.taxNumber },
     recipient: { name: input.recipientName, address: input.recipientAddress },
     serviceStart: isoDate(request.startDate),

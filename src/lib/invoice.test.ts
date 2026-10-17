@@ -24,6 +24,8 @@ const request: BookingRequest = {
   status: "confirmed",
   reasonNote: null,
   createdAt: new Date("2027-02-03"),
+  decidedAt: null,
+  anonymizedAt: null,
 };
 
 function snapshot(overrides: Partial<Parameters<typeof buildInvoiceSnapshot>[0]> = {}) {

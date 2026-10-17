@@ -9,9 +9,15 @@ import { auth } from "@/auth";
  * Fehlerobjekt statt `null` – eine reine Null-Prüfung ließe dann jeden durch.
  */
 export async function isAdmin(): Promise<boolean> {
+  return (await adminEmail()) !== null;
+}
+
+/** E-Mail des angemeldeten Admins aus der Sitzung, sonst `null`. */
+async function adminEmail(): Promise<string | null> {
   const session = await auth();
-  const adminEmail = process.env.ADMIN_EMAIL;
-  return Boolean(adminEmail && session?.user?.email === adminEmail);
+  const expected = process.env.ADMIN_EMAIL;
+  const email = session?.user?.email;
+  return expected && email === expected ? email : null;
 }
 
 /**
@@ -49,11 +55,29 @@ function isSameOrigin(request: Request): boolean {
  *   if (denied) return denied;
  */
 export async function requireAdmin(request: Request): Promise<NextResponse | null> {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+  const result = await authorizeAdmin(request);
+  return "denied" in result ? result.denied : null;
+}
+
+/**
+ * Wie `requireAdmin`, liefert bei Erfolg aber die E-Mail des Admins aus der
+ * Sitzung – für das Protokoll administrativer Aktionen.
+ *
+ *   const auth = await authorizeAdmin(request);
+ *   if ("denied" in auth) return auth.denied;
+ *   // auth.actor
+ */
+export async function authorizeAdmin(
+  request: Request,
+): Promise<{ denied: NextResponse } | { actor: string }> {
+  const actor = await adminEmail();
+  if (actor === null) {
+    return { denied: NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 }) };
   }
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Ungültige Herkunft der Anfrage" }, { status: 403 });
+    return {
+      denied: NextResponse.json({ error: "Ungültige Herkunft der Anfrage" }, { status: 403 }),
+    };
   }
-  return null;
+  return { actor };
 }

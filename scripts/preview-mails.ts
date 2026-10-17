@@ -31,6 +31,8 @@ const BEISPIEL: BookingRequest = {
   status: "pending",
   reasonNote: null,
   createdAt: new Date("2027-02-03"),
+  decidedAt: null,
+  anonymizedAt: null,
 };
 
 /** Zweiter Fall: kleine Anfrage ohne Zusatzbestellung und ohne Nachricht. */

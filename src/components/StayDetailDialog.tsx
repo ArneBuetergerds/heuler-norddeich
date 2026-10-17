@@ -7,11 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { BookingRequest, Invoice } from "@/db/schema";
+import type { BookingRequest } from "@/db/schema";
+import type { InvoiceSummary } from "@/db/invoiceQueries";
 import { InvoiceSection } from "./InvoiceSection";
+import { DeleteRequestButton } from "./DeleteRequestButton";
 import type { Stay } from "@/lib/occupancy";
 import { formatDate, formatDateRange } from "@/lib/format";
 import { EXTRAS, extrasTotal, nightsBetween, priceBreakdown, stayTotal } from "@/lib/pricing";
+import { adminDeletionDecision, berlinDay } from "@/lib/retention";
 
 /**
  * Alles zu einem bestätigten Aufenthalt an einer Stelle: Kontaktdaten,
@@ -29,7 +32,7 @@ export function StayDetailDialog({
 }: {
   stay: Stay | null;
   request: BookingRequest | undefined;
-  invoice: Invoice | undefined;
+  invoice: InvoiceSummary | undefined;
   onOpenChange: (open: boolean) => void;
 }) {
   if (!stay) {
@@ -135,6 +138,22 @@ export function StayDetailDialog({
             Für manuell eingetragene Aufenthalte lässt sich keine Rechnung
             erstellen – es fehlen Anfrage und Kontaktdaten.
           </p>
+        )}
+
+        {/* Der Dialog öffnet erst auf Klick, „heute“ aus dem Browser passt
+            also ohne Hydrationsabgleich; der Server prüft beim Löschen selbst. */}
+        {request && (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-linie pt-3">
+            <DeleteRequestButton
+              requestId={request.id}
+              decision={adminDeletionDecision(
+                request,
+                invoice !== undefined,
+                berlinDay(new Date()),
+              )}
+              onDone={() => onOpenChange(false)}
+            />
+          </div>
         )}
       </DialogContent>
     </Dialog>

@@ -29,6 +29,13 @@
       "when": 1790526885443,
       "tag": "0003_push_subscription",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1792232605263,
+      "tag": "0004_retention_admin_log",
+      "breakpoints": true
     }
   ]
 }

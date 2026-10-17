@@ -4,7 +4,8 @@ import bcrypt from "bcryptjs";
 import { clientIp } from "@/lib/rateLimit";
 import { createLoginThrottle } from "@/lib/loginThrottle";
 
-// Bremse gegen Passwort-Raten: Gezählt werden nur Fehlversuche. Pro IP 5 in
+// Bremse gegen Passwort-Raten: Jeder Versuch wird beim Eintritt gezählt, eine
+// erfolgreiche Anmeldung setzt den Zähler ihrer IP zurück. Pro IP 5 in
 // 15 Minuten (danach gesperrt); über dem Gesamtlimit, wenn ein Angreifer viele
 // IPs nutzt, wird jeder Versuch nur verzögert – sonst könnte er die
 // Betreiberin vom Login aussperren.
@@ -45,8 +46,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const emailMatches = email === adminEmail;
         const valid = await bcrypt.compare(password, emailMatches ? adminPasswordHash : DUMMY_HASH);
+        // Kein eigenes Zählen hier: Der Versuch ist schon in `admit` verbucht.
         if (!emailMatches || !valid) {
-          throttle.recordFailure(ip);
           return null;
         }
 
@@ -64,7 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     // In diesem next-auth-Beta ist ein nicht angemeldeter Zugriff ohne
     // diesen Callback NICHT automatisch geschützt (authorized ist sonst
-    // immer `true`). Erst dieser Callback sorgt dafür, dass die Middleware
+    // immer `true`). Erst dieser Callback sorgt dafür, dass der Proxy
     // fehlende Sessions auf `pages.signIn` umleitet.
     authorized: ({ auth: session }) => !!session?.user,
   },

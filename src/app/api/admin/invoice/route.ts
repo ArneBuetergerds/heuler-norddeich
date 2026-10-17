@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/adminAuth";
+import { authorizeAdmin } from "@/lib/adminAuth";
 import {
   createInvoice,
   INVOICE_EXISTS_ERROR,
+  INVOICE_NUMBER_CONFLICT_ERROR,
   NOT_CONFIRMED_ERROR,
   TAX_NUMBER_MISSING_ERROR,
 } from "@/db/invoiceQueries";
@@ -23,13 +24,14 @@ const createSchema = z.object({
 /** Bekannte Fehler aus der Rechnungserstellung und ihr HTTP-Status. */
 const FEHLER: Record<string, number> = {
   [INVOICE_EXISTS_ERROR]: 409,
+  [INVOICE_NUMBER_CONFLICT_ERROR]: 409,
   [NOT_CONFIRMED_ERROR]: 409,
   [TAX_NUMBER_MISSING_ERROR]: 503,
 };
 
 export async function POST(request: Request) {
-  const denied = await requireAdmin(request);
-  if (denied) return denied;
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
 
   let body: unknown;
   try {
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const created = await createInvoice(parsed.data);
+    const created = await createInvoice({ ...parsed.data, actor: authorized.actor });
     return NextResponse.json({ id: created.id, number: created.number }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message in FEHLER) {

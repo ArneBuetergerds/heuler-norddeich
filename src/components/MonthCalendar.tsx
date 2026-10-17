@@ -10,6 +10,11 @@ export type DayAppearance = {
   className: string;
   /** Tooltip, z. B. der Gastname im Admin-Kalender. */
   title?: string;
+  /**
+   * Was ein Klick auf den Tag tut, nur für Screenreader – z. B. „Details zu
+   * Gast X öffnen“, wenn am Wechseltag zwei Namen im Tooltip stehen.
+   */
+  action?: string;
 };
 
 type Props = {
@@ -21,8 +26,8 @@ type Props = {
    */
   minMonthOffset?: number;
   /**
-   * Macht Tage anklickbar (öffentlicher Kalender: Zeitraum direkt wählen).
-   * Ohne diesen Callback bleibt der Kalender reine Anzeige wie im Admin.
+   * Macht Tage anklickbar (öffentlicher Kalender: Zeitraum direkt wählen;
+   * Admin: Aufenthalt öffnen). Ohne diesen Callback bleibt er reine Anzeige.
    */
   onDayClick?: (day: Date) => void;
   /** Welche Tage im aktuellen Auswahlschritt anklickbar sind. */
@@ -98,7 +103,7 @@ export function MonthCalendar({
           if (!day) {
             return <div key={`leer-${cell}`} className="h-9" />;
           }
-          const { className, title } = appearanceFor(day);
+          const { className, title, action } = appearanceFor(day);
           const label = (
             <>
               <span aria-hidden="true">{day.getUTCDate()}</span>
@@ -111,6 +116,7 @@ export function MonthCalendar({
                   timeZone: "UTC",
                 })}
                 {title ? `: ${title}` : ""}
+                {action ? `. ${action}` : ""}
               </span>
             </>
           );
@@ -128,7 +134,11 @@ export function MonthCalendar({
                 title={title}
                 disabled={!clickable}
                 onClick={() => onDayClick(day)}
-                className={cn(cellClass, "h-11 sm:h-10", clickable && "cursor-pointer hover:ring-2 hover:ring-priel/40")}
+                className={cn(
+                  cellClass,
+                  "h-11 outline-none focus-visible:ring-2 focus-visible:ring-priel focus-visible:ring-offset-1 sm:h-10",
+                  clickable && "cursor-pointer hover:ring-2 hover:ring-priel/40",
+                )}
               >
                 {label}
               </button>

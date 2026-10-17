@@ -32,6 +32,18 @@ export function buildBookingRequestPush(request: BookingRequest): PushPayload {
 }
 
 /**
+ * Sammelmeldung über dem Gesamtlimit (siehe `createOperatorDigest`): nur die
+ * Anzahl, kein Gastname – die Anfragen können von einem Bot stammen.
+ */
+export function buildOperatorDigestPush(count: number): PushPayload {
+  return {
+    title: "Ungewöhnlich viele Buchungsanfragen",
+    body: `${count === 1 ? "Eine weitere Anfrage" : `${count} weitere Anfragen`} in der letzten Stunde. Einzelmeldungen sind pausiert – alle Anfragen stehen im Admin.`,
+    url: "/admin",
+  };
+}
+
+/**
  * Push-Dienste der Browserhersteller. Nur an diese Hosts darf der Server
  * später Benachrichtigungen schicken – sonst ließe sich über ein
  * präpariertes Abo erreichen, dass der Server Requests an beliebige

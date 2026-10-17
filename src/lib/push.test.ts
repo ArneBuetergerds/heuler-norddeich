@@ -26,9 +26,13 @@ vi.mock("web-push", async (importOriginal) => {
   };
 });
 
-const { buildBookingRequestPush, sendPushToAdmins, testPushResponse, TEST_PUSH } = await import(
-  "./push"
-);
+const {
+  buildBookingRequestPush,
+  buildOperatorDigestPush,
+  sendPushToAdmins,
+  testPushResponse,
+  TEST_PUSH,
+} = await import("./push");
 const { WebPushError } = await import("web-push");
 
 const request: BookingRequest = {
@@ -45,6 +49,8 @@ const request: BookingRequest = {
   status: "pending",
   reasonNote: null,
   createdAt: new Date("2027-01-01"),
+  decidedAt: null,
+  anonymizedAt: null,
 };
 
 function goneError(statusCode: number) {
@@ -62,6 +68,20 @@ describe("buildBookingRequestPush", () => {
 
   it("schreibt eine einzelne Person im Singular", () => {
     expect(buildBookingRequestPush({ ...request, guests: 1 }).body).toContain("1 Person");
+  });
+});
+
+describe("buildOperatorDigestPush", () => {
+  it("nennt nur die Anzahl und führt in den Admin", () => {
+    expect(buildOperatorDigestPush(12)).toEqual({
+      title: "Ungewöhnlich viele Buchungsanfragen",
+      body: "12 weitere Anfragen in der letzten Stunde. Einzelmeldungen sind pausiert – alle Anfragen stehen im Admin.",
+      url: "/admin",
+    });
+  });
+
+  it("schreibt eine einzelne Anfrage im Singular", () => {
+    expect(buildOperatorDigestPush(1).body).toMatch(/^Eine weitere Anfrage /);
   });
 });
 

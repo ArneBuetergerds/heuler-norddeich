@@ -79,9 +79,15 @@ Zusätzlich prüft ein Skript den kompletten Buchungsablauf (Anfrage, Bestätigu
 npx tsx --env-file=.env.local scripts/verify-booking-flow.ts
 ```
 
+Echter SMTP-Testversand: Das Skript schickt alle automatischen Mails (Eingangsbestätigung, Info an die Betreiberin, Zusage, Absage, Sammelmeldung über dem Gesamtlimit) mit Beispieldaten über den konfigurierten SMTP-Zugang – alle an die eine angegebene Adresse, Betreff mit „[TEST]“. Ohne Datenbank; ohne Empfänger bricht es ab. Nötig sind `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` (optional `SMTP_PORT`, `BANK_TRANSFER_DETAILS`).
+```bash
+npx tsx --env-file=.env.local scripts/send-test-mails.ts test@example.de
+```
+Nur zum Lesen, ohne Versand: `npx tsx scripts/preview-mails.ts`.
+
 ## Push-Benachrichtigungen
 
-Bei jeder neuen Anfrage bekommt die Betreiberin zusätzlich zur Mail eine Push-Benachrichtigung auf jedes Gerät, auf dem sie sie im Admin eingeschaltet hat (Schalter oben auf `/admin`, dort auch „Test senden“).
+Bei jeder neuen Anfrage bekommt die Betreiberin zusätzlich zur Mail eine Push-Benachrichtigung auf jedes Gerät, auf dem sie sie im Admin eingeschaltet hat (Schalter oben auf `/admin`, dort auch „Test senden“). Kommen mehr als 40 Anfragen in 24 Stunden herein (Gesamtlimit, `src/lib/bookingNotifications.ts`), gibt es stattdessen höchstens eine Sammelmeldung je Stunde per Mail und Push – ohne Gastdaten, mit Verweis auf den Admin.
 
 - **Android/Desktop:** direkt im Browser einschalten.
 - **iPhone/iPad (ab iOS 16.4):** Push gibt es nur für installierte Web-Apps. In Safari `/admin` öffnen → „Teilen“ → „Zum Home-Bildschirm“, die App von dort starten und dann einschalten.
@@ -94,6 +100,8 @@ Die App läuft containerisiert (siehe `Dockerfile`) auf einem selbst betriebenen
 
 - Architektur & Entscheidungen: [`docs/superpowers/specs/2026-08-04-self-hosted-migration-design.md`](docs/superpowers/specs/2026-08-04-self-hosted-migration-design.md)
 - Umsetzung, Deployment-Stolpersteine & Go-live-Checkliste: [`docs/superpowers/plans/2026-08-04-self-hosted-migration-implementation.md`](docs/superpowers/plans/2026-08-04-self-hosted-migration-implementation.md)
+
+Das Image enthält nur den Standalone-Server (`output: "standalone"` in `next.config.ts`): `.next/standalone`, `.next/static`, `public` und für die Migration `scripts/migrate.mjs` mit `drizzle-orm`/`mysql2` sowie `drizzle/`. Beim Start laufen erst die Migrationen (`node migrate/migrate.mjs`, ohne drizzle-kit), dann `node server.js`; schlägt die Migration fehl, startet der Server nicht. Der Server hört auf `0.0.0.0:3000` (`HOSTNAME`/`PORT` im Image gesetzt, `PORT` überschreibbar).
 
 Docker-Image lokal bauen und testen:
 ```bash

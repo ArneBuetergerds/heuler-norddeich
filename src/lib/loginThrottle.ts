@@ -1,6 +1,6 @@
 import { createRateLimiter, type RateLimiter } from "./rateLimit";
 
-/** Fenster, in dem Fehlversuche gezählt werden. */
+/** Fenster, in dem Login-Versuche gezählt werden (erfolgreiche setzen die IP zurück). */
 export const FAILED_WINDOW_MS = 15 * 60 * 1000;
 
 /**
@@ -15,18 +15,26 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 
 export type LoginThrottle = {
   /**
-   * Vor der Passwortprüfung aufrufen. `false`: Diese IP ist gesperrt, der
-   * Versuch wird abgelehnt. Über dem Gesamtlimit wird nur verzögert, nie
-   * abgelehnt – sonst könnte ein Angreifer die Betreiberin aussperren.
+   * Vor der Passwortprüfung aufrufen. Zählt den Versuch sofort – je IP und
+   * insgesamt –, noch bevor gewartet oder das Passwort geprüft wird. Nur so
+   * kommen parallel abgeschickte Versuche einer IP nicht gemeinsam an der
+   * Sperre vorbei: Zählen und Prüfen geschehen in einem synchronen Schritt,
+   * zwischen dem kein anderer Request dazwischenkommt.
+   *
+   * `false`: Diese IP ist gesperrt, der Versuch wird abgelehnt. Über dem
+   * Gesamtlimit wird nur verzögert, nie abgelehnt – sonst könnte ein Angreifer
+   * die Betreiberin aussperren.
    */
   admit(ip: string): Promise<boolean>;
-  recordFailure(ip: string): void;
+  /** Nach erfolgreicher Anmeldung: Die Versuche dieser IP verfallen. */
   recordSuccess(ip: string): void;
 };
 
 /**
- * Bremse gegen Passwort-Raten. Gezählt werden nur Fehlversuche: pro IP 5 in
- * 15 Minuten (harte Sperre), insgesamt 30 (danach nur Verzögerung). Limiter und
+ * Bremse gegen Passwort-Raten: pro IP 5 Versuche in 15 Minuten (harte Sperre),
+ * insgesamt 30 (danach nur Verzögerung). Gezählt wird jeder Versuch beim
+ * Eintritt; eine erfolgreiche Anmeldung setzt den Zähler ihrer IP zurück, so
+ * dass im Ergebnis nur Fehlversuche die Sperre auslösen. Limiter und
  * Wartefunktion sind übergebbar, damit Tests ohne echte Wartezeit auskommen.
  */
 export function createLoginThrottle({
@@ -42,17 +50,16 @@ export function createLoginThrottle({
 } = {}): LoginThrottle {
   return {
     async admit(ip) {
-      if (perIp.isLimited(ip)) {
+      // Kein `await` vor diesen beiden Zeilen: `hit` prüft und zählt in einem
+      // Zug, damit ist der Versuch verbucht, bevor ein paralleler Request
+      // derselben IP an die Reihe kommt.
+      if (!perIp.hit(ip)) {
         return false;
       }
-      if (total.isLimited("alle")) {
+      if (!total.hit("alle")) {
         await wait(delayMs);
       }
       return true;
-    },
-    recordFailure(ip) {
-      perIp.hit(ip);
-      total.hit("alle");
     },
     recordSuccess(ip) {
       perIp.reset(ip);

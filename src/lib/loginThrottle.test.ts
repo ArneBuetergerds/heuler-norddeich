@@ -14,28 +14,60 @@ function setup() {
 }
 
 describe("createLoginThrottle", () => {
-  it("lässt ohne Fehlversuche sofort durch", async () => {
+  it("lässt ohne vorherige Versuche sofort durch", async () => {
     const { throttle, wait } = setup();
 
     await expect(throttle.admit("1.1.1.1")).resolves.toBe(true);
     expect(wait).not.toHaveBeenCalled();
   });
 
-  it("sperrt eine IP nach zu vielen Fehlversuchen hart", async () => {
+  it("sperrt eine IP nach zu vielen Versuchen hart", async () => {
     const { throttle } = setup();
-    throttle.recordFailure("1.1.1.1");
-    throttle.recordFailure("1.1.1.1");
+    await throttle.admit("1.1.1.1");
+    await throttle.admit("1.1.1.1");
 
     await expect(throttle.admit("1.1.1.1")).resolves.toBe(false);
   });
 
+  it("lässt von parallelen Versuchen derselben IP höchstens das Limit durch", async () => {
+    // Echte Standardwerte (5 je IP), Wartefunktion ohne Verzögerung. Alle
+    // Aufrufe starten, bevor einer fertig ist – wie gleichzeitig abgeschickte
+    // Login-Requests.
+    const throttle = createLoginThrottle({ wait: async () => {} });
+
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => throttle.admit("6.6.6.6")),
+    );
+
+    expect(results.filter(Boolean)).toHaveLength(5);
+  });
+
+  it("zählt parallele Versuche auch dann sofort, wenn über dem Gesamtlimit gewartet wird", async () => {
+    // Die Wartefunktion hält jeden Versuch an, bis der Test ihn freigibt –
+    // so liegt die Prüfung der übrigen Versuche sicher in der Wartezeit.
+    const pending: Array<() => void> = [];
+    const throttle = createLoginThrottle({
+      perIp: createRateLimiter({ limit: 3, windowMs: 60_000 }),
+      total: createRateLimiter({ limit: 1, windowMs: 60_000 }),
+      wait: () => new Promise<void>((resolve) => pending.push(resolve)),
+    });
+
+    const all = Promise.all(Array.from({ length: 6 }, () => throttle.admit("6.6.6.6")));
+    await Promise.resolve();
+    pending.forEach((resolve) => resolve());
+    const results = await all;
+
+    expect(results.filter(Boolean)).toHaveLength(3);
+  });
+
   it("lehnt über dem Gesamtlimit nicht ab, sondern verzögert jeden Versuch", async () => {
     const { throttle, wait } = setup();
-    // Drei Fehlversuche von drei IPs: keine einzelne IP ist gesperrt, das
+    // Drei Versuche von drei IPs: keine einzelne IP ist gesperrt, das
     // Gesamtlimit aber erreicht.
-    throttle.recordFailure("1.1.1.1");
-    throttle.recordFailure("2.2.2.2");
-    throttle.recordFailure("3.3.3.3");
+    await throttle.admit("1.1.1.1");
+    await throttle.admit("2.2.2.2");
+    await throttle.admit("3.3.3.3");
+    expect(wait).not.toHaveBeenCalled();
 
     // Auch eine bisher unauffällige IP (die Betreiberin) kommt durch.
     await expect(throttle.admit("9.9.9.9")).resolves.toBe(true);
@@ -49,7 +81,7 @@ describe("createLoginThrottle", () => {
         perIp: createRateLimiter({ limit: 5, windowMs: 60_000 }),
         total: createRateLimiter({ limit: 1, windowMs: 60_000 }),
       });
-      throttle.recordFailure("1.1.1.1");
+      await throttle.admit("1.1.1.1");
 
       let admitted: boolean | undefined;
       void throttle.admit("9.9.9.9").then((result) => {
@@ -65,21 +97,21 @@ describe("createLoginThrottle", () => {
     }
   });
 
-  it("zählt Fehlversuche über dem Gesamtlimit weiter je IP", async () => {
+  it("zählt Versuche über dem Gesamtlimit weiter je IP", async () => {
     const { throttle } = setup();
-    throttle.recordFailure("1.1.1.1");
-    throttle.recordFailure("2.2.2.2");
-    throttle.recordFailure("3.3.3.3");
-    throttle.recordFailure("3.3.3.3");
+    await throttle.admit("1.1.1.1");
+    await throttle.admit("2.2.2.2");
+    await throttle.admit("3.3.3.3");
+    await throttle.admit("3.3.3.3");
 
     await expect(throttle.admit("3.3.3.3")).resolves.toBe(false);
   });
 
   it("setzt die Sperre einer IP nach erfolgreicher Anmeldung zurück", async () => {
     const { throttle } = setup();
-    throttle.recordFailure("1.1.1.1");
+    await throttle.admit("1.1.1.1");
     throttle.recordSuccess("1.1.1.1");
-    throttle.recordFailure("1.1.1.1");
+    await throttle.admit("1.1.1.1");
 
     await expect(throttle.admit("1.1.1.1")).resolves.toBe(true);
   });

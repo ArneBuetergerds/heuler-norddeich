@@ -4,6 +4,7 @@ import {
   sendGuestRequestReceived,
   sendGuestConfirmation,
   sendGuestDecline,
+  sendOperatorDigest,
 } from "./email";
 import type { BookingRequest } from "@/db/schema";
 
@@ -38,6 +39,8 @@ const request: BookingRequest = {
   status: "pending",
   reasonNote: null,
   createdAt: new Date("2027-01-01"),
+  decidedAt: null,
+  anonymizedAt: null,
 };
 
 describe("email", () => {
@@ -100,6 +103,30 @@ describe("email", () => {
     expect(sendMail).toHaveBeenCalledWith(
       expect.objectContaining({ replyTo: "kontakt@norddeich-heuler.de" }),
     );
+  });
+
+  it("schickt die Sammelmeldung an die Betreiberin, mit Anzahl und Link, ohne Gastdaten", async () => {
+    await sendOperatorDigest(17, { limit: 40, windowHours: 24 });
+
+    const mail = sendMail.mock.calls[0]?.[0] as {
+      to: string;
+      replyTo?: string;
+      subject: string;
+      text: string;
+    };
+    expect(mail.to).toBe("kontakt@example.invalid");
+    expect(mail.replyTo).toBeUndefined();
+    expect(mail.subject).toContain("17 weitere");
+    expect(mail.text).toContain("sind 17 weitere Buchungsanfragen eingegangen");
+    expect(mail.text).toContain("mehr als 40 Anfragen in 24 Stunden");
+    expect(mail.text).toContain("https://norddeich-heuler.de/admin");
+  });
+
+  it("schreibt die Sammelmeldung für eine einzelne Anfrage im Singular", async () => {
+    await sendOperatorDigest(1, { limit: 40, windowHours: 24 });
+
+    const mail = sendMail.mock.calls[0]?.[0] as { text: string };
+    expect(mail.text).toContain("ist eine weitere Buchungsanfrage eingegangen");
   });
 
   it("wirft, wenn OWNER_NOTIFICATION_EMAIL fehlt", async () => {

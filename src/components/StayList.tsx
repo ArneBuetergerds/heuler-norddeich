@@ -4,30 +4,20 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { BookingRequest, Invoice } from "@/db/schema";
 import type { Stay } from "@/lib/occupancy";
 import { formatDateRange } from "@/lib/format";
 import { DecisionDialog } from "./DecisionDialog";
-import { StayDetailDialog } from "./StayDetailDialog";
+import { useOpenStayDetail } from "./StayDetailProvider";
 
-export function StayList({
-  stays,
-  requests,
-  invoices,
-}: {
-  stays: Stay[];
-  invoices: Invoice[];
-  /**
-   * Alle Anfragen, die der Server ohnehin schon geladen hat. Daraus wird für
-   * die Detailansicht die passende herausgesucht – eine eigene Abfrage
-   * bräuchte es dafür nicht.
-   */
-  requests: BookingRequest[];
-}) {
+/**
+ * Die Detailansicht gehört nicht der Liste, sondern dem umgebenden
+ * `StayDetailProvider` – den öffnet auch der Belegungskalender.
+ */
+export function StayList({ stays }: { stays: Stay[] }) {
   const router = useRouter();
+  const openDetail = useOpenStayDetail();
   const [pending, setPending] = useState(false);
   const [target, setTarget] = useState<Stay | null>(null);
-  const [detail, setDetail] = useState<Stay | null>(null);
 
   async function cancelStay(stay: Stay, reason: string): Promise<void> {
     setPending(true);
@@ -72,7 +62,7 @@ export function StayList({
                 Markup und für die Tastatur eine Falle. */}
             <button
               type="button"
-              onClick={() => setDetail(stay)}
+              onClick={() => openDetail(stay)}
               className="min-h-11 flex-1 cursor-pointer text-left"
             >
               <span className="block text-[13px] font-semibold underline-offset-2 hover:underline">
@@ -94,15 +84,6 @@ export function StayList({
           </div>
         ))}
       </div>
-
-      <StayDetailDialog
-        stay={detail}
-        request={requests.find((entry) => entry.id === detail?.bookingRequestId)}
-        invoice={invoices.find(
-          (entry) => entry.bookingRequestId === detail?.bookingRequestId,
-        )}
-        onOpenChange={(open) => !open && setDetail(null)}
-      />
 
       <DecisionDialog
         open={target !== null}

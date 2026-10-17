@@ -42,6 +42,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Der Build legt unter .next/standalone einen eigenständigen Server
+  // (server.js) mit nur den tatsächlich gebrauchten node_modules ab. Das
+  // Docker-Image enthält nur diesen, nicht das komplette node_modules.
+  // public/ und .next/static kopiert das Dockerfile selbst dazu – der
+  // Standalone-Build tut das nicht.
+  output: "standalone",
+
   // Verrät sonst per "X-Powered-By: Next.js", welche Software läuft.
   poweredByHeader: false,
 

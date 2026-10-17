@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { requireAdmin } from "@/lib/adminAuth";
+import { authorizeAdmin } from "@/lib/adminAuth";
 import { db } from "@/db/client";
 import { blockedPeriod, bookingRequest } from "@/db/schema";
 import {
@@ -14,8 +14,8 @@ import { sendGuestDecline } from "@/lib/email";
 import { blockedPeriodCreateSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
-  const denied = await requireAdmin(request);
-  if (denied) return denied;
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
 
   let body: unknown;
   try {
@@ -40,9 +40,9 @@ export async function POST(request: Request) {
 
   try {
     if (guestName) {
-      await createManualStay(db, { guestName, startDate, endDate });
+      await createManualStay(db, { guestName, startDate, endDate }, authorized.actor);
     } else {
-      await createMaintenanceBlock(db, { startDate, endDate, note });
+      await createMaintenanceBlock(db, { startDate, endDate, note }, authorized.actor);
     }
   } catch (error) {
     if (error instanceof Error && error.message === RANGE_TAKEN_ERROR) {
@@ -67,8 +67,8 @@ async function readReason(request: Request): Promise<string | undefined> {
 }
 
 export async function DELETE(request: Request) {
-  const denied = await requireAdmin(request);
-  if (denied) return denied;
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
 
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) {
@@ -93,7 +93,7 @@ export async function DELETE(request: Request) {
           where: eq(bookingRequest.id, stay.bookingRequestId),
         });
 
-  await cancelStay(db, id, reason);
+  await cancelStay(db, id, authorized.actor, reason);
 
   if (guest) {
     try {

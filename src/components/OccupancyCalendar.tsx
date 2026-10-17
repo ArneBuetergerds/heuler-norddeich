@@ -2,7 +2,9 @@
 
 import { isDateBlocked, dayOccupancy } from "@/lib/calendar";
 import type { Occupancy } from "@/lib/occupancy";
+import { stayForDay } from "@/lib/stayForDay";
 import { MonthCalendar, CalendarLegendItem, type DayAppearance } from "./MonthCalendar";
+import { useOpenStayDetail } from "./StayDetailProvider";
 
 const FREE = "bg-green-50 text-green-800 border-green-200";
 const OCCUPIED = "bg-red-50 text-red-700 border-red-200";
@@ -21,9 +23,21 @@ const ARRIVAL =
  * Übergabetage gibt es nur bei Aufenthalten (Abreise bis 10, Anreise ab 14
  * Uhr) – Sperrzeiträume kennen kein Halbtags-Ende, ihr Enddatum ist voll
  * mitgesperrt (siehe `createMaintenanceBlock`).
+ *
+ * Ein Klick auf einen Tag mit Gast öffnet dieselbe Detailansicht wie die
+ * Liste; welcher Aufenthalt das ist, entscheidet `stayForDay` (am Wechseltag
+ * der anreisende Gast). Freie und gesperrte Tage sind nicht anklickbar.
  */
 export function OccupancyCalendar({ occupancy }: { occupancy: Occupancy }) {
+  const openDetail = useOpenStayDetail();
+
   function appearanceFor(day: Date): DayAppearance {
+    const stay = stayForDay(day, occupancy);
+    const base = appearanceWithoutAction(day);
+    return stay ? { ...base, action: `Details zu ${stay.guestName} öffnen` } : base;
+  }
+
+  function appearanceWithoutAction(day: Date): DayAppearance {
     const state = dayOccupancy(day, occupancy.stays, occupancy.maintenance);
 
     if (state === "free") {
@@ -69,6 +83,13 @@ export function OccupancyCalendar({ occupancy }: { occupancy: Occupancy }) {
   return (
     <MonthCalendar
       appearanceFor={appearanceFor}
+      onDayClick={(day) => {
+        const stay = stayForDay(day, occupancy);
+        if (stay) {
+          openDetail(stay);
+        }
+      }}
+      isDayClickable={(day) => stayForDay(day, occupancy) !== null}
       legend={
         <>
           <CalendarLegendItem colorClassName="bg-green-500">Frei</CalendarLegendItem>

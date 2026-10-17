@@ -1,34 +1,69 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TriangleAlert } from "lucide-react";
 import { isAdmin } from "@/lib/adminAuth";
-import { getBookingRequests, getOccupancy } from "@/db/queries";
-import { getInvoices } from "@/db/invoiceQueries";
+import {
+  getBookingHistory,
+  getBookingRequestsByIds,
+  getOccupancy,
+  getPendingBookingRequests,
+} from "@/db/queries";
+import { getInvoiceSummaries } from "@/db/invoiceQueries";
 import { deriveConflict, conflictMessage } from "@/lib/occupancy";
 import { formatDateRange } from "@/lib/format";
 import { EXTRAS, extrasTotal } from "@/lib/pricing";
 import { vapidConfig } from "@/lib/push";
+import { adminDeletionDecision, berlinDay } from "@/lib/retention";
 import { AdminPushSettings } from "@/components/AdminPushSettings";
 import { AdminRequestActions } from "@/components/AdminRequestActions";
+import { DeleteRequestButton } from "@/components/DeleteRequestButton";
 import { OccupancyCalendar } from "@/components/OccupancyCalendar";
+import { StayDetailProvider } from "@/components/StayDetailProvider";
 import { StayList } from "@/components/StayList";
 import { StatusBadge } from "@/components/StatusBadge";
 
-export default async function AdminPage() {
+/** So viele bearbeitete Anfragen zeigt die Übersicht, bis „Ältere anzeigen“ gewählt wird. */
+const HISTORY_LIMIT = 100;
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   if (!(await isAdmin())) {
     redirect("/admin/login");
   }
 
-  const [occupancy, requests, invoices] = await Promise.all([
+  // Ohne Client-State: Die ganze Historie ist ein eigener Link
+  // (`?historie=alle`), sonst nur die neuesten Einträge.
+  const showAllHistory = (await searchParams).historie === "alle";
+
+  // Offene Anfragen vollständig, die Historie begrenzt.
+  const [occupancy, pending, history] = await Promise.all([
     getOccupancy(),
-    getBookingRequests(),
-    getInvoices(),
+    getPendingBookingRequests(),
+    getBookingHistory({ limit: showAllHistory ? null : HISTORY_LIMIT }),
   ]);
 
-  const pending = requests.filter((request) => request.status === "pending");
-  const history = requests.filter((request) => request.status !== "pending");
   const stays = [...occupancy.stays].sort(
     (a, b) => a.startDate.getTime() - b.startDate.getTime(),
   );
+
+  // Anfragen nur zu den Aufenthalten, die die Liste zeigt – die
+  // Detailansicht braucht nichts anderes. Rechnungen zusätzlich zur Historie:
+  // Sie entscheiden, ob „Löschen“ dort löscht oder anonymisiert.
+  const stayRequestIds = stays.flatMap((stay) =>
+    stay.bookingRequestId === null ? [] : [stay.bookingRequestId],
+  );
+  const invoiceRequestIds = [
+    ...new Set([...stayRequestIds, ...history.entries.map((entry) => entry.id)]),
+  ];
+  const [stayRequests, invoices] = await Promise.all([
+    getBookingRequestsByIds(stayRequestIds),
+    getInvoiceSummaries(invoiceRequestIds),
+  ]);
+  const invoicedRequestIds = new Set(invoices.map((entry) => entry.bookingRequestId));
+  const today = berlinDay(new Date());
 
   return (
     <section className="mx-auto max-w-[900px] px-4 pt-8 pb-20 sm:px-6 sm:pt-12">
@@ -115,6 +150,13 @@ export default async function AdminPage() {
                 )}
 
                 <AdminRequestActions requestId={request.id} guestName={request.name} />
+
+                {/* Z. B. für Spam: Offene Anfragen haben nie eine Rechnung.
+                    Durch eine Linie von Bestätigen/Ablehnen abgesetzt, damit
+                    am Handy niemand aus Versehen löscht statt entscheidet. */}
+                <div className="mt-3.5 flex justify-end border-t border-linie pt-3">
+                  <DeleteRequestButton requestId={request.id} decision="delete" />
+                </div>
               </div>
             );
           })}
@@ -126,31 +168,59 @@ export default async function AdminPage() {
       <div className="mt-12">
         <h2 className="mb-6 text-2xl font-extrabold">Belegungsübersicht</h2>
 
-        <div className="grid items-start gap-6 md:grid-cols-[1.1fr_1fr]">
-          <OccupancyCalendar occupancy={occupancy} />
-          <div>
-            <h3 className="mb-2.5 text-[13px] font-bold text-schlick-2">Wer ist wann da</h3>
-            <StayList stays={stays} requests={requests} invoices={invoices} />
+        {/* Ein gemeinsamer Detaildialog für Kalender und Liste: Beide zeigen
+            dieselben Aufenthalte (`occupancy.stays`), nur anders sortiert. */}
+        <StayDetailProvider requests={stayRequests} invoices={invoices}>
+          <div className="grid items-start gap-6 md:grid-cols-[1.1fr_1fr]">
+            <OccupancyCalendar occupancy={occupancy} />
+            <div>
+              <h3 className="mb-2.5 text-[13px] font-bold text-schlick-2">Wer ist wann da</h3>
+              <StayList stays={stays} />
+            </div>
           </div>
-        </div>
+        </StayDetailProvider>
       </div>
 
-      {history.length > 0 && (
+      {history.entries.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-3 text-sm font-bold text-schlick-2">Kürzlich bearbeitet</h2>
+          <h2 className="mb-3 text-sm font-bold text-schlick-2">
+            {showAllHistory ? "Alle bearbeiteten Anfragen" : "Kürzlich bearbeitet"}
+          </h2>
           <div className="flex flex-col gap-2">
-            {history.map((request) => (
+            {history.entries.map((request) => (
+              // Am Handy zweizeilig: Name und Zeitraum oben, Status und
+              // Löschen darunter – nebeneinander quetschten sie den Namen.
               <div
                 key={request.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-linie bg-card px-4 py-3"
+                className="flex flex-col gap-2 rounded-lg border border-linie bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
               >
-                <span className="text-[13px] font-semibold">
+                <span className="min-w-0 text-[13px] font-semibold break-words">
                   {request.name} · {formatDateRange(request.startDate, request.endDate)}
                 </span>
-                <StatusBadge status={request.status} />
+                <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+                  <StatusBadge status={request.status} />
+                  <DeleteRequestButton
+                    requestId={request.id}
+                    decision={adminDeletionDecision(
+                      request,
+                      invoicedRequestIds.has(request.id),
+                      today,
+                    )}
+                  />
+                </div>
               </div>
             ))}
           </div>
+          {(history.hasMore || showAllHistory) && (
+            <Link
+              href={showAllHistory ? "/admin" : "/admin?historie=alle"}
+              className="mt-3 inline-flex min-h-11 items-center text-[13px] font-semibold text-schlick-2 underline underline-offset-2 hover:text-schlick"
+            >
+              {showAllHistory
+                ? `Nur die neuesten ${HISTORY_LIMIT} anzeigen`
+                : "Ältere anzeigen"}
+            </Link>
+          )}
         </div>
       )}
     </section>

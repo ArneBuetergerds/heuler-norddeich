@@ -10,9 +10,11 @@ import {
   varchar,
   json,
   uniqueIndex,
+  index,
 } from "drizzle-orm/mysql-core";
 import { MAX_GUESTS } from "../lib/pricing";
 import type { InvoiceSnapshot } from "../lib/invoice";
+import type { AdminAction, AdminActionDetails } from "../lib/adminActions";
 
 export const bookingRequestStatus = ["pending", "confirmed", "declined"] as const;
 
@@ -37,6 +39,14 @@ export const bookingRequest = mysqlTable(
     // Freitext-Begründung, die der Gast bei Ablehnung oder Storno per Mail erhält.
     reasonNote: text("reason_note"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    // Zeitpunkt der letzten Entscheidung: Bestätigung, Absage oder Storno.
+    // Ab ihm läuft die Löschfrist abgelehnter und stornierter Anfragen
+    // (src/lib/retention.ts). Nullable, damit Zeilen von vor dieser Spalte
+    // gültig bleiben; für sie gilt ersatzweise `created_at`.
+    decidedAt: timestamp("decided_at", { mode: "date" }),
+    // Gesetzt, sobald Name, E-Mail, Telefon und Nachricht entfernt wurden,
+    // weil eine aufzubewahrende Rechnung das Löschen der Zeile verhindert.
+    anonymizedAt: timestamp("anonymized_at", { mode: "date" }),
   },
   (table) => [
     check(
@@ -140,9 +150,39 @@ export const pushSubscription = mysqlTable(
   (table) => [uniqueIndex("push_subscription_endpoint").on(table.endpoint)],
 );
 
+/**
+ * Protokoll administrativer Aktionen (Bestätigen, Stornieren, Löschen, …).
+ *
+ * `booking_request_id` und `blocked_period_id` sind bewusst einfache Zahlen
+ * ohne Fremdschlüssel: Ein Eintrag soll die Löschung des Datensatzes, auf den
+ * er sich bezieht, überdauern. `details` enthält nie Gastdaten (Name,
+ * Kontakt, Nachricht), nur Zeiträume, Status und Anzahlen.
+ *
+ * Aufbewahrung: ACTION_LOG_RETENTION_YEARS in src/lib/retention.ts; ältere
+ * Einträge räumt die automatische Löschung mit auf.
+ */
+export const adminActionLog = mysqlTable(
+  "admin_action_log",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    // E-Mail des angemeldeten Admins oder "system" für die automatische Löschung.
+    actor: varchar("actor", { length: 320 }).notNull(),
+    // varchar statt Enum: Eine neue Aktion braucht so keine Migration.
+    action: varchar("action", { length: 32 }).$type<AdminAction>().notNull(),
+    bookingRequestId: int("booking_request_id"),
+    blockedPeriodId: int("blocked_period_id"),
+    details: json("details").$type<AdminActionDetails>(),
+  },
+  // Die automatische Löschung räumt nach `created_at` auf.
+  (table) => [index("admin_action_log_created_at").on(table.createdAt)],
+);
+
 export type BookingRequest = typeof bookingRequest.$inferSelect;
 export type NewBookingRequest = typeof bookingRequest.$inferInsert;
 export type BlockedPeriod = typeof blockedPeriod.$inferSelect;
 export type NewBlockedPeriod = typeof blockedPeriod.$inferInsert;
 export type Invoice = typeof invoice.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscription.$inferSelect;
+export type AdminActionLogRow = typeof adminActionLog.$inferSelect;
+export type NewAdminActionLogRow = typeof adminActionLog.$inferInsert;

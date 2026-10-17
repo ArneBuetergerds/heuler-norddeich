@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { blockedPeriodCreateSchema, bookingRequestSchema } from "./validation";
+import { blockedPeriodCreateSchema, bookingRequestSchema, looksLikeAddress } from "./validation";
 
 const base = {
   name: "Erika Musterfrau",
@@ -183,6 +183,27 @@ describe("bookingRequestSchema", () => {
       expect(issueAt({ name: "Zoë Müller" }, "name")).toBeUndefined();
     });
 
+    it.each([
+      "www.beispiel.com Jetzt gewinnen",
+      "beispiel.com",
+      "Gewinn auf beispiel.de",
+      "Erika www Musterfrau",
+      "Erika http Musterfrau",
+      "WWW Gewinn",
+      "Anna.Müller",
+    ])("lehnt Domain-artigen Text im Namen ab: %j", (name) => {
+      expect(issueAt({ name }, "name")).toBe(
+        "Bitte nur den Namen angeben, ohne Web- oder E-Mail-Adresse",
+      );
+    });
+
+    it.each(["Dr. Anna Müller", "J. R. R. Tolkien", "Hans-Peter O’Neil", "St. Clair", "Ph.D. Erika Muster"])(
+      "akzeptiert echte Namen mit Punkt: %j",
+      (name) => {
+        expect(issueAt({ name }, "name")).toBeUndefined();
+      },
+    );
+
     it("begrenzt Nachricht und Telefonnummer", () => {
       expect(issueAt({ message: "x".repeat(2001) }, "message")).toBeDefined();
       expect(issueAt({ phone: "call me at evil.example" }, "phone")).toBeDefined();
@@ -250,4 +271,20 @@ describe("blockedPeriodCreateSchema", () => {
       expect(result.error.issues[0]?.message).toBe("Bitte ein gültiges Startdatum angeben");
     }
   });
+});
+
+describe("looksLikeAddress", () => {
+  it.each(["www.beispiel.com", "https://x", "a://b", "erika@beispiel", "x.de", "Shop.Online"])(
+    "erkennt %j als Adresse",
+    (name) => {
+      expect(looksLikeAddress(name)).toBe(true);
+    },
+  );
+
+  it.each(["Dr. Anna Müller", "J. R. R. Tolkien", "J.R.R. Tolkien", "St. Clair", "Hans-Peter O’Neil", "Wwwe Ohm"])(
+    "hält %j für einen Namen",
+    (name) => {
+      expect(looksLikeAddress(name)).toBe(false);
+    },
+  );
 });

@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
+import type { SQL, Table } from "drizzle-orm";
+import { compileCondition } from "./fakeConditions";
+import { adminActionLog } from "./schema";
 import {
   confirmBookingRequest,
   declineBookingRequest,
@@ -17,26 +20,43 @@ import {
 // streng typisiert bleibt.
 type FakeDb = {
   inserted: unknown[];
+  /** Einträge in admin_action_log, getrennt von den übrigen Inserts. */
+  logs: Record<string, unknown>[];
   updated: unknown[];
   deleted: number;
+  /** Sperrmodus jeder Verfügbarkeitsprüfung, z. B. "update". */
+  locks: string[];
   query: {
     bookingRequest: { findFirst: ReturnType<typeof vi.fn> };
     blockedPeriod: { findFirst: ReturnType<typeof vi.fn> };
   };
-  insert: () => {
-    values: (values: unknown) => { returning: () => Promise<unknown[]> };
+  insert: (table: Table) => {
+    values: (values: unknown) => {
+      returning: () => Promise<unknown[]>;
+      $returningId: () => Promise<{ id: number }[]>;
+    };
   };
   update: () => { set: (values: unknown) => { where: () => Promise<void> } };
   delete: () => { where: () => Promise<void> };
-  select: () => {
-    from: (table: unknown) => { for: (mode: string) => Promise<{ startDate: Date; endDate: Date }[]> };
+  select: (fields?: Record<string, unknown>) => {
+    from: (table: Table) => {
+      where: (condition: SQL | undefined) => {
+        for: (mode: string) => Promise<{ startDate: Date; endDate: Date }[]>;
+      };
+    };
   };
   transaction: (callback: (tx: FakeDb) => Promise<void>) => Promise<void>;
 };
 
 type FakeDbOptions = {
   request?: { id: number; startDate: Date; endDate: Date; status: string };
-  stay?: { id: number; bookingRequestId: number | null };
+  stay?: {
+    id: number;
+    startDate: Date;
+    endDate: Date;
+    guestName: string | null;
+    bookingRequestId: number | null;
+  };
   existingBlockedPeriods?: { startDate: Date; endDate: Date }[];
 };
 
@@ -46,19 +66,26 @@ function createFakeDb({
   existingBlockedPeriods = [],
 }: FakeDbOptions): FakeDb {
   const inserted: unknown[] = [];
+  const logs: Record<string, unknown>[] = [];
   const updated: unknown[] = [];
   const fakeDb: FakeDb = {
     inserted,
+    logs,
     updated,
     deleted: 0,
+    locks: [],
     query: {
       bookingRequest: { findFirst: vi.fn().mockResolvedValue(request) },
       blockedPeriod: { findFirst: vi.fn().mockResolvedValue(stay) },
     },
-    insert: () => ({
+    insert: (table) => ({
       values: (values: unknown) => {
-        inserted.push(values);
-        return { returning: async () => [values] };
+        if (table === adminActionLog) {
+          logs.push(values as Record<string, unknown>);
+        } else {
+          inserted.push(values);
+        }
+        return { returning: async () => [values], $returningId: async () => [{ id: 500 }] };
       },
     }),
     update: () => ({
@@ -73,7 +100,19 @@ function createFakeDb({
         fakeDb.deleted += 1;
       },
     }),
-    select: () => ({ from: () => ({ for: async () => existingBlockedPeriods }) }),
+    // Wertet die Bedingung aus (siehe fakeConditions.ts): Die Prüfung filtert
+    // in SQL, also muss auch die Fake-DB nur die passenden Zeilen liefern.
+    select: () => ({
+      from: (table) => ({
+        where: (condition) => ({
+          for: async (mode) => {
+            fakeDb.locks.push(mode);
+            const matches = compileCondition(table, condition);
+            return existingBlockedPeriods.filter((period) => matches(period));
+          },
+        }),
+      }),
+    }),
     transaction: async (callback: (tx: FakeDb) => Promise<void>) => {
       await callback(fakeDb);
     },
@@ -88,12 +127,25 @@ const request = {
   status: "pending",
 };
 
+const ACTOR = "admin@example.invalid";
+
+function stayWith(overrides: Partial<NonNullable<FakeDbOptions["stay"]>>) {
+  return {
+    id: 7,
+    startDate: new Date("2026-08-01"),
+    endDate: new Date("2026-08-05"),
+    guestName: null,
+    bookingRequestId: 1,
+    ...overrides,
+  };
+}
+
 describe("confirmBookingRequest", () => {
   it("bestätigt keine Anfrage, die nicht mehr offen ist", async () => {
     const fakeDb = createFakeDb({ request: { ...request, status: "declined" } });
 
     // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-    await expect(confirmBookingRequest(fakeDb, request.id)).rejects.toThrow(NOT_PENDING_ERROR);
+    await expect(confirmBookingRequest(fakeDb, request.id, ACTOR)).rejects.toThrow(NOT_PENDING_ERROR);
     expect(fakeDb.inserted).toEqual([]);
   });
 
@@ -101,7 +153,7 @@ describe("confirmBookingRequest", () => {
     const fakeDb = createFakeDb({ request });
 
     // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-    await confirmBookingRequest(fakeDb, request.id);
+    await confirmBookingRequest(fakeDb, request.id, ACTOR);
 
     expect(fakeDb.inserted).toEqual([
       {
@@ -110,7 +162,7 @@ describe("confirmBookingRequest", () => {
         bookingRequestId: request.id,
       },
     ]);
-    expect(fakeDb.updated).toContainEqual({ status: "confirmed" });
+    expect(fakeDb.updated).toContainEqual({ status: "confirmed", decidedAt: expect.any(Date) });
   });
 
   it("wirft einen Fehler und schreibt nichts, wenn der Zeitraum inzwischen belegt ist", async () => {
@@ -123,7 +175,7 @@ describe("confirmBookingRequest", () => {
 
     await expect(
       // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-      confirmBookingRequest(fakeDb, request.id),
+      confirmBookingRequest(fakeDb, request.id, ACTOR),
     ).rejects.toThrow(RANGE_TAKEN_ERROR);
 
     expect(fakeDb.inserted).toHaveLength(0);
@@ -136,46 +188,54 @@ describe("declineBookingRequest", () => {
     const fakeDb = createFakeDb({ request });
 
     // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-    await declineBookingRequest(fakeDb, request.id);
+    await declineBookingRequest(fakeDb, request.id, ACTOR);
 
     // Ohne dieses Löschen bliebe der bei der Bestätigung angelegte
     // Sperrzeitraum stehen und würde den Zeitraum dauerhaft blockieren.
     expect(fakeDb.deleted).toBe(1);
-    expect(fakeDb.updated).toContainEqual({ status: "declined", reasonNote: null });
+    expect(fakeDb.updated).toContainEqual({
+      status: "declined",
+      reasonNote: null,
+      decidedAt: expect.any(Date),
+    });
   });
 
   it("speichert den Ablehnungsgrund für die Benachrichtigung des Gasts", async () => {
     const fakeDb = createFakeDb({ request });
 
     // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-    await declineBookingRequest(fakeDb, request.id, "Zeitraum anderweitig vergeben");
+    await declineBookingRequest(fakeDb, request.id, ACTOR, "Zeitraum anderweitig vergeben");
 
     expect(fakeDb.updated).toContainEqual({
       status: "declined",
       reasonNote: "Zeitraum anderweitig vergeben",
+      decidedAt: expect.any(Date),
     });
   });
 });
 
 describe("cancelStay", () => {
   it("löscht den Aufenthalt und setzt die zugehörige Anfrage auf declined", async () => {
-    const fakeDb = createFakeDb({ stay: { id: 7, bookingRequestId: 1 } });
+    const fakeDb = createFakeDb({ stay: stayWith({ id: 7, bookingRequestId: 1 }) });
 
     // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-    await cancelStay(fakeDb, 7, "Wasserschaden");
+    await cancelStay(fakeDb, 7, ACTOR, "Wasserschaden");
 
     expect(fakeDb.deleted).toBe(1);
     expect(fakeDb.updated).toContainEqual({
       status: "declined",
       reasonNote: "Wasserschaden",
+      decidedAt: expect.any(Date),
     });
   });
 
   it("löscht einen manuell eingetragenen Aufenthalt, ohne eine Anfrage anzufassen", async () => {
-    const fakeDb = createFakeDb({ stay: { id: 8, bookingRequestId: null } });
+    const fakeDb = createFakeDb({
+      stay: stayWith({ id: 8, bookingRequestId: null, guestName: "Familie Janssen" }),
+    });
 
     // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-    await cancelStay(fakeDb, 8);
+    await cancelStay(fakeDb, 8, ACTOR);
 
     expect(fakeDb.deleted).toBe(1);
     expect(fakeDb.updated).toHaveLength(0);
@@ -186,7 +246,7 @@ describe("cancelStay", () => {
 
     await expect(
       // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-      cancelStay(fakeDb, 99),
+      cancelStay(fakeDb, 99, ACTOR),
     ).rejects.toThrow("Aufenthalt 99 nicht gefunden");
 
     expect(fakeDb.deleted).toBe(0);
@@ -205,6 +265,7 @@ describe("createManualStay", () => {
         startDate: new Date("2026-09-01"),
         endDate: new Date("2026-09-08"),
       },
+      ACTOR,
     );
 
     expect(fakeDb.inserted).toEqual([
@@ -232,6 +293,7 @@ describe("createManualStay", () => {
           startDate: new Date("2026-09-01"),
           endDate: new Date("2026-09-08"),
         },
+        ACTOR,
       ),
     ).rejects.toThrow(RANGE_TAKEN_ERROR);
 
@@ -255,6 +317,7 @@ describe("createMaintenanceBlock", () => {
         endDate: new Date("2026-08-22"),
         note: "Wartung",
       },
+      ACTOR,
     );
 
     expect(fakeDb.inserted).toEqual([
@@ -276,6 +339,7 @@ describe("createMaintenanceBlock", () => {
         startDate: new Date("2026-08-30"),
         endDate: new Date("2026-08-31"),
       },
+      ACTOR,
     );
 
     expect(fakeDb.inserted).toEqual([
@@ -304,9 +368,171 @@ describe("createMaintenanceBlock", () => {
           startDate: new Date("2026-08-09"),
           endDate: new Date("2026-08-22"),
         },
+        ACTOR,
       ),
     ).rejects.toThrow(RANGE_TAKEN_ERROR);
 
     expect(fakeDb.inserted).toHaveLength(0);
+  });
+});
+
+describe("Verfügbarkeitsprüfung in der Transaktion", () => {
+  // Anfrage: 01.08. bis 05.08. (Abreise), siehe `request` oben.
+  it.each([
+    ["Abreisetag des Vorgängers = Anreisetag", "2026-07-25", "2026-08-01"],
+    ["Anreisetag des Nachfolgers = Abreisetag", "2026-08-05", "2026-08-12"],
+  ])("lässt den Wechseltag frei: %s", async (_fall, start, end) => {
+    const fakeDb = createFakeDb({
+      request,
+      existingBlockedPeriods: [{ startDate: new Date(start), endDate: new Date(end) }],
+    });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await confirmBookingRequest(fakeDb, request.id, ACTOR);
+
+    expect(fakeDb.inserted).toHaveLength(1);
+  });
+
+  it.each([
+    ["ein Tag am Anfang", "2026-07-25", "2026-08-02"],
+    ["ein Tag am Ende", "2026-08-04", "2026-08-12"],
+    ["umschließend", "2026-07-30", "2026-08-10"],
+    ["innerhalb", "2026-08-02", "2026-08-03"],
+  ])("erkennt eine Überschneidung: %s", async (_fall, start, end) => {
+    const fakeDb = createFakeDb({
+      request,
+      existingBlockedPeriods: [{ startDate: new Date(start), endDate: new Date(end) }],
+    });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await expect(confirmBookingRequest(fakeDb, request.id, ACTOR)).rejects.toThrow(RANGE_TAKEN_ERROR);
+    expect(fakeDb.inserted).toHaveLength(0);
+  });
+
+  it("liest die Zeilen sperrend (FOR UPDATE)", async () => {
+    const fakeDb = createFakeDb({ request });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await confirmBookingRequest(fakeDb, request.id, ACTOR);
+
+    expect(fakeDb.locks).toEqual(["update"]);
+  });
+});
+
+describe("Protokoll administrativer Aktionen", () => {
+  it("protokolliert die Bestätigung mit Anfrage, Aufenthalt und Zeitraum", async () => {
+    const fakeDb = createFakeDb({ request });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await confirmBookingRequest(fakeDb, request.id, ACTOR);
+
+    expect(fakeDb.logs).toEqual([
+      {
+        actor: ACTOR,
+        action: "confirm",
+        bookingRequestId: request.id,
+        blockedPeriodId: 500,
+        details: { startDate: "2026-08-01", endDate: "2026-08-05" },
+      },
+    ]);
+  });
+
+  it("protokolliert nichts, wenn die Bestätigung scheitert", async () => {
+    const fakeDb = createFakeDb({
+      request,
+      existingBlockedPeriods: [
+        { startDate: new Date("2026-08-03"), endDate: new Date("2026-08-10") },
+      ],
+    });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await expect(confirmBookingRequest(fakeDb, request.id, ACTOR)).rejects.toThrow();
+    expect(fakeDb.logs).toHaveLength(0);
+  });
+
+  it("protokolliert die Ablehnung ohne den Begründungstext", async () => {
+    const fakeDb = createFakeDb({ request });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await declineBookingRequest(fakeDb, request.id, ACTOR, "Wir sind privat verreist");
+
+    expect(fakeDb.logs).toEqual([
+      {
+        actor: ACTOR,
+        action: "decline",
+        bookingRequestId: request.id,
+        blockedPeriodId: null,
+        details: null,
+      },
+    ]);
+    expect(JSON.stringify(fakeDb.logs)).not.toContain("verreist");
+  });
+
+  it.each([
+    ["Aufenthalt aus Anfrage", { bookingRequestId: 1, guestName: null }, "cancel"],
+    ["manueller Aufenthalt", { bookingRequestId: null, guestName: "Familie Janssen" }, "cancel"],
+    ["Sperrzeitraum ohne Gast", { bookingRequestId: null, guestName: null }, "block_delete"],
+  ] as const)("protokolliert das Entfernen: %s → %s", async (_fall, herkunft, action) => {
+    const fakeDb = createFakeDb({ stay: stayWith({ id: 9, ...herkunft }) });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await cancelStay(fakeDb, 9, ACTOR, "Grund");
+
+    expect(fakeDb.logs).toEqual([
+      {
+        actor: ACTOR,
+        action,
+        bookingRequestId: herkunft.bookingRequestId,
+        blockedPeriodId: 9,
+        details: { startDate: "2026-08-01", endDate: "2026-08-05" },
+      },
+    ]);
+    expect(JSON.stringify(fakeDb.logs)).not.toContain("Janssen");
+  });
+
+  it("protokolliert einen manuellen Aufenthalt ohne Gastnamen", async () => {
+    const fakeDb = createFakeDb({});
+
+    await createManualStay(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      {
+        guestName: "Familie Janssen",
+        startDate: new Date("2026-09-01"),
+        endDate: new Date("2026-09-08"),
+      },
+      ACTOR,
+    );
+
+    expect(fakeDb.logs).toEqual([
+      {
+        actor: ACTOR,
+        action: "manual_stay",
+        bookingRequestId: null,
+        blockedPeriodId: 500,
+        details: { startDate: "2026-09-01", endDate: "2026-09-08" },
+      },
+    ]);
+  });
+
+  it("protokolliert einen Sperrzeitraum mit gespeichertem (exklusivem) Ende", async () => {
+    const fakeDb = createFakeDb({});
+
+    await createMaintenanceBlock(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      { startDate: new Date("2026-08-09"), endDate: new Date("2026-08-22"), note: "Wartung" },
+      ACTOR,
+    );
+
+    expect(fakeDb.logs).toEqual([
+      {
+        actor: ACTOR,
+        action: "block_create",
+        bookingRequestId: null,
+        blockedPeriodId: 500,
+        details: { startDate: "2026-08-09", endDate: "2026-08-23" },
+      },
+    ]);
   });
 });
