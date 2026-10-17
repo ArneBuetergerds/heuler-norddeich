@@ -1,4 +1,5 @@
 import type { BookingRequest } from "../db/schema";
+import { safeError } from "./safeError";
 
 /**
  * Gesamtlimit über alle Besucher („globales Limit“): bis zu so vielen
@@ -72,10 +73,10 @@ export function createOperatorDigest({
     // rausgehen und umgekehrt. Fehler werden nur geloggt – der Timer hat
     // niemanden, an den er sie zurückgeben könnte.
     void notifiers.mail(reported).catch((error: unknown) => {
-      console.error("Sammelmeldung per Mail an die Betreiberin fehlgeschlagen", error);
+      console.error("Sammelmeldung per Mail an die Betreiberin fehlgeschlagen", safeError(error));
     });
     void notifiers.push(reported).catch((error: unknown) => {
-      console.error("Sammelmeldung per Push an die Betreiberin fehlgeschlagen", error);
+      console.error("Sammelmeldung per Push an die Betreiberin fehlgeschlagen", safeError(error));
     });
   }
 
@@ -126,13 +127,13 @@ export async function notifyAboutBookingRequest(
 
   await Promise.allSettled([
     notifiers.pushAdmins(request).catch((error: unknown) => {
-      console.error("Push an die Betreiberin fehlgeschlagen", error);
+      console.error("Push an die Betreiberin fehlgeschlagen", safeError(error));
     }),
     notifiers.notifyOperator(request).catch((error: unknown) => {
-      console.error("Benachrichtigung des Betreibers fehlgeschlagen", error);
+      console.error("Benachrichtigung des Betreibers fehlgeschlagen", safeError(error));
     }),
     notifiers.confirmToGuest(request).catch((error: unknown) => {
-      console.error("Eingangsbestätigung an den Gast fehlgeschlagen", error);
+      console.error("Eingangsbestätigung an den Gast fehlgeschlagen", safeError(error));
     }),
   ]);
 }

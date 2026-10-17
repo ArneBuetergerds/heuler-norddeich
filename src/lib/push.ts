@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { pushSubscription, type BookingRequest } from "../db/schema";
 import { formatDate } from "./format";
+import { safeError } from "./safeError";
 
 /**
  * Inhalt einer Benachrichtigung, wie ihn der Service Worker (`public/sw.js`)
@@ -159,11 +160,11 @@ export async function sendPushToAdmins(payload: PushPayload): Promise<PushResult
             await db.delete(pushSubscription).where(eq(pushSubscription.id, subscription.id));
           } catch (deleteError) {
             // Das Abo ist trotzdem tot; beim nächsten Versand wird erneut gelöscht.
-            console.error("Abgelaufenes Push-Abo konnte nicht gelöscht werden", deleteError);
+            console.error("Abgelaufenes Push-Abo konnte nicht gelöscht werden", safeError(deleteError));
           }
           return "removed";
         }
-        console.error("Push-Benachrichtigung fehlgeschlagen", error);
+        console.error("Push-Benachrichtigung fehlgeschlagen", safeError(error));
         return "failed";
       }
     }),

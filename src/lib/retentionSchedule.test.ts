@@ -47,7 +47,7 @@ describe("runRetention", () => {
     await expect(runRetention()).resolves.toBeUndefined();
 
     expect(error).toHaveBeenCalledWith(
-      "Automatische Löschung fehlgeschlagen: Failed query: delete from booking_request",
+      "Automatische Löschung fehlgeschlagen: Error: Failed query: delete from booking_request",
     );
     expect(JSON.stringify(error.mock.calls)).not.toContain("erika");
   });

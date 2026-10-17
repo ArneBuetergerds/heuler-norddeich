@@ -2,7 +2,8 @@
 
 import { isDateBlocked, dayOccupancy } from "@/lib/calendar";
 import type { Occupancy } from "@/lib/occupancy";
-import { stayForDay } from "@/lib/stayForDay";
+import { staysForDay, stayRoleOnDay } from "@/lib/stayForDay";
+import { ChangeDayChoice } from "./ChangeDayChoice";
 import { MonthCalendar, CalendarLegendItem, type DayAppearance } from "./MonthCalendar";
 import { useOpenStayDetail } from "./StayDetailProvider";
 
@@ -25,16 +26,24 @@ const ARRIVAL =
  * mitgesperrt (siehe `createMaintenanceBlock`).
  *
  * Ein Klick auf einen Tag mit Gast öffnet dieselbe Detailansicht wie die
- * Liste; welcher Aufenthalt das ist, entscheidet `stayForDay` (am Wechseltag
- * der anreisende Gast). Freie und gesperrte Tage sind nicht anklickbar.
+ * Liste; welche Aufenthalte zum Tag gehören, entscheidet `staysForDay`. Am
+ * Wechseltag sind es zwei – dann fragt erst eine kleine Auswahl am Tag
+ * (`ChangeDayChoice`), welcher gemeint ist. Freie und gesperrte Tage sind
+ * nicht anklickbar.
  */
 export function OccupancyCalendar({ occupancy }: { occupancy: Occupancy }) {
   const openDetail = useOpenStayDetail();
 
   function appearanceFor(day: Date): DayAppearance {
-    const stay = stayForDay(day, occupancy);
+    const stays = staysForDay(day, occupancy);
     const base = appearanceWithoutAction(day);
-    return stay ? { ...base, action: `Details zu ${stay.guestName} öffnen` } : base;
+    if (stays.length > 1) {
+      return { ...base, action: "Auswahl öffnen" };
+    }
+    if (stays.length === 1) {
+      return { ...base, action: `Details zu ${stays[0].guestName} öffnen` };
+    }
+    return base;
   }
 
   function appearanceWithoutAction(day: Date): DayAppearance {
@@ -63,33 +72,40 @@ export function OccupancyCalendar({ occupancy }: { occupancy: Occupancy }) {
       return { className: BLOCKED, title: block.note ?? "Gesperrt" };
     }
 
-    const stay = occupancy.stays.find((entry) => isDateBlocked(day, [entry]));
-    if (stay) {
-      return { className: OCCUPIED, title: stay.guestName };
+    const stays = staysForDay(day, occupancy);
+    if (stays.length > 1) {
+      return {
+        className: OCCUPIED,
+        title: `Wechseltag – ${stays
+          .map((entry) => `${stayRoleOnDay(entry, day)} ${entry.guestName}`)
+          .join(", ")}`,
+      };
     }
-
-    const departing = occupancy.stays.find(
-      (entry) => entry.endDate.getTime() === day.getTime(),
-    );
-    const arriving = occupancy.stays.find(
-      (entry) => entry.startDate.getTime() === day.getTime(),
-    );
-    return {
-      className: OCCUPIED,
-      title: `${departing?.guestName ?? "Gast"} (Abreise) / ${arriving?.guestName ?? "Gast"} (Anreise)`,
-    };
+    return { className: OCCUPIED, title: stays[0]?.guestName ?? "Gast" };
   }
 
   return (
     <MonthCalendar
       appearanceFor={appearanceFor}
       onDayClick={(day) => {
-        const stay = stayForDay(day, occupancy);
-        if (stay) {
-          openDetail(stay);
+        // Am Wechseltag öffnet der Klick die Auswahl (siehe wrapDay).
+        const stays = staysForDay(day, occupancy);
+        if (stays.length === 1) {
+          openDetail(stays[0]);
         }
       }}
-      isDayClickable={(day) => stayForDay(day, occupancy) !== null}
+      isDayClickable={(day) => staysForDay(day, occupancy).length > 0}
+      wrapDay={(day, dayButton) => {
+        const stays = staysForDay(day, occupancy);
+        if (stays.length < 2) {
+          return dayButton;
+        }
+        return (
+          <ChangeDayChoice day={day} stays={stays} onSelect={openDetail}>
+            {dayButton}
+          </ChangeDayChoice>
+        );
+      }}
       legend={
         <>
           <CalendarLegendItem colorClassName="bg-green-500">Frei</CalendarLegendItem>

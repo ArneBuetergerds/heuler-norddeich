@@ -7,6 +7,7 @@
  * nach. Geloggt werden nur Anzahlen.
  */
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { safeError } from "./safeError";
 
 /** Abstand nach dem Start: Der Server soll erst Anfragen annehmen können. */
 export const FIRST_RUN_DELAY_MS = 60 * 1000;
@@ -25,10 +26,10 @@ export async function runRetention(): Promise<void> {
     const counts = await purgeExpiredData(db);
     console.info(purgeLogMessage(counts));
   } catch (error) {
-    // Nur die Meldung, nicht das Fehlerobjekt: Ein Datenbankfehler kann
-    // Parameter der Abfrage (und damit Daten) enthalten.
-    const message = error instanceof Error ? error.message.split("\n")[0] : "unbekannter Fehler";
-    console.error(`Automatische Löschung fehlgeschlagen: ${message}`);
+    // Nicht das Fehlerobjekt: Ein Datenbankfehler kann Parameter der Abfrage
+    // (und damit Daten) enthalten. `safeError` nimmt nur die erste Zeile der
+    // Meldung, maskiert und ohne Stacktrace.
+    console.error(`Automatische Löschung fehlgeschlagen: ${safeError(error)}`);
   }
 }
 

@@ -91,7 +91,7 @@ describe("notifyAboutBookingRequest", () => {
     expect(n.confirmToGuest).toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(
       "Benachrichtigung des Betreibers fehlgeschlagen",
-      expect.any(Error),
+      "Error: SMTP down",
     );
   });
 });
@@ -178,7 +178,7 @@ describe("createOperatorDigest", () => {
     expect(notifiers.push).toHaveBeenCalledWith(1);
     expect(error).toHaveBeenCalledWith(
       "Sammelmeldung per Mail an die Betreiberin fehlgeschlagen",
-      expect.any(Error),
+      "Error: SMTP down",
     );
   });
 });

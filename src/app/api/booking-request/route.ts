@@ -15,6 +15,7 @@ import {
   sendPushToAdmins,
 } from "@/lib/push";
 import { clientIp, createRateLimiter } from "@/lib/rateLimit";
+import { safeError } from "@/lib/safeError";
 import {
   GLOBAL_REQUEST_LIMIT,
   GLOBAL_REQUEST_WINDOW_MS,
@@ -152,7 +153,7 @@ export async function POST(request: Request) {
         operatorDigest,
       );
     } catch (error) {
-      console.error("Benachrichtigungen zur neuen Anfrage fehlgeschlagen", id, error);
+      console.error("Benachrichtigungen zur neuen Anfrage fehlgeschlagen", id, safeError(error));
     }
   });
 

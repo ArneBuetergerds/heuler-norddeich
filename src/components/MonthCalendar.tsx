@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactElement, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buildCalendarGrid, WEEKDAY_LABELS } from "@/lib/calendar";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export type DayAppearance = {
   title?: string;
   /**
    * Was ein Klick auf den Tag tut, nur für Screenreader – z. B. „Details zu
-   * Gast X öffnen“, wenn am Wechseltag zwei Namen im Tooltip stehen.
+   * Gast X öffnen“ oder „Auswahl öffnen“ am Wechseltag.
    */
   action?: string;
 };
@@ -32,6 +32,12 @@ type Props = {
   onDayClick?: (day: Date) => void;
   /** Welche Tage im aktuellen Auswahlschritt anklickbar sind. */
   isDayClickable?: (day: Date) => boolean;
+  /**
+   * Umhüllt den Knopf eines anklickbaren Tags, z. B. mit einem Popover, das
+   * am Tag verankert ist (Admin: Auswahl am Wechseltag). Wer den Knopf
+   * unverändert zurückgibt, ändert nichts.
+   */
+  wrapDay?: (day: Date, dayButton: ReactElement) => ReactNode;
 };
 
 /**
@@ -45,6 +51,7 @@ export function MonthCalendar({
   minMonthOffset,
   onDayClick,
   isDayClickable,
+  wrapDay,
 }: Props) {
   const [monthOffset, setMonthOffset] = useState(0);
 
@@ -127,9 +134,8 @@ export function MonthCalendar({
 
           if (onDayClick) {
             const clickable = isDayClickable?.(day) ?? true;
-            return (
+            const dayButton = (
               <button
-                key={day.toISOString()}
                 type="button"
                 title={title}
                 disabled={!clickable}
@@ -142,6 +148,11 @@ export function MonthCalendar({
               >
                 {label}
               </button>
+            );
+            return (
+              <Fragment key={day.toISOString()}>
+                {wrapDay ? wrapDay(day, dayButton) : dayButton}
+              </Fragment>
             );
           }
 

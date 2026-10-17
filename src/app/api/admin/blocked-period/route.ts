@@ -11,6 +11,7 @@ import {
   RANGE_TAKEN_ERROR,
 } from "@/db/adminQueries";
 import { sendGuestDecline } from "@/lib/email";
+import { safeError } from "@/lib/safeError";
 import { blockedPeriodCreateSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
@@ -100,7 +101,7 @@ export async function DELETE(request: Request) {
       await sendGuestDecline(guest, reason);
     } catch (error) {
       // Der Storno selbst ist erfolgt – ein Mailfehler darf ihn nicht zurückdrehen.
-      console.error("Storno-E-Mail an den Gast konnte nicht gesendet werden", error);
+      console.error("Storno-E-Mail an den Gast konnte nicht gesendet werden", safeError(error));
     }
   }
 

@@ -18,6 +18,7 @@ import {
 } from "@/db/retentionQueries";
 import { berlinDay } from "@/lib/retention";
 import { sendGuestConfirmation, sendGuestDecline } from "@/lib/email";
+import { safeError } from "@/lib/safeError";
 
 const patchSchema = z.object({
   action: z.enum(["confirm", "decline"]),
@@ -138,6 +139,6 @@ async function notifyGuest(
       await sendGuestDecline(guest, reason);
     }
   } catch (error) {
-    console.error("Benachrichtigung des Gasts konnte nicht gesendet werden", error);
+    console.error("Benachrichtigung des Gasts konnte nicht gesendet werden", safeError(error));
   }
 }

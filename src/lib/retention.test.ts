@@ -9,6 +9,7 @@ import {
   planRetention,
   requestDeletionDate,
   retentionNotice,
+  actionLogRetentionNotice,
   type RetentionRequest,
 } from "./retention";
 
@@ -246,5 +247,13 @@ describe("retentionNotice", () => {
     expect(text).toContain("nach 6 Monaten ab Eingang");
     expect(text).toContain("mit Ablauf des 3. Kalenderjahres nach dem Abreisetag");
     expect(text).toContain("Rechnungen bewahren wir 10 Jahre auf");
+  });
+});
+
+describe("actionLogRetentionNotice", () => {
+  it("nennt die Frist aus der Konstante", () => {
+    expect(actionLogRetentionNotice()).toBe(
+      "Die Protokolleinträge werden 3 Jahre nach ihrer Erstellung automatisch gelöscht.",
+    );
   });
 });

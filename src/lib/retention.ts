@@ -4,9 +4,10 @@
  * Grundlage ist das Löschkonzept in
  * docs/datenschutz/verzeichnis-roenne-art30-1.md, Abschnitt 6.
  * ACHTUNG: Die Fristen sind noch NICHT mit der Steuerberatung abgestimmt.
- * Ändert sich eine Frist, ändert sich die Datenschutzerklärung (Abschnitt 9)
- * automatisch mit, weil ihr Text aus diesen Konstanten erzeugt wird
- * (`retentionNotice`).
+ * Ändert sich eine Frist, ändert sich die Datenschutzerklärung (Abschnitte
+ * „Speicherdauer“ und „Protokoll der Bearbeitung“) automatisch mit, weil ihr
+ * Text aus diesen Konstanten erzeugt wird (`retentionNotice`,
+ * `actionLogRetentionNotice`).
  *
  * Alle Tage sind UTC-Mitternacht des Kalenderdatums, wie die `date`-Spalten.
  * Zeitpunkte (`created_at`, `decided_at`) werden vorher auf ihren Kalendertag
@@ -209,7 +210,7 @@ function years(count: number): string {
 }
 
 /**
- * Text für Abschnitt 9 der Datenschutzerklärung, aus den Konstanten oben
+ * Text für den Abschnitt „Speicherdauer“ der Datenschutzerklärung, aus den Konstanten oben
  * erzeugt, damit Erklärung und Code nicht auseinanderlaufen.
  */
 export function retentionNotice(): string {
@@ -222,4 +223,12 @@ export function retentionNotice(): string {
     "Solange zu einer Buchung eine Rechnung aufbewahrt wird, löschen wir nach Ablauf der oben genannten Frist Name, E-Mail-Adresse, Telefonnummer und Nachricht der Anfrage;",
     "die Rechnung selbst einschließlich Name und Anschrift des Rechnungsempfängers bleibt bis zum Ablauf ihrer Aufbewahrungsfrist erhalten und wird danach gelöscht.",
   ].join(" ");
+}
+
+/**
+ * Speicherdauer des Protokolls administrativer Aktionen für die
+ * Datenschutzerklärung, aus `ACTION_LOG_RETENTION_YEARS` erzeugt.
+ */
+export function actionLogRetentionNotice(): string {
+  return `Die Protokolleinträge werden ${years(ACTION_LOG_RETENTION_YEARS)} nach ihrer Erstellung automatisch gelöscht.`;
 }

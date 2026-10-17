@@ -84,7 +84,7 @@ markierten Stellen ausfüllen.
 **Noch mit der Steuerberatung abzustimmen.** Die Fristen für Anfragen,
 Buchungen und Rechnungen sind in der Anwendung umgesetzt (zentral in
 `src/lib/retention.ts`); geändert wird eine Frist dort, die Datenschutzerklärung
-(Abschnitt 9) übernimmt sie automatisch.
+(Abschnitt „Speicherdauer“) übernimmt sie automatisch.
 
 | Datenbestand | Vorgeschlagene Frist | Begründung |
 |---|---|---|
