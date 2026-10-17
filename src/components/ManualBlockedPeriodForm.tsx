@@ -2,24 +2,44 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateRangePicker, toDateInputValue } from "@/components/DateRangePicker";
 import { cn } from "@/lib/utils";
 
 type EntryKind = "block" | "stay";
+type Period = { startDate: Date; endDate: Date };
+type Occupancy = { stays: Period[]; maintenance: Period[] };
 
 const KIND_OPTIONS = [
   { value: "block", label: "Sperrzeitraum" },
   { value: "stay", label: "Aufenthalt" },
 ] as const;
 
-export function ManualBlockedPeriodForm() {
+export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy }) {
   const router = useRouter();
   const [kind, setKind] = useState<EntryKind>("block");
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Beide Eintragsarten teilen sich den Picker, meinen mit "Ende" aber
+   * Verschiedenes: beim Aufenthalt den Abreisetag (zählt nicht mit), beim
+   * Sperrzeitraum den letzten gesperrten Tag (zählt mit). Die API erwartet
+   * genau diese Formen – `createMaintenanceBlock` rechnet serverseitig einen
+   * Tag drauf, `createManualStay` nicht.
+   */
+  function changeKind(next: EntryKind): void {
+    setKind(next);
+    // Ein bereits gewählter Zeitraum würde nach dem Wechsel etwas anderes
+    // bedeuten als beim Anklicken - deshalb zurücksetzen statt umdeuten.
+    setRange(undefined);
+    setError(null);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -28,6 +48,11 @@ export function ManualBlockedPeriodForm() {
     const form = event.currentTarget;
     const formData = new FormData(form);
 
+    if (!range?.from || !range.to) {
+      setError("Bitte wählen Sie einen Zeitraum.");
+      return;
+    }
+
     setPending(true);
     setError(null);
     try {
@@ -35,17 +60,23 @@ export function ManualBlockedPeriodForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          startDate: formData.get("startDate"),
-          endDate: formData.get("endDate"),
+          startDate: toDateInputValue(range.from),
+          endDate: toDateInputValue(range.to),
           note: kind === "block" ? formData.get("note") || undefined : undefined,
           guestName: kind === "stay" ? formData.get("guestName") : undefined,
         }),
       });
 
       if (!response.ok) {
+        if (response.status === 409) {
+          setError("Der Zeitraum überschneidet sich mit einem bestehenden Eintrag.");
+          return;
+        }
+        // Die API liefert bei 400 eine lesbare Meldung im Feld `error`.
+        const data: unknown = await response.json().catch(() => null);
         setError(
-          response.status === 409
-            ? "Der Zeitraum überschneidet sich mit einem bestehenden Eintrag."
+          data !== null && typeof data === "object" && "error" in data && typeof data.error === "string"
+            ? data.error
             : "Bitte prüfen Sie Ihre Eingaben.",
         );
         return;
@@ -53,6 +84,7 @@ export function ManualBlockedPeriodForm() {
 
       toast.success(kind === "stay" ? "Aufenthalt eingetragen." : "Zeitraum gesperrt.");
       form.reset();
+      setRange(undefined);
       router.refresh();
     } finally {
       setPending(false);
@@ -63,17 +95,17 @@ export function ManualBlockedPeriodForm() {
     <form onSubmit={handleSubmit} className="rounded-xl border bg-card p-5 shadow-sm">
       <h2 className="mb-4 text-sm font-bold">Zeitraum eintragen</h2>
 
-      <div className="mb-4 grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1">
+      <div className="mb-4 grid grid-cols-2 gap-1 rounded-lg bg-track p-1">
         {KIND_OPTIONS.map((option) => (
           <button
             key={option.value}
             type="button"
-            onClick={() => setKind(option.value)}
+            onClick={() => changeKind(option.value)}
             className={cn(
               "cursor-pointer rounded-md px-3 py-1.5 text-[13px] font-semibold transition-colors",
               kind === option.value
-                ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-700",
+                ? "bg-muschel text-schlick shadow-sm"
+                : "text-schlick-2 hover:text-schlick",
             )}
           >
             {option.label}
@@ -83,18 +115,23 @@ export function ManualBlockedPeriodForm() {
 
       <div className="flex flex-col gap-3">
         <div className="grid gap-1.5">
-          <Label htmlFor="startDate">Start</Label>
-          <Input id="startDate" name="startDate" type="date" required />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="endDate">Ende</Label>
-          <Input id="endDate" name="endDate" type="date" required />
+          <Label htmlFor="period">
+            {kind === "stay" ? "Anreise / Abreise" : "Erster / letzter gesperrter Tag"}
+          </Label>
+          <DateRangePicker
+            id="period"
+            occupancy={occupancy}
+            range={range}
+            onRangeChange={setRange}
+            kind={kind}
+            allowPast
+          />
         </div>
 
         {kind === "block" ? (
           <div className="grid gap-1.5">
             <Label htmlFor="note">
-              Notiz <span className="font-normal text-zinc-400">(optional)</span>
+              Notiz <span className="font-normal text-schlick-3">(optional)</span>
             </Label>
             <Input id="note" name="note" placeholder="z. B. Eigennutzung, Wartung" />
           </div>
@@ -111,7 +148,7 @@ export function ManualBlockedPeriodForm() {
         )}
 
         {error && (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
             {error}
           </p>
         )}

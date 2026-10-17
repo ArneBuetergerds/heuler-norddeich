@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { pageMetadata } from "@/lib/site";
 
 type LegalSection = {
   readonly heading: string;
@@ -7,7 +8,7 @@ type LegalSection = {
 
 const SECTIONS: readonly LegalSection[] = [
   {
-    heading: "Angaben gemäß § 5 TMG",
+    heading: "Angaben gemäß § 5 DDG",
     body: (
       <>
         Sabrina Rönne
@@ -23,7 +24,7 @@ const SECTIONS: readonly LegalSection[] = [
     body: <>E-Mail: kontakt@norddeich-heuler.de</>,
   },
   {
-    heading: "Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV",
+    heading: "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV",
     body: (
       <>
         Sabrina Rönne
@@ -34,19 +35,24 @@ const SECTIONS: readonly LegalSection[] = [
   },
 ];
 
+export const metadata = pageMetadata({
+  title: "Impressum",
+  description:
+    "Impressum der Ferienwohnung Heuler in Norddeich.",
+  path: "/impressum",
+});
+
 export default function ImpressumPage() {
   return (
-    <section className="mx-auto max-w-[640px] px-6 pt-14 pb-20">
-      <h1 className="mb-6 text-[28px] font-extrabold tracking-tight">
-        Impressum
-      </h1>
-      <div className="flex flex-col gap-5 text-sm text-zinc-700">
+    <section className="mx-auto max-w-2xl px-5 py-sektion-m md:py-sektion-l">
+      <h1 className="text-h1 text-schlick">Impressum</h1>
+      <div className="mt-8 flex flex-col gap-6">
         {SECTIONS.map((section) => (
           <div key={section.heading}>
-            <h2 className="mb-1.5 text-sm font-bold text-zinc-900">
+            <h2 className="text-label font-semibold uppercase text-schlick-2">
               {section.heading}
             </h2>
-            <p>{section.body}</p>
+            <p className="mt-2 text-body text-schlick">{section.body}</p>
           </div>
         ))}
       </div>

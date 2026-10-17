@@ -18,15 +18,17 @@ export function AdminHeader({ loggedIn }: { loggedIn: boolean }) {
   const pathname = usePathname();
 
   return (
-    <header className="bg-zinc-900 text-white">
-      <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4 px-6 py-3.5">
+    <header className="bg-schlick text-muschel">
+      {/* Mobil zweizeilig: Logo und Knöpfe oben, Navigation darunter. In eine
+          Zeile passt das auf 390px nicht. */}
+      <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6 sm:py-3.5">
         <div className="flex items-baseline gap-2">
-          <span className="text-base font-extrabold">Heuler</span>
-          <span className="text-xs font-medium text-zinc-400">Admin-Bereich</span>
+          <span className="font-display text-xl leading-none">Heuler</span>
+          <span className="text-mikro font-medium text-duenengras">Admin-Bereich</span>
         </div>
 
         {loggedIn && (
-          <nav className="flex items-center gap-1">
+          <nav className="order-last -mx-3 flex w-full items-center gap-1 sm:order-none sm:mx-0 sm:w-auto">
             {ADMIN_NAV.map((item) => {
               const active = pathname === item.href;
               return (
@@ -35,10 +37,10 @@ export function AdminHeader({ loggedIn }: { loggedIn: boolean }) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "rounded-md px-3 py-2 text-sm transition-colors",
+                    "flex min-h-11 items-center rounded-md px-3 text-sm transition-colors sm:min-h-0 sm:py-2",
                     active
-                      ? "font-semibold text-zinc-50"
-                      : "font-medium text-zinc-400 hover:text-zinc-200",
+                      ? "font-semibold text-muschel"
+                      : "font-medium text-track hover:text-muschel",
                   )}
                 >
                   {item.label}
@@ -51,7 +53,7 @@ export function AdminHeader({ loggedIn }: { loggedIn: boolean }) {
         <div className="flex items-center gap-2">
           <Link
             href="/"
-            className="rounded-md border border-zinc-700 px-3.5 py-2 text-[13px] text-zinc-200 transition-colors hover:bg-zinc-800"
+            className="hidden rounded-pille border border-muschel/30 px-4 py-2 text-mikro text-track transition-colors hover:bg-muschel/10 sm:inline-block"
           >
             Zur Website
           </Link>
@@ -59,7 +61,7 @@ export function AdminHeader({ loggedIn }: { loggedIn: boolean }) {
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="cursor-pointer rounded-md bg-zinc-700 px-3.5 py-2 text-[13px] text-white transition-colors hover:bg-zinc-600"
+              className="min-h-11 cursor-pointer rounded-pille bg-duenengras px-4 text-mikro font-semibold text-schlick transition-colors hover:opacity-90 sm:min-h-0 sm:py-2"
             >
               Abmelden
             </button>

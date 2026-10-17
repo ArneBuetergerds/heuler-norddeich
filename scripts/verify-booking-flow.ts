@@ -6,7 +6,7 @@
  */
 import { eq } from "drizzle-orm";
 import { db } from "../src/db/client";
-import { bookingRequest, blockedPeriod } from "../src/db/schema";
+import { adminActionLog, bookingRequest, blockedPeriod } from "../src/db/schema";
 import {
   confirmBookingRequest,
   declineBookingRequest,
@@ -16,6 +16,9 @@ import {
 import { getOccupancy } from "../src/db/queries";
 
 const results: string[] = [];
+
+/** Akteur im Protokoll administrativer Aktionen; die Einträge räumt der Check wieder ab. */
+const ACTOR = "e2e-check";
 
 function check(label: string, ok: boolean): void {
   results.push(`${ok ? "OK  " : "FAIL"} ${label}`);
@@ -37,7 +40,7 @@ async function main(): Promise<void> {
 
   try {
     // 1. Bestätigen verknüpft den Sperrzeitraum mit der Anfrage.
-    await confirmBookingRequest(db, id);
+    await confirmBookingRequest(db, id, ACTOR);
     let blocks = await db
       .select()
       .from(blockedPeriod)
@@ -57,7 +60,7 @@ async function main(): Promise<void> {
     );
 
     // 2. Der Kern des Bugfixes: Ablehnen gibt den Zeitraum wieder frei.
-    await declineBookingRequest(db, id, "E2E-Test");
+    await declineBookingRequest(db, id, ACTOR, "E2E-Test");
     blocks = await db
       .select()
       .from(blockedPeriod)
@@ -77,11 +80,15 @@ async function main(): Promise<void> {
     );
 
     // 3. Manueller Aufenthalt ohne Anfrage.
-    await createManualStay(db, {
-      guestName: "E2E Familie",
-      startDate: new Date("2027-06-01"),
-      endDate: new Date("2027-06-05"),
-    });
+    await createManualStay(
+      db,
+      {
+        guestName: "E2E Familie",
+        startDate: new Date("2027-06-01"),
+        endDate: new Date("2027-06-05"),
+      },
+      ACTOR,
+    );
     occupancy = await getOccupancy();
     const manual = occupancy.stays.find((s) => s.guestName === "E2E Familie");
     check(
@@ -90,7 +97,7 @@ async function main(): Promise<void> {
     );
 
     if (manual) {
-      await cancelStay(db, manual.id);
+      await cancelStay(db, manual.id, ACTOR);
       occupancy = await getOccupancy();
       check(
         "Storno entfernt den manuellen Aufenthalt",
@@ -113,6 +120,7 @@ async function main(): Promise<void> {
   } finally {
     await db.delete(blockedPeriod).where(eq(blockedPeriod.bookingRequestId, id));
     await db.delete(bookingRequest).where(eq(bookingRequest.id, id));
+    await db.delete(adminActionLog).where(eq(adminActionLog.actor, ACTOR));
   }
 
   console.log(results.join("\n"));

@@ -7,6 +7,58 @@ export function isDateBlocked(
 
 export type DayOccupancy = "free" | "occupied" | "departure" | "arrival";
 
+/**
+ * Belegung eines Tages in der Form, die der Bandkalender zeichnet: nicht ein
+ * Zustand, sondern drei unabhängige Angaben.
+ *
+ * Der Unterschied zu `dayOccupancy` ist der Wechseltag. Fallen Abreise des
+ * einen und Anreise des nächsten Gasts auf denselben Tag, kennt
+ * `dayOccupancy` dafür nur "occupied" – beide Tageshälften sind ja belegt.
+ * Das Band zeichnet sie getrennt und zeigt damit, dass der Tag nicht einfach
+ * blockiert, sondern zweigeteilt ist.
+ */
+export type DayBands = {
+  /** Der ganze Tag ist belegt – weder An- noch Abreise möglich. */
+  occupied: boolean;
+  /**
+   * Der Tag liegt in einem Sperrzeitraum (Wartung, Eigennutzung). Nur der
+   * Admin-Kalender wertet das aus und färbt solche Tage anders ein; der
+   * öffentliche Kalender zeigt bewusst nicht, *warum* ein Tag belegt ist.
+   */
+  maintenance: boolean;
+  /** Ein Aufenthalt beginnt an diesem Tag, ab 14 Uhr belegt. */
+  arrival: boolean;
+  /** Ein Aufenthalt endet an diesem Tag, bis 10 Uhr belegt. */
+  departure: boolean;
+};
+
+/**
+ * Sperrzeiträume erzeugen bewusst nie halbe Bänder: Wartung oder Eigennutzung
+ * kennen keinen Übergabetag, ihr Zeitraum ist an jedem Tag voll gesperrt
+ * (siehe `createMaintenanceBlock`). Nur Gastaufenthalte haben An- und
+ * Abreisetage, die sich eine Tageshälfte teilen.
+ */
+export function dayBands(
+  date: Date,
+  stays: { startDate: Date; endDate: Date }[],
+  maintenance: { startDate: Date; endDate: Date }[],
+): DayBands {
+  // Echt innerhalb des Aufenthalts, also ohne An- und Abreisetag: nur diese
+  // Tage sind rund um die Uhr belegt.
+  const insideStay = stays.some(
+    (p) => date > p.startDate && date < p.endDate,
+  );
+
+  const blockedByMaintenance = isDateBlocked(date, maintenance);
+
+  return {
+    occupied: blockedByMaintenance || insideStay,
+    maintenance: blockedByMaintenance,
+    arrival: stays.some((p) => p.startDate.getTime() === date.getTime()),
+    departure: stays.some((p) => p.endDate.getTime() === date.getTime()),
+  };
+}
+
 function addDays(date: Date, amount: number): Date {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + amount),
@@ -37,24 +89,24 @@ export function dayOccupancy(
   stays: { startDate: Date; endDate: Date }[],
   maintenance: { startDate: Date; endDate: Date }[],
 ): DayOccupancy {
-  if (isDateBlocked(date, maintenance)) {
+  const bands = dayBands(date, stays, maintenance);
+
+  if (bands.occupied) {
     return "occupied";
   }
-
-  const isDeparture = stays.some((p) => p.endDate.getTime() === date.getTime());
-  const isArrival = stays.some((p) => p.startDate.getTime() === date.getTime());
-
-  if (isDeparture && isArrival) {
+  // Beide Hälften belegt, nur von verschiedenen Gästen – für die Auswahl im
+  // Datepicker ist der Tag damit genauso dicht wie ein durchgehend belegter.
+  if (bands.departure && bands.arrival) {
     return "occupied";
   }
-  if (isDeparture) {
+  if (bands.departure) {
     return "departure";
   }
-  if (isArrival) {
+  if (bands.arrival) {
     return isDateBlocked(addDays(date, -1), maintenance) ? "occupied" : "arrival";
   }
 
-  return isDateBlocked(date, stays) ? "occupied" : "free";
+  return "free";
 }
 
 // Blocked-period-Daten kommen aus Drizzle `date`-Spalten und werden als

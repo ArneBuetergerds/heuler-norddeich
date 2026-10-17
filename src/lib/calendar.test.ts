@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { isDateBlocked, dayOccupancy, buildMonthDays, buildCalendarGrid } from "./calendar";
+import {
+  isDateBlocked,
+  dayOccupancy,
+  dayBands,
+  buildMonthDays,
+  buildCalendarGrid,
+} from "./calendar";
 
 describe("isDateBlocked", () => {
   const periods = [
@@ -124,5 +130,99 @@ describe("buildCalendarGrid", () => {
     expect(grid).toHaveLength(42);
     expect(grid.filter((day) => day !== null)).toHaveLength(28);
     expect(grid.at(-1)).toBeNull();
+  });
+});
+
+describe("dayBands", () => {
+  const stayA = { startDate: new Date("2026-08-03"), endDate: new Date("2026-08-10") };
+  const stayB = { startDate: new Date("2026-08-10"), endDate: new Date("2026-08-17") };
+  // Sperrzeitraum 20.08. bis einschließlich 22.08. (Ende exklusiv gespeichert).
+  const maintenance = [
+    { startDate: new Date("2026-08-20"), endDate: new Date("2026-08-23") },
+  ];
+
+  it("liefert für einen freien Tag gar kein Band", () => {
+    expect(dayBands(new Date("2026-08-25"), [stayA], [])).toEqual({
+      occupied: false,
+      maintenance: false,
+      arrival: false,
+      departure: false,
+    });
+  });
+
+  it("liefert für einen Tag mitten im Aufenthalt ein volles Band", () => {
+    expect(dayBands(new Date("2026-08-05"), [stayA], [])).toMatchObject({
+      occupied: true,
+    });
+  });
+
+  it("markiert den Anreisetag nur als Anreise, nicht als belegt", () => {
+    expect(dayBands(new Date("2026-08-03"), [stayA], [])).toEqual({
+      occupied: false,
+      maintenance: false,
+      arrival: true,
+      departure: false,
+    });
+  });
+
+  it("markiert den Abreisetag nur als Abreise, nicht als belegt", () => {
+    expect(dayBands(new Date("2026-08-10"), [stayA], [])).toMatchObject({
+      departure: true,
+    });
+  });
+
+  // Der Fall, den dayOccupancy nicht darstellen kann: dort wird daraus
+  // "occupied", das Band zeigt beide Hälften getrennt.
+  it("zeigt am Wechseltag beide Hälften", () => {
+    expect(dayBands(new Date("2026-08-10"), [stayA, stayB], [])).toEqual({
+      occupied: false,
+      maintenance: false,
+      arrival: true,
+      departure: true,
+    });
+    expect(dayOccupancy(new Date("2026-08-10"), [stayA, stayB], [])).toBe("occupied");
+  });
+
+  // Sperrzeiträume kennen keinen Übergabetag - weder am ersten noch am
+  // letzten Tag darf eine Tageshälfte frei erscheinen.
+  it.each([
+    ["erster", "2026-08-20"],
+    ["mittlerer", "2026-08-21"],
+    ["letzter", "2026-08-22"],
+  ])("sperrt den %s Tag eines Sperrzeitraums ganz", (_label, datum) => {
+    expect(dayBands(new Date(datum), [], maintenance)).toEqual({
+      occupied: true,
+      maintenance: true,
+      arrival: false,
+      departure: false,
+    });
+  });
+
+  it("gibt den Tag nach dem Sperrzeitraum wieder frei", () => {
+    expect(dayBands(new Date("2026-08-23"), [], maintenance)).toMatchObject({
+      occupied: false,
+    });
+  });
+
+  it("lässt eine Anreise am Tag nach einem Sperrzeitraum als halbes Band zu", () => {
+    const stay = { startDate: new Date("2026-08-23"), endDate: new Date("2026-08-30") };
+
+    expect(dayBands(new Date("2026-08-23"), [stay], maintenance)).toEqual({
+      occupied: false,
+      maintenance: false,
+      arrival: true,
+      departure: false,
+    });
+  });
+
+  it("unterscheidet Sperrzeitraum von Gastaufenthalt", () => {
+    expect(dayBands(new Date("2026-08-21"), [], maintenance)).toMatchObject({
+      occupied: true,
+      maintenance: true,
+    });
+    expect(dayBands(new Date("2026-08-05"), [stayA], [])).toMatchObject({
+      occupied: true,
+      maintenance: false,
+    });
   });
 });

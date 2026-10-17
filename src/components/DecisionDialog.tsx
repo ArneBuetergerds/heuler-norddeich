@@ -56,7 +56,7 @@ export function DecisionDialog({
         <div className="grid gap-2">
           <Label htmlFor="decision-reason">
             Grund{" "}
-            <span className="font-normal text-zinc-400">
+            <span className="font-normal text-schlick-3">
               (optional, erscheint in der Benachrichtigungsmail)
             </span>
           </Label>

@@ -1,7 +1,28 @@
 import nodemailer from "nodemailer";
 import type { BookingRequest } from "@/db/schema";
+import {
+  BALANCE_DUE_DAYS,
+  CLEANING_FEE,
+  DEPOSIT_SHARE,
+  SERVICE_FEE,
+  EXTRAS,
+  balanceAmount,
+  depositAmount,
+  extrasTotal,
+  priceBreakdown,
+  stayTotal,
+} from "./pricing";
+import { formatDate, formatEuro } from "./format";
+import { DEPOSIT_DUE_DAYS, PARKING, RESPONSE_HOURS, cancellationLines } from "./terms";
+import { SITE_URL } from "./site";
 
 const FROM = "Ferienwohnung Heuler <noreply@norddeich-heuler.de>";
+
+// Versendet wird über den noreply-Alias, Antworten sollen aber im gelesenen
+// Postfach landen. Ohne explizites Reply-To zeigt der Mailclient des Gasts
+// "noreply@" als Antwortziel - auf so einen Absender antwortet kaum jemand,
+// obwohl die Gast-Mails ausdrücklich dazu auffordern.
+const REPLY_TO = "kontakt@norddeich-heuler.de";
 
 const transporter = nodemailer.createTransport({
   pool: true,
@@ -15,27 +36,129 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("de-DE");
-}
-
+/**
+ * "bis" statt Gedankenstrich: In einem Fließtext liest sich das besser als die
+ * Bereichsschreibweise der Oberfläche. Das Datumsformat selbst kommt aus
+ * `lib/format`, damit Mail und Admin dieselbe Schreibweise zeigen – und damit
+ * die dort dokumentierte Zeitzonenangabe nicht verloren geht.
+ */
 function formatRange(request: Pick<BookingRequest, "startDate" | "endDate">): string {
   return `${formatDate(request.startDate)} bis ${formatDate(request.endDate)}`;
 }
 
-type Mail = {
+/**
+ * Bestellte Wäsche als Textzeilen. Leer, wenn nichts bestellt wurde – dann
+ * soll in der Mail auch keine Überschrift dazu stehen.
+ */
+function extrasLines(request: BookingRequest): string[] {
+  const posten = (["linens", "towels"] as const)
+    .filter((key) => request[key] > 0)
+    .map(
+      (key) =>
+        `  ${EXTRAS[key].label}: ${request[key]} × ${EXTRAS[key].pricePerSet} €`,
+    );
+
+  if (posten.length === 0) {
+    return [];
+  }
+  return [
+    "Zusätzlich bestellt (bar vor Ort):",
+    ...posten,
+    `  Summe: ${extrasTotal(request)} €`,
+  ];
+}
+
+/**
+ * Mietpreis als Textblock, nach Saison aufgeschlüsselt. Ein Aufenthalt über
+ * einen Saisonwechsel hinweg ergibt zwei Zeilen – mit nur einer wäre der
+ * Betrag für den Gast nicht nachvollziehbar.
+ */
+function priceLines(request: BookingRequest): string[] {
+  const posten = priceBreakdown(request.startDate, request.endDate);
+  const summe = stayTotal(request.startDate, request.endDate);
+
+  const zeilen = posten.map(
+    (p) =>
+      `  ${p.nights} ${p.nights === 1 ? "Nacht" : "Nächte"} × ${p.pricePerNight} € (${p.season.name}): ${formatEuro(p.total)}`,
+  );
+
+  return ["Mietpreis:", ...zeilen, `  Summe: ${formatEuro(summe)}`];
+}
+
+/** Anzahlung, Restbetrag und – falls hinterlegt – die Bankverbindung. */
+function paymentLines(request: BookingRequest): string[] {
+  const summe = stayTotal(request.startDate, request.endDate);
+  const anzahlung = depositAmount(summe);
+  const rest = balanceAmount(summe);
+  // Nicht erfunden, sondern konfiguriert: Ohne hinterlegte Bankverbindung
+  // nennt die Mail die Beträge und kündigt die Kontodaten an, statt eine
+  // falsche IBAN zu behaupten.
+  const bank = process.env.BANK_TRANSFER_DETAILS?.trim();
+
+  return [
+    "Zahlung:",
+    `  Anzahlung ${Math.round(DEPOSIT_SHARE * 100)} %: ${formatEuro(anzahlung)} – bitte innerhalb von ${DEPOSIT_DUE_DAYS} Tagen überweisen`,
+    `  Restbetrag: ${formatEuro(rest)} – spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise`,
+    "",
+    ...(bank
+      ? ["Bankverbindung:", ...bank.split("\n").map((zeile) => `  ${zeile}`)]
+      : ["Die Bankverbindung für die Anzahlung senden wir Ihnen gesondert zu."]),
+  ];
+}
+
+export type Mail = {
   to: string;
   replyTo?: string;
   subject: string;
   text: string;
 };
 
-async function send(mail: Mail): Promise<void> {
+/** Absender und Antwortziel, wie sie beim Versand gesetzt werden. */
+export const MAIL_ABSENDER = { from: FROM, replyTo: REPLY_TO } as const;
+
+/**
+ * Versendet eine fertige Mail über den konfigurierten SMTP-Zugang. Exportiert
+ * für `scripts/send-test-mails.ts`, das die echten Texte an eine Testadresse
+ * schickt; im Betrieb laufen alle Mails über die `send…`-Funktionen unten.
+ */
+export async function sendMail(mail: Mail): Promise<void> {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error("SMTP-Zugangsdaten sind nicht konfiguriert");
   }
 
   await transporter.sendMail({ from: FROM, ...mail });
+}
+
+/** Schließt die SMTP-Verbindungen, damit ein Skript danach endet. */
+export function closeMailTransport(): void {
+  transporter.close();
+}
+
+/**
+ * Alle Texte entstehen in reinen `build`-Funktionen, getrennt vom Versand.
+ * Dadurch lassen sie sich ohne SMTP rendern – siehe
+ * `scripts/preview-mails.ts`, das sie zur Abstimmung ausgibt.
+ */
+export function buildBookingRequestNotification(
+  request: BookingRequest,
+  ownerEmail: string,
+): Mail {
+  return {
+    to: ownerEmail,
+    replyTo: request.email,
+    subject: `Neue Buchungsanfrage von ${request.name}`,
+    text: [
+      `Name: ${request.name}`,
+      `E-Mail: ${request.email}`,
+      `Telefon: ${request.phone ?? "-"}`,
+      `Zeitraum: ${formatRange(request)}`,
+      `Personen: ${request.guests}`,
+      ...extrasLines(request),
+      `Nachricht: ${request.message ?? "-"}`,
+      "",
+      ...priceLines(request),
+    ].join("\n"),
+  };
 }
 
 /** Benachrichtigt den Betreiber über eine neu eingegangene Anfrage. */
@@ -47,43 +170,86 @@ export async function sendBookingRequestNotification(
     throw new Error("OWNER_NOTIFICATION_EMAIL ist nicht konfiguriert");
   }
 
-  await send({
-    to: ownerEmail,
-    replyTo: request.email,
-    subject: `Neue Buchungsanfrage von ${request.name}`,
-    text: [
-      `Name: ${request.name}`,
-      `E-Mail: ${request.email}`,
-      `Telefon: ${request.phone ?? "-"}`,
-      `Zeitraum: ${formatRange(request)}`,
-      `Nachricht: ${request.message ?? "-"}`,
-    ].join("\n"),
-  });
+  await sendMail(buildBookingRequestNotification(request, ownerEmail));
 }
 
-/** Bestätigt dem Gast den Eingang seiner Anfrage. */
-export async function sendGuestRequestReceived(request: BookingRequest): Promise<void> {
-  await send({
+/**
+ * Sammelmeldung über dem Gesamtlimit: nur die Anzahl, keine Gastdaten. Die
+ * Anfragen selbst stehen im Admin – die Mail soll dorthin führen, nicht den
+ * Inhalt von möglicherweise automatisch erzeugten Anfragen weitertragen.
+ */
+export function buildOperatorDigest(
+  count: number,
+  ownerEmail: string,
+  { limit, windowHours }: { limit: number; windowHours: number },
+): Mail {
+  const eingang =
+    count === 1
+      ? "ist eine weitere Buchungsanfrage"
+      : `sind ${count} weitere Buchungsanfragen`;
+  return {
+    to: ownerEmail,
+    subject: `Ungewöhnlich viele Buchungsanfragen: ${count} weitere eingegangen`,
+    text: [
+      `In der letzten Stunde ${eingang} eingegangen.`,
+      "",
+      `Weil mehr als ${limit} Anfragen in ${windowHours} Stunden eingegangen sind, kommen`,
+      "vorübergehend keine einzelnen Mails und Push-Nachrichten mehr, sondern höchstens",
+      "eine solche Sammelmeldung je Stunde. Die Absender bekommen in dieser Zeit keine",
+      "Eingangsbestätigung. Das kann ein Bot sein – oder einfach ein sehr gefragter Termin.",
+      "",
+      "Alle Anfragen sind gespeichert und im Admin zu sehen:",
+      `${SITE_URL}/admin`,
+    ].join("\n"),
+  };
+}
+
+/** Schickt die Sammelmeldung an die Betreiberin. */
+export async function sendOperatorDigest(
+  count: number,
+  threshold: { limit: number; windowHours: number },
+): Promise<void> {
+  const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
+  if (!ownerEmail) {
+    throw new Error("OWNER_NOTIFICATION_EMAIL ist nicht konfiguriert");
+  }
+
+  await sendMail(buildOperatorDigest(count, ownerEmail, threshold));
+}
+
+export function buildGuestRequestReceived(request: BookingRequest): Mail {
+  return {
     to: request.email,
+    replyTo: REPLY_TO,
     subject: "Ihre Anfrage für die Ferienwohnung Heuler",
     text: [
       `Hallo ${request.name},`,
       "",
-      `vielen Dank für Ihre Anfrage für den Zeitraum ${formatRange(request)}.`,
-      "Wir haben sie erhalten und melden uns in Kürze bei Ihnen.",
+      `vielen Dank für Ihre Anfrage für den Zeitraum ${formatRange(request)}`,
+      `für ${request.guests} ${request.guests === 1 ? "Person" : "Personen"}.`,
+      `Wir haben sie erhalten und melden uns innerhalb von ${RESPONSE_HOURS} Stunden bei Ihnen.`,
       "",
-      "Diese E-Mail ist noch keine Buchungsbestätigung.",
+      ...priceLines(request),
+      ...(extrasLines(request).length > 0 ? ["", ...extrasLines(request)] : []),
+      "",
+      "Diese E-Mail ist noch keine Buchungsbestätigung – der Preis ist eine",
+      "unverbindliche Vorschau auf Basis Ihres Wunschzeitraums.",
       "",
       "Viele Grüße",
       "Ferienwohnung Heuler, Norddeich",
     ].join("\n"),
-  });
+  };
 }
 
-/** Sagt dem Gast den Aufenthalt verbindlich zu. */
-export async function sendGuestConfirmation(request: BookingRequest): Promise<void> {
-  await send({
+/** Bestätigt dem Gast den Eingang seiner Anfrage. */
+export async function sendGuestRequestReceived(request: BookingRequest): Promise<void> {
+  await sendMail(buildGuestRequestReceived(request));
+}
+
+export function buildGuestConfirmation(request: BookingRequest): Mail {
+  return {
     to: request.email,
+    replyTo: REPLY_TO,
     subject: "Ihre Buchung für die Ferienwohnung Heuler ist bestätigt",
     text: [
       `Hallo ${request.name},`,
@@ -91,12 +257,31 @@ export async function sendGuestConfirmation(request: BookingRequest): Promise<vo
       `Ihre Buchung für den Zeitraum ${formatRange(request)} ist bestätigt.`,
       "Wir freuen uns auf Ihren Besuch in Norddeich.",
       "",
+      ...priceLines(request),
+      "",
+      ...paymentLines(request),
+      "",
+      `Vor Ort in bar: Endreinigung ${CLEANING_FEE} €, Servicegebühr ${SERVICE_FEE} €, Gästebeitrag`,
+      "(3,50 € je Person ab 14 Jahren und Nacht in der Hauptsaison,",
+      "sonst 1,80 €).",
+      ...(extrasLines(request).length > 0 ? ["", ...extrasLines(request)] : []),
+      "",
+      "Anreise ab 14 Uhr, Abreise bis 10 Uhr.",
+      `Parken: ${PARKING}.`,
+      "",
+      ...cancellationLines(),
+      "",
       "Bei Fragen antworten Sie einfach auf diese E-Mail.",
       "",
       "Viele Grüße",
       "Ferienwohnung Heuler, Norddeich",
     ].join("\n"),
-  });
+  };
+}
+
+/** Sagt dem Gast den Aufenthalt verbindlich zu. */
+export async function sendGuestConfirmation(request: BookingRequest): Promise<void> {
+  await sendMail(buildGuestConfirmation(request));
 }
 
 /**
@@ -104,14 +289,15 @@ export async function sendGuestConfirmation(request: BookingRequest): Promise<vo
  * teilen denselben Text – aus Sicht des Gasts ist das Ergebnis dasselbe: der
  * Zeitraum kommt nicht zustande.
  */
-export async function sendGuestDecline(
+export function buildGuestDecline(
   request: BookingRequest,
   reason?: string | null,
-): Promise<void> {
+): Mail {
   const reasonLines = reason?.trim() ? [`Grund: ${reason.trim()}`, ""] : [];
 
-  await send({
+  return {
     to: request.email,
+    replyTo: REPLY_TO,
     subject: "Ihre Anfrage für die Ferienwohnung Heuler",
     text: [
       `Hallo ${request.name},`,
@@ -124,5 +310,12 @@ export async function sendGuestDecline(
       "Viele Grüße",
       "Ferienwohnung Heuler, Norddeich",
     ].join("\n"),
-  });
+  };
+}
+
+export async function sendGuestDecline(
+  request: BookingRequest,
+  reason?: string | null,
+): Promise<void> {
+  await sendMail(buildGuestDecline(request, reason));
 }

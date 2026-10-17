@@ -51,8 +51,15 @@ export function AdminRequestActions({ requestId, guestName }: Props) {
 
   return (
     <>
+      {/* Mobil volle Breite und 44px hoch: Am Handy ist das das Tippziel
+          für die wichtigste Entscheidung im Admin. */}
       <div className="flex gap-2">
-        <Button size="sm" disabled={pending} onClick={() => decide("confirm")}>
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() => decide("confirm")}
+          className="h-11 flex-1 sm:h-8 sm:flex-none"
+        >
           Bestätigen
         </Button>
         <Button
@@ -60,7 +67,7 @@ export function AdminRequestActions({ requestId, guestName }: Props) {
           variant="outline"
           disabled={pending}
           onClick={() => setDialogOpen(true)}
-          className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700"
+          className="h-11 flex-1 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive sm:h-8 sm:flex-none"
         >
           Ablehnen
         </Button>

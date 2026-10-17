@@ -1,21 +1,124 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { DateRange } from "react-day-picker";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { DateRangePicker, toDateInputValue } from "@/components/DateRangePicker";
+import {
+  DateRangePicker,
+  toDateInputValue,
+  toUtcMidnight,
+} from "@/components/DateRangePicker";
+import {
+  EXTRAS,
+  EXTRAS_LEAD_DAYS,
+  MAX_GUESTS,
+  extrasBookable,
+  extrasTotal,
+  minNightsMessage,
+} from "@/lib/pricing";
+import { RESPONSE_HOURS } from "@/lib/terms";
+import { PriceQuote } from "./PriceQuote";
 
 type Status = "idle" | "sending" | "success";
+
+/** Meldung samt Feld, zu dem sie gehört (`null` = allgemein, am Absende-Button). */
+type Fehler = { feld: string | null; text: string };
+
+/**
+ * Serverfelder auf die IDs im Formular abbilden. Zeitraumfehler gehören zum
+ * Datumsfeld, Wäschefehler zum Wäscheblock.
+ */
+const FELD_ID: Record<string, string> = {
+  startDate: "date-range",
+  endDate: "date-range",
+  name: "name",
+  email: "email",
+  phone: "phone",
+  message: "message",
+  guests: "guests",
+  linens: "extras",
+  towels: "extras",
+};
 type Period = { startDate: Date; endDate: Date };
 type Occupancy = { stays: Period[]; maintenance: Period[] };
 
-export function BookingRequestForm({ occupancy }: { occupancy: Occupancy }) {
+const FELD =
+  "h-13 w-full rounded-sm border border-linie bg-sand px-4 text-base text-schlick placeholder:text-schlick-3";
+
+type Props = {
+  occupancy: Occupancy;
+  /** Zeitraum kommt von außen: Kalender und Formular teilen sich die Auswahl. */
+  range: DateRange | undefined;
+  onRangeChange: (range: DateRange | undefined) => void;
+};
+
+export function BookingRequestForm({ occupancy, range, onRangeChange }: Props) {
   const [status, setStatus] = useState<Status>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [range, setRange] = useState<DateRange | undefined>(undefined);
+  const [fehler, setFehler] = useState<Fehler | null>(null);
+  const [bestaetigung, setBestaetigung] = useState<{ zeitraum: string; email: string } | null>(
+    null,
+  );
+  const erfolgRef = useRef<HTMLDivElement>(null);
+  const [guests, setGuests] = useState(2);
+  const [extras, setExtras] = useState({ linens: 0, towels: 0 });
+  // Zeitpunkt, ab dem das Formular sichtbar ist: Der Server verwirft Anfragen,
+  // die schneller abgeschickt werden, als ein Mensch es ausfüllen kann.
+  const shownAt = useRef(0);
+  useEffect(() => {
+    shownAt.current = Date.now();
+  }, []);
+
+  // Wäsche braucht eine Woche Vorlauf. Ohne gewählten Zeitraum ist noch nichts
+  // entschieden, deshalb bleiben die Felder dann bedienbar.
+  const now = new Date();
+  const todayUtc = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const waescheMoeglich =
+    !range?.from || extrasBookable(toUtcMidnight(range.from), todayUtc);
+
+  function setExtra(key: "linens" | "towels", wert: number): void {
+    // Nie mehr Sätze als Personen – dieselbe Regel prüfen Server und Datenbank.
+    setExtras((alt) => ({ ...alt, [key]: Math.max(0, Math.min(wert, guests)) }));
+  }
+
+  function changeGuests(wert: number): void {
+    const neu = Math.max(1, Math.min(wert, MAX_GUESTS));
+    setGuests(neu);
+    setExtras((alt) => ({
+      linens: Math.min(alt.linens, neu),
+      towels: Math.min(alt.towels, neu),
+    }));
+  }
+
+  /**
+   * Zeigt die Meldung am betroffenen Feld und springt dorthin. Mobil liegt das
+   * Formular über mehrere Bildschirme – eine Meldung oben sähe niemand, der
+   * gerade unten auf "Anfrage senden" getippt hat.
+   */
+  function zeigeFehler(feld: string | null, text: string): void {
+    setFehler({ feld, text });
+    requestAnimationFrame(() => {
+      const ziel = document.getElementById(feld ?? "anfrage-fehler");
+      ziel?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (feld) ziel?.focus({ preventScroll: true });
+    });
+  }
+
+  /** aria-Attribute für ein Eingabefeld, falls die aktuelle Meldung zu ihm gehört. */
+  function fehlerAttribute(id: string) {
+    return fehler?.feld === id
+      ? { "aria-invalid": true as const, "aria-describedby": `${id}-fehler` }
+      : {};
+  }
+
+  // Nach dem Absenden die Bestätigung in den Blick holen: Das lange Formular
+  // verschwindet, ohne Sprung landete man irgendwo darunter.
+  useEffect(() => {
+    if (status === "success") {
+      erfolgRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      erfolgRef.current?.focus({ preventScroll: true });
+    }
+  }, [status]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -25,14 +128,27 @@ export function BookingRequestForm({ occupancy }: { occupancy: Occupancy }) {
     const formData = new FormData(form);
 
     if (!range?.from || !range?.to) {
-      setError("Bitte wählen Sie Anreise- und Abreisedatum.");
+      zeigeFehler("date-range", "Bitte wählen Sie Anreise- und Abreisedatum.");
+      return;
+    }
+
+    // Derselbe Wortlaut, mit dem der Server ablehnen würde - nur ohne den
+    // Umweg über eine verworfene Anfrage.
+    const tooShort = minNightsMessage(
+      toUtcMidnight(range.from),
+      toUtcMidnight(range.to),
+    );
+    if (tooShort) {
+      zeigeFehler("date-range", tooShort);
       return;
     }
 
     setStatus("sending");
-    setError(null);
+    setFehler(null);
 
-    const response = await fetch("/api/booking-request", {
+    let response: Response;
+    try {
+      response = await fetch("/api/booking-request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -42,104 +158,366 @@ export function BookingRequestForm({ occupancy }: { occupancy: Occupancy }) {
         startDate: toDateInputValue(range.from),
         endDate: toDateInputValue(range.to),
         message: formData.get("message"),
+        guests,
+        linens: waescheMoeglich ? extras.linens : 0,
+        towels: waescheMoeglich ? extras.towels : 0,
+        website: formData.get("website"),
+        formMs: Date.now() - shownAt.current,
       }),
-    });
-
-    if (!response.ok) {
-      const data: unknown = await response.json().catch(() => null);
-      const message =
-        data !== null && typeof data === "object" && "error" in data
-          ? (data as { error: unknown }).error
-          : null;
-      setError(typeof message === "string" ? message : "Bitte prüfen Sie Ihre Eingaben.");
+      });
+    } catch {
+      // Ohne Netz bliebe der Button sonst dauerhaft auf "Wird gesendet …".
       setStatus("idle");
+      zeigeFehler(null, "Keine Verbindung. Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.");
       return;
     }
 
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        field?: unknown;
+      } | null;
+      const text =
+        typeof data?.error === "string" ? data.error : "Bitte prüfen Sie Ihre Eingaben.";
+      const feld = typeof data?.field === "string" ? (FELD_ID[data.field] ?? null) : null;
+      setStatus("idle");
+      zeigeFehler(feld, text);
+      return;
+    }
+
+    setBestaetigung({
+      zeitraum: `${range.from.toLocaleDateString("de-DE")} – ${range.to.toLocaleDateString("de-DE")}`,
+      email: String(formData.get("email") ?? ""),
+    });
     form.reset();
-    setRange(undefined);
+    onRangeChange(undefined);
+    setGuests(2);
+    setExtras({ linens: 0, towels: 0 });
     setStatus("success");
+    shownAt.current = Date.now();
+  }
+
+  if (status === "success") {
+    return (
+      <div
+        ref={erfolgRef}
+        tabIndex={-1}
+        role="status"
+        className="rounded-card border border-linie bg-muschel p-6 text-center outline-none"
+      >
+        <p className="font-display text-h3 text-schlick">Anfrage ist da</p>
+        {bestaetigung && (
+          <p className="mt-3 text-body text-schlick">
+            Zeitraum {bestaetigung.zeitraum}
+          </p>
+        )}
+        <p className="mt-3 text-klein text-schlick-2">
+          Sie erhalten gleich eine Eingangsbestätigung
+          {bestaetigung?.email ? ` an ${bestaetigung.email}` : " per E-Mail"}. Die
+          verbindliche Zu- oder Absage kommt persönlich. Keine Mail da? Bitte
+          auch im Spam-Ordner nachsehen.
+        </p>
+        <button
+          type="button"
+          onClick={() => setStatus("idle")}
+          className="mt-6 h-11 rounded-pille border border-linie px-6 text-klein font-semibold text-priel-tief hover:bg-priel-hell"
+        >
+          Weiteren Zeitraum anfragen
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <h2 className="mb-1 text-[17px] font-bold">Buchungsanfrage</h2>
-      <p className="mb-5 text-[13px] text-zinc-500">
-        Unverbindlich – wir melden uns zeitnah bei Ihnen.
-      </p>
+    <form
+      id="anfrageformular"
+      onSubmit={handleSubmit}
+      className="flex scroll-mt-24 flex-col gap-5"
+    >
+      <h3 className="font-display text-h3 text-schlick">Unverbindlich anfragen</h3>
 
-      {status === "success" ? (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
-          <p className="mb-1 text-sm font-semibold text-green-800">Anfrage gesendet</p>
-          <p className="text-[13px] text-green-800">
-            Status: ausstehend – Sie erhalten in Kürze eine Rückmeldung.
+      {/* Fangfeld für Bots: für Menschen unsichtbar und nicht per Tab
+          erreichbar. Wer es ausfüllt, wird serverseitig still verworfen. */}
+      <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+        <label htmlFor="website">Website</label>
+        <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+      </div>
+
+      <Feld id="date-range" fehler={fehler} label="Zeitraum">
+        <DateRangePicker
+          id="date-range"
+          occupancy={occupancy}
+          range={range}
+          onRangeChange={(next) => {
+            onRangeChange(next);
+            if (fehler?.feld === "date-range") setFehler(null);
+          }}
+          showSeasonHint
+        />
+      </Feld>
+
+      <Feld id="guests" fehler={fehler} label="Personen">
+        <Zahlenfeld
+          id="guests"
+          name="Personen"
+          value={guests}
+          min={1}
+          max={MAX_GUESTS}
+          onChange={changeGuests}
+        />
+      </Feld>
+
+      <fieldset id="extras" tabIndex={-1} className="flex flex-col gap-3 outline-none">
+        <legend className="text-klein font-medium text-schlick">
+          Bettwäsche &amp; Handtücher
+          <span className="font-normal text-schlick-2"> — optional</span>
+        </legend>
+
+        {waescheMoeglich ? (
+          <>
+            {(["linens", "towels"] as const).map((key) => (
+              <div key={key} className="flex items-center justify-between gap-4">
+                <label htmlFor={key} className="text-klein text-schlick">
+                  {EXTRAS[key].label}
+                  <span className="block text-mikro text-schlick-2">
+                    {EXTRAS[key].pricePerSet} € je Satz und Aufenthalt
+                  </span>
+                </label>
+                <Zahlenfeld
+                  id={key}
+                  name={EXTRAS[key].label}
+                  value={extras[key]}
+                  min={0}
+                  max={guests}
+                  onChange={(wert) => setExtra(key, wert)}
+                />
+              </div>
+            ))}
+            {extrasTotal(extras) > 0 && (
+              <p className="text-mikro text-schlick-2">
+                Zusammen {extrasTotal(extras)} €, bar bei der Schlüsselübergabe.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="rounded-sm bg-priel-hell px-4 py-3 text-mikro text-priel-tief">
+            Für diesen Zeitraum nicht mehr bestellbar – Bettwäsche und Handtücher
+            brauchen {EXTRAS_LEAD_DAYS} Tage Vorlauf. Schreiben Sie uns gern
+            trotzdem, wir fragen nach, was sich einrichten lässt.
           </p>
-          <Button
-            variant="outline"
-            className="mt-3.5 border-green-200 bg-white text-green-800 hover:bg-green-50 hover:text-green-800"
-            onClick={() => setStatus("idle")}
-          >
-            Neue Anfrage stellen
-          </Button>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[13px] text-red-700">
-              {error}
-            </p>
-          )}
+        )}
+        {fehler?.feld === "extras" && <FehlerText id="extras-fehler">{fehler.text}</FehlerText>}
+      </fieldset>
 
-          <div className="grid gap-1.5">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" required placeholder="Vor- und Nachname" />
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="email">E-Mail</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              placeholder="name@beispiel.de"
-            />
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="phone">
-              Telefon <span className="font-normal text-zinc-400">(optional)</span>
-            </Label>
-            <Input id="phone" name="phone" placeholder="0176 12345678" />
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="date-range">Anreise / Abreise</Label>
-            <DateRangePicker occupancy={occupancy} range={range} onRangeChange={setRange} />
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="message">
-              Nachricht <span className="font-normal text-zinc-400">(optional)</span>
-            </Label>
-            <Textarea
-              id="message"
-              name="message"
-              rows={3}
-              placeholder="Ihre Nachricht an uns …"
-            />
-          </div>
-
-          <Button type="submit" disabled={status === "sending"} className="mt-1">
-            {status === "sending" ? "Wird gesendet …" : "Anfrage senden"}
-          </Button>
-
-          <p className="mt-0.5 text-[11px] text-zinc-400">
-            Wir prüfen Ihre Anfrage gegen bereits gesperrte Zeiträume und melden uns per
-            E-Mail.
-          </p>
-        </form>
+      {range?.from && range.to && (
+        <PriceQuote
+          startDate={toUtcMidnight(range.from)}
+          endDate={toUtcMidnight(range.to)}
+          guests={guests}
+          linens={waescheMoeglich ? extras.linens : 0}
+          towels={waescheMoeglich ? extras.towels : 0}
+        />
       )}
+
+      <Feld id="name" fehler={fehler} label="Name">
+        <input
+          id="name"
+          name="name"
+          {...fehlerAttribute("name")}
+          maxLength={100}
+          type="text"
+          required
+          autoComplete="name"
+          placeholder="Vor- und Nachname"
+          className={FELD}
+        />
+      </Feld>
+
+      <Feld id="email" fehler={fehler} label="E-Mail">
+        <input
+          id="email"
+          name="email"
+          {...fehlerAttribute("email")}
+          maxLength={254}
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="name@beispiel.de"
+          className={FELD}
+        />
+      </Feld>
+
+      <Feld id="phone" fehler={fehler} label="Telefon" optional>
+        <input
+          id="phone"
+          name="phone"
+          {...fehlerAttribute("phone")}
+          maxLength={40}
+          type="tel"
+          autoComplete="tel"
+          placeholder="0176 12345678"
+          className={FELD}
+        />
+      </Feld>
+
+      <Feld id="message" fehler={fehler} label="Nachricht" optional>
+        <textarea
+          id="message"
+          name="message"
+          {...fehlerAttribute("message")}
+          maxLength={2000}
+          rows={4}
+          placeholder="Ankunftszeit, Kinder, Fragen zur Wohnung …"
+          className={`${FELD} h-auto resize-none py-3.5`}
+        />
+      </Feld>
+
+      {fehler && fehler.feld === null && (
+        <p
+          id="anfrage-fehler"
+          role="alert"
+          className="rounded-sm border border-destructive/30 bg-destructive/5 px-4 py-3 text-klein text-destructive"
+        >
+          {fehler.text}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={status === "sending"}
+        className="h-14 rounded-pille bg-priel text-base font-semibold text-muschel hover:bg-priel-tief disabled:opacity-60"
+      >
+        {status === "sending" ? "Wird gesendet …" : "Anfrage senden"}
+      </button>
+
+      {/* Kein Einwilligungshaken: Die Verarbeitung stützt sich auf Art. 6
+          Abs. 1 lit. b DSGVO (vorvertragliche Maßnahme auf Ihre Anfrage hin).
+          Eine zusätzlich eingeholte Einwilligung würde die Rechtsgrundlage
+          nur verwässern – ein Hinweis mit Link ist das, was hierher gehört. */}
+      <p className="text-center text-mikro text-schlick-2">
+        Unverbindlich – keine Onlinebuchung, keine Zahlung. Antwort innerhalb
+        von {RESPONSE_HOURS} Stunden.{" "}
+        <a href="#storno" className="text-priel underline-offset-2 hover:underline">
+          Stornobedingungen
+        </a>
+        . Wie wir Ihre Angaben verarbeiten, steht in der{" "}
+        <a
+          href="/datenschutz"
+          className="text-priel underline-offset-2 hover:underline"
+        >
+          Datenschutzerklärung
+        </a>
+        .
+      </p>
+    </form>
+  );
+}
+
+function Feld({
+  id,
+  label,
+  optional,
+  fehler,
+  children,
+}: {
+  id: string;
+  label: string;
+  optional?: boolean;
+  /** Meldung, falls sie zu diesem Feld gehört. */
+  fehler?: Fehler | null;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-klein font-medium text-schlick">
+        {label}
+        {optional && <span className="font-normal text-schlick-2"> — optional</span>}
+      </label>
+      {children}
+      {fehler?.feld === id && <FehlerText id={`${id}-fehler`}>{fehler.text}</FehlerText>}
     </div>
+  );
+}
+
+function FehlerText({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <p id={id} role="alert" className="text-klein font-medium text-destructive">
+      {children}
+    </p>
+  );
+}
+
+/**
+ * Zahlenfeld mit Plus und Minus. Bewusst kein reines `type="number"`: Auf dem
+ * Handy sind die Spinner winzig, und die Werte bewegen sich hier zwischen 0
+ * und 4 – da sind zwei große Schaltflächen schneller als die Tastatur.
+ */
+function Zahlenfeld({
+  id,
+  name,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  id: string;
+  /** Wofür gezählt wird – für die Beschriftung der Knöpfe im Screenreader. */
+  name: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (wert: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <SchrittButton
+        label={`${name} verringern`}
+        disabled={value <= min}
+        onClick={() => onChange(value - 1)}
+      >
+        −
+      </SchrittButton>
+      <input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="h-11 w-14 rounded-sm border border-linie bg-sand text-center text-base text-schlick tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+      />
+      <SchrittButton
+        label={`${name} erhöhen`}
+        disabled={value >= max}
+        onClick={() => onChange(value + 1)}
+      >
+        +
+      </SchrittButton>
+    </div>
+  );
+}
+
+function SchrittButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="grid size-11 place-items-center rounded-pille border border-linie text-lg text-priel-tief disabled:opacity-30"
+    >
+      {children}
+    </button>
   );
 }

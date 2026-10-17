@@ -1,0 +1,215 @@
+/* ---------------------------------------------------------------------------
+   Heuler — Designrichtung A "Wattenmeer"
+   Tailwind CSS v4 · Hell-Modus · keine externen Ressourcen
+   Schriften über next/font selbst gehostet (siehe layout.tsx unten im Kommentar)
+   --------------------------------------------------------------------------- */
+
+@import "tailwindcss";
+
+/* --- Rohe Tokens ---------------------------------------------------------- */
+:root {
+  /* Grundtöne — warm, leicht gelbstichig statt neutralgrau */
+  --heuler-sand:        oklch(0.962 0.012 82);   /* Seitengrund                */
+  --heuler-muschel:     oklch(0.990 0.005 85);   /* Flächen, Karten, Header    */
+  --heuler-linie:       oklch(0.885 0.014 82);   /* Haarlinien, Rahmen         */
+  --heuler-track:       oklch(0.925 0.012 82);   /* Kalender-Schiene "frei"    */
+  --heuler-track-alt:   oklch(0.945 0.008 82);   /* Kalender-Schiene vergangen */
+
+  /* Text */
+  --heuler-schlick:     oklch(0.270 0.018 70);   /* Fließtext, dunkle Flächen  */
+  --heuler-schlick-2:   oklch(0.500 0.016 70);   /* Sekundärtext               */
+  --heuler-schlick-3:   oklch(0.550 0.014 82);   /* vergangene Tage, Hinweise  */
+
+  /* Akzent — Priel: das Blaugrün eines Wattstroms, nicht Marineblau */
+  --heuler-priel:       oklch(0.470 0.072 207);
+  --heuler-priel-tief:  oklch(0.360 0.060 210);  /* Hover, Text auf Tint       */
+  --heuler-priel-hell:  oklch(0.905 0.028 200);  /* Tint-Flächen               */
+
+  /* Zweitakzent — Dünengras, sparsam: nur auf dunklem Grund */
+  --heuler-duenengras:  oklch(0.755 0.105 82);
+
+  /* Statusfarben Formular */
+  --heuler-fehler:      oklch(0.520 0.150 28);
+  --heuler-erfolg:      oklch(0.520 0.090 155);
+}
+
+/* --- Tailwind-Theme ------------------------------------------------------- */
+@theme {
+  --color-sand:         var(--heuler-sand);
+  --color-muschel:      var(--heuler-muschel);
+  --color-linie:        var(--heuler-linie);
+  --color-track:        var(--heuler-track);
+  --color-track-alt:    var(--heuler-track-alt);
+  --color-schlick:      var(--heuler-schlick);
+  --color-schlick-2:    var(--heuler-schlick-2);
+  --color-schlick-3:    var(--heuler-schlick-3);
+  --color-priel:        var(--heuler-priel);
+  --color-priel-tief:   var(--heuler-priel-tief);
+  --color-priel-hell:   var(--heuler-priel-hell);
+  --color-duenengras:   var(--heuler-duenengras);
+
+  /* Schriften — Variablen kommen aus next/font, siehe Kommentar unten */
+  --font-display: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-sans:    var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Typoskala — Display in Newsreader 300, Rest in Inter
+     Basis 17px statt 15px: die Zielgruppe ist 40+, mobil, oft draußen. */
+  --text-display:    3.5rem;   --text-display--line-height: 1.05; --text-display--letter-spacing: -0.02em;
+  --text-h1:         2.375rem; --text-h1--line-height: 1.10;      --text-h1--letter-spacing: -0.015em;
+  --text-h2:         1.875rem; --text-h2--line-height: 1.15;      --text-h2--letter-spacing: -0.015em;
+  --text-h3:         1.625rem; --text-h3--line-height: 1.20;
+  --text-lead:       1.1875rem;--text-lead--line-height: 1.60;
+  --text-body:       1.0625rem;--text-body--line-height: 1.65;
+  --text-klein:      0.9375rem;--text-klein--line-height: 1.55;
+  --text-mikro:      0.8125rem;--text-mikro--line-height: 1.50;
+  --text-label:      0.6875rem;--text-label--line-height: 1.20;   --text-label--letter-spacing: 0.18em;
+
+  /* Abstandsraster — Basis 4px; Sektionsrhythmus als eigene Stufen,
+     damit Abschnitte unterschiedliches Gewicht bekommen. */
+  --spacing: 0.25rem;
+  --spacing-sektion-s:  2.5rem;  /* 40 — innerhalb eines Blocks   */
+  --spacing-sektion-m:  3rem;    /* 48 — mobiler Standardabstand  */
+  --spacing-sektion-l:  4.5rem;  /* 72 — ab Tablet                */
+  --spacing-sektion-xl: 6rem;    /* 96 — ab Desktop, Hauptschnitte*/
+
+  /* Radien — weich, aber nicht Bubble */
+  --radius-xs:   0.25rem;  /* 4  — Thumbnails, Chips */
+  --radius-sm:   0.75rem;  /* 12 — Felder, kleine Tints */
+  --radius-card: 1.25rem;  /* 20 — Karten, Panels */
+  --radius-pille: 9999px;  /* Buttons */
+
+  /* Kalender-Band */
+  --radius-band: 0.3125rem; /* 5 = halbe Bandhöhe (10px) */
+}
+
+/* --- shadcn/ui-Brücke ----------------------------------------------------- */
+/* shadcn-Komponenten lesen diese Namen. Damit übernehmen Button, Input,
+   Dialog usw. die Palette, ohne dass sie einzeln angefasst werden müssen. */
+:root {
+  --background:            var(--heuler-sand);
+  --foreground:            var(--heuler-schlick);
+  --card:                  var(--heuler-muschel);
+  --card-foreground:       var(--heuler-schlick);
+  --popover:               var(--heuler-muschel);
+  --popover-foreground:    var(--heuler-schlick);
+  --primary:               var(--heuler-priel);
+  --primary-foreground:    var(--heuler-muschel);
+  --secondary:             var(--heuler-priel-hell);
+  --secondary-foreground:  var(--heuler-priel-tief);
+  --muted:                 var(--heuler-track);
+  --muted-foreground:      var(--heuler-schlick-2);
+  --accent:                var(--heuler-priel-hell);
+  --accent-foreground:     var(--heuler-priel-tief);
+  --destructive:           var(--heuler-fehler);
+  --border:                var(--heuler-linie);
+  --input:                 var(--heuler-linie);
+  --ring:                  var(--heuler-priel);
+  --radius:                var(--radius-sm);
+}
+
+@theme inline {
+  --color-background:           var(--background);
+  --color-foreground:           var(--foreground);
+  --color-card:                 var(--card);
+  --color-card-foreground:      var(--card-foreground);
+  --color-popover:              var(--popover);
+  --color-popover-foreground:   var(--popover-foreground);
+  --color-primary:              var(--primary);
+  --color-primary-foreground:   var(--primary-foreground);
+  --color-secondary:            var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:                var(--muted);
+  --color-muted-foreground:     var(--muted-foreground);
+  --color-accent:               var(--accent);
+  --color-accent-foreground:    var(--accent-foreground);
+  --color-destructive:          var(--destructive);
+  --color-border:               var(--border);
+  --color-input:                var(--input);
+  --color-ring:                 var(--ring);
+}
+
+/* --- Basis ---------------------------------------------------------------- */
+@layer base {
+  body {
+    background-color: var(--heuler-sand);
+    color: var(--heuler-schlick);
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-wrap: pretty;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    text-wrap: balance;
+  }
+
+  /* Tabellenzahlen und Kalenderzahlen laufen nie auseinander */
+  time, .tabellenzahl { font-variant-numeric: tabular-nums; }
+
+  /* Sichtbarer Fokus — ohne den ist die Seite für Tastaturnutzer unbrauchbar */
+  :focus-visible {
+    outline: 2px solid var(--heuler-priel);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* --- Optional: Dunkelmodus -------------------------------------------------
+   Bewusst NICHT aktiv. Falls später gewünscht, reicht dieser Block plus ein
+   Umschalter, der [data-theme="dark"] auf <html> setzt. Bitte nicht an
+   prefers-color-scheme hängen, solange es keinen Umschalter gibt.
+
+:root[data-theme="dark"] {
+  --heuler-sand:       oklch(0.210 0.014 70);
+  --heuler-muschel:    oklch(0.255 0.016 70);
+  --heuler-linie:      oklch(0.330 0.016 70);
+  --heuler-track:      oklch(0.310 0.014 70);
+  --heuler-track-alt:  oklch(0.270 0.012 70);
+  --heuler-schlick:    oklch(0.945 0.008 82);
+  --heuler-schlick-2:  oklch(0.760 0.012 82);
+  --heuler-schlick-3:  oklch(0.640 0.012 82);
+  --heuler-priel:      oklch(0.720 0.075 205);
+  --heuler-priel-tief: oklch(0.840 0.050 200);
+  --heuler-priel-hell: oklch(0.330 0.045 208);
+}
+--------------------------------------------------------------------------- */
+
+/* --- Schriften in app/layout.tsx -------------------------------------------
+   Beide Familien werden von next/font zur Buildzeit heruntergeladen und von
+   der eigenen Domain ausgeliefert. Kein Request an fonts.googleapis.com,
+   kein Cookie-Banner-Thema.
+
+   import { Inter, Newsreader } from "next/font/google";
+
+   const inter = Inter({
+     subsets: ["latin"],
+     display: "swap",
+     variable: "--font-inter",
+   });
+
+   const newsreader = Newsreader({
+     subsets: ["latin"],
+     display: "swap",
+     weight: ["300", "400"],
+     variable: "--font-newsreader",
+   });
+
+   export default function RootLayout({ children }) {
+     return (
+       <html lang="de" className={`${inter.variable} ${newsreader.variable}`}>
+         <body>{children}</body>
+       </html>
+     );
+   }
+--------------------------------------------------------------------------- */

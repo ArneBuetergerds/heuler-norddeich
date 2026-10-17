@@ -1,29 +1,39 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { auth } from "@/auth";
+import { authorizeAdmin } from "@/lib/adminAuth";
 import { db } from "@/db/client";
 import { bookingRequest } from "@/db/schema";
 import {
   confirmBookingRequest,
   declineBookingRequest,
   RANGE_TAKEN_ERROR,
+  NOT_PENDING_ERROR,
 } from "@/db/adminQueries";
+import {
+  deleteBookingRequest,
+  REQUEST_ALREADY_ANONYMIZED_ERROR,
+  REQUEST_NOT_FOUND_ERROR,
+  STAY_AHEAD_ERROR,
+} from "@/db/retentionQueries";
+import { berlinDay } from "@/lib/retention";
 import { sendGuestConfirmation, sendGuestDecline } from "@/lib/email";
+import { safeError } from "@/lib/safeError";
+import { withRouteErrors } from "@/lib/routeErrors";
 
 const patchSchema = z.object({
   action: z.enum(["confirm", "decline"]),
   reason: z.string().optional(),
 });
 
-export async function PATCH(
+export const PATCH = withRouteErrors("PATCH /api/admin/booking-request/[id]", patchBookingRequest);
+
+async function patchBookingRequest(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
-  }
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
 
   let body: unknown;
   try {
@@ -50,12 +60,15 @@ export async function PATCH(
 
   try {
     if (action === "confirm") {
-      await confirmBookingRequest(db, id);
+      await confirmBookingRequest(db, id, authorized.actor);
     } else {
-      await declineBookingRequest(db, id, reason);
+      await declineBookingRequest(db, id, authorized.actor, reason);
     }
   } catch (error) {
-    if (error instanceof Error && error.message === RANGE_TAKEN_ERROR) {
+    if (
+      error instanceof Error &&
+      (error.message === RANGE_TAKEN_ERROR || error.message === NOT_PENDING_ERROR)
+    ) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     throw error;
@@ -64,6 +77,47 @@ export async function PATCH(
   await notifyGuest(id, action, reason);
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Löscht eine Anfrage von Hand – oder anonymisiert sie, wenn eine Rechnung
+ * aufbewahrt werden muss. Die Regeln stehen in `adminDeletionDecision`
+ * (src/lib/retention.ts); geprüft wird hier auf dem Server, egal was die
+ * Oberfläche anbietet.
+ *
+ * 404: unbekannt · 409: (noch) nicht löschbar, z. B. bestätigte Buchung mit
+ * Abreise in der Zukunft.
+ */
+export const DELETE = withRouteErrors("DELETE /api/admin/booking-request/[id]", deleteBookingRequestRoute);
+
+async function deleteBookingRequestRoute(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
+
+  const { id: idParam } = await params;
+  const id = Number(idParam);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
+
+  try {
+    const result = await deleteBookingRequest(db, id, authorized.actor, berlinDay(new Date()));
+    return NextResponse.json({ result });
+  } catch (error) {
+    if (error instanceof Error && error.message === REQUEST_NOT_FOUND_ERROR) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    if (
+      error instanceof Error &&
+      (error.message === STAY_AHEAD_ERROR || error.message === REQUEST_ALREADY_ANONYMIZED_ERROR)
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
 }
 
 /**
@@ -90,6 +144,6 @@ async function notifyGuest(
       await sendGuestDecline(guest, reason);
     }
   } catch (error) {
-    console.error("Benachrichtigung des Gasts konnte nicht gesendet werden", error);
+    console.error("Benachrichtigung des Gasts konnte nicht gesendet werden", safeError(error));
   }
 }

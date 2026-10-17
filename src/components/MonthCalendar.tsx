@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactElement, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buildCalendarGrid, WEEKDAY_LABELS } from "@/lib/calendar";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,34 @@ export type DayAppearance = {
   className: string;
   /** Tooltip, z. B. der Gastname im Admin-Kalender. */
   title?: string;
+  /**
+   * Was ein Klick auf den Tag tut, nur für Screenreader – z. B. „Details zu
+   * Gast X öffnen“ oder „Auswahl öffnen“ am Wechseltag.
+   */
+  action?: string;
 };
 
 type Props = {
   appearanceFor: (day: Date) => DayAppearance;
   legend: ReactNode;
+  /**
+   * Frühester Monat relativ zu heute. Gäste brauchen keine vergangenen Monate
+   * (0), der Admin darf zurückblättern (undefined = unbegrenzt).
+   */
+  minMonthOffset?: number;
+  /**
+   * Macht Tage anklickbar (öffentlicher Kalender: Zeitraum direkt wählen;
+   * Admin: Aufenthalt öffnen). Ohne diesen Callback bleibt er reine Anzeige.
+   */
+  onDayClick?: (day: Date) => void;
+  /** Welche Tage im aktuellen Auswahlschritt anklickbar sind. */
+  isDayClickable?: (day: Date) => boolean;
+  /**
+   * Umhüllt den Knopf eines anklickbaren Tags, z. B. mit einem Popover, das
+   * am Tag verankert ist (Admin: Auswahl am Wechseltag). Wer den Knopf
+   * unverändert zurückgibt, ändert nichts.
+   */
+  wrapDay?: (day: Date, dayButton: ReactElement) => ReactNode;
 };
 
 /**
@@ -22,7 +45,14 @@ type Props = {
  * navigation, Wochentagskopf und Raster sind identisch, nur die Einfärbung der
  * Tage unterscheidet sich – die liefert der Aufrufer über `appearanceFor`.
  */
-export function MonthCalendar({ appearanceFor, legend }: Props) {
+export function MonthCalendar({
+  appearanceFor,
+  legend,
+  minMonthOffset,
+  onDayClick,
+  isDayClickable,
+  wrapDay,
+}: Props) {
   const [monthOffset, setMonthOffset] = useState(0);
 
   // Durchgehend in UTC rechnen, damit die Tage zu den aus der DB geladenen
@@ -39,13 +69,14 @@ export function MonthCalendar({ appearanceFor, legend }: Props) {
         <Button
           variant="outline"
           size="icon"
-          className="size-8"
+          className="size-11"
           onClick={() => setMonthOffset((offset) => offset - 1)}
+          disabled={minMonthOffset !== undefined && monthOffset <= minMonthOffset}
           aria-label="Vorheriger Monat"
         >
           <ChevronLeft className="size-4" />
         </Button>
-        <span className="text-sm font-bold">
+        <span className="text-sm font-bold" aria-live="polite">
           {view.toLocaleDateString("de-DE", {
             month: "long",
             year: "numeric",
@@ -55,7 +86,7 @@ export function MonthCalendar({ appearanceFor, legend }: Props) {
         <Button
           variant="outline"
           size="icon"
-          className="size-8"
+          className="size-11"
           onClick={() => setMonthOffset((offset) => offset + 1)}
           aria-label="Nächster Monat"
         >
@@ -67,7 +98,7 @@ export function MonthCalendar({ appearanceFor, legend }: Props) {
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="py-1 text-center text-[11px] font-semibold text-zinc-400"
+            className="py-1 text-center text-[11px] font-semibold text-schlick-2"
           >
             {label}
           </div>
@@ -79,17 +110,55 @@ export function MonthCalendar({ appearanceFor, legend }: Props) {
           if (!day) {
             return <div key={`leer-${cell}`} className="h-9" />;
           }
-          const { className, title } = appearanceFor(day);
+          const { className, title, action } = appearanceFor(day);
+          const label = (
+            <>
+              <span aria-hidden="true">{day.getUTCDate()}</span>
+              {/* Der Zustand steckt sonst nur in Farbe und Tooltip – beides
+                  erreicht weder Screenreader noch Touch-Geräte. */}
+              <span className="sr-only">
+                {day.toLocaleDateString("de-DE", {
+                  day: "numeric",
+                  month: "long",
+                  timeZone: "UTC",
+                })}
+                {title ? `: ${title}` : ""}
+                {action ? `. ${action}` : ""}
+              </span>
+            </>
+          );
+          const cellClass = cn(
+            "flex h-9 items-center justify-center rounded-md border text-xs font-semibold",
+            className,
+          );
+
+          if (onDayClick) {
+            const clickable = isDayClickable?.(day) ?? true;
+            const dayButton = (
+              <button
+                type="button"
+                title={title}
+                disabled={!clickable}
+                onClick={() => onDayClick(day)}
+                className={cn(
+                  cellClass,
+                  "h-11 outline-none focus-visible:ring-2 focus-visible:ring-priel focus-visible:ring-offset-1 sm:h-10",
+                  clickable && "cursor-pointer hover:ring-2 hover:ring-priel/40",
+                )}
+              >
+                {label}
+              </button>
+            );
+            return (
+              <Fragment key={day.toISOString()}>
+                {wrapDay ? wrapDay(day, dayButton) : dayButton}
+              </Fragment>
+            );
+          }
+
           return (
-            <div
-              key={day.toISOString()}
-              title={title}
-              className={cn(
-                "flex h-9 items-center justify-center rounded-md border text-xs font-semibold",
-                className,
-              )}
-            >
-              {day.getUTCDate()}
+            <div key={day.toISOString()} title={title} className={cellClass}>
+              {label}
             </div>
           );
         })}

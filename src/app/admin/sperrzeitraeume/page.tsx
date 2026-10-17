@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { isAdmin } from "@/lib/adminAuth";
 import { getOccupancy } from "@/db/queries";
 import { formatDateRange } from "@/lib/format";
 import { ManualBlockedPeriodForm } from "@/components/ManualBlockedPeriodForm";
@@ -23,16 +23,15 @@ function lastBlockedDay(exclusiveEndDate: Date): Date {
 }
 
 export default async function SperrzeitraeumePage() {
-  const session = await auth();
-  if (!session) {
+  if (!(await isAdmin())) {
     redirect("/admin/login");
   }
 
   // Nur Sperrzeiträume ohne Gast: Belegungen werden über die Storno-Aktion der
   // Belegungsübersicht entfernt, damit der Gast eine Absage erhält und die
   // zugehörige Anfrage nicht verwaist zurückbleibt.
-  const { maintenance } = await getOccupancy();
-  const blocks = [...maintenance].sort(
+  const occupancy = await getOccupancy();
+  const blocks = [...occupancy.maintenance].sort(
     (a, b) => a.startDate.getTime() - b.startDate.getTime(),
   );
 
@@ -41,11 +40,11 @@ export default async function SperrzeitraeumePage() {
       <h1 className="mb-6 text-2xl font-extrabold">Manuelle Sperrzeiträume</h1>
 
       <div className="grid items-start gap-6 md:grid-cols-[1fr_1.4fr]">
-        <ManualBlockedPeriodForm />
+        <ManualBlockedPeriodForm occupancy={occupancy} />
 
         <div className="flex flex-col gap-2.5">
           {blocks.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-card p-7 text-center text-sm text-zinc-400">
+            <div className="rounded-xl border border-dashed bg-card p-7 text-center text-sm text-schlick-3">
               Keine Sperrzeiträume angelegt.
             </div>
           ) : (
@@ -59,7 +58,7 @@ export default async function SperrzeitraeumePage() {
                     {formatDateRange(block.startDate, lastBlockedDay(block.endDate))}
                   </p>
                   {block.note && (
-                    <p className="text-[13px] text-zinc-500">{block.note}</p>
+                    <p className="text-[13px] text-schlick-2">{block.note}</p>
                   )}
                 </div>
                 <DeleteBlockedPeriodButton id={block.id} />
