@@ -29,7 +29,7 @@ markierten Stellen ausfüllen.
 | **Zweck** | Entgegennahme, Prüfung und Beantwortung von Anfragen; Abwicklung des Mietverhältnisses einschließlich Rechnungsstellung; Kommunikation mit Gästen |
 | **Rechtsgrundlage** | Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahmen und Vertragserfüllung) |
 | **Betroffene Personen** | Anfragende und Gäste |
-| **Datenkategorien** | Name, E-Mail-Adresse, Anschrift (Straße und Hausnummer, Postleitzahl, Ort, Land optional; online Pflicht, bei telefonischen Buchungen freiwillig – Empfänger der Rechnung, die mit der Buchungsbestätigung per E-Mail versandt wird), Telefonnummer (optional), Anreise- und Abreisedatum, Freitextnachricht, Status der Anfrage, Begründung bei Absage oder Storno, Eingangszeitpunkt |
+| **Datenkategorien** | Name, E-Mail-Adresse, Anschrift (Straße und Hausnummer, Postleitzahl, Ort, Land optional; online Pflicht, bei telefonischen Buchungen freiwillig – Empfänger der Rechnung, die mit der Buchungsbestätigung per E-Mail versandt wird), Telefonnummer (optional), Anreise- und Abreisedatum, Freitextnachricht, Status der Anfrage, Begründung bei Absage oder Storno, Eingangszeitpunkt, Zeitpunkt und Stand der im Online-Formular bestätigten Mietbedingungen (Nachweis des Vertragsinhalts; bleibt bei der Anonymisierung erhalten, da ohne Name und Kontaktdaten nicht personenbeziehbar) |
 | **Empfänger** | Bütergerds Digital Solutions (Auftragsverarbeiter); netcup GmbH und IONOS SE (Unterauftragsverarbeiter) |
 | **Drittlandübermittlung** | keine |
 | **Löschfrist** | siehe Löschkonzept unter Abschnitt 6 |

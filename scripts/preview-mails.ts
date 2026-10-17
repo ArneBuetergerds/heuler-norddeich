@@ -16,6 +16,7 @@ import {
   buildGuestRequestReceived,
   type Mail,
 } from "../src/lib/email";
+import { RENTAL_TERMS_VERSION } from "../src/lib/rentalTerms";
 
 const BEISPIEL: BookingRequest = {
   id: 1,
@@ -38,6 +39,8 @@ const BEISPIEL: BookingRequest = {
   createdAt: new Date("2027-02-03"),
   decidedAt: null,
   anonymizedAt: null,
+  termsAcceptedAt: new Date("2027-02-03T09:15:00Z"),
+  termsVersion: RENTAL_TERMS_VERSION,
 };
 
 /** Zweiter Fall: kleine Anfrage ohne Zusatzbestellung und ohne Nachricht. */
@@ -81,22 +84,36 @@ ausgeben(
   buildGuestRequestReceived(BEISPIEL),
 );
 
-// Ohne Datenbank und ohne PDF-Erzeugung: Ein Platzhalter steht für das PDF,
-// gezeigt werden Text und Anhangname. Das echte PDF verschickt
+// Ohne Datenbank und ohne PDF-Erzeugung: Platzhalter stehen für die PDFs,
+// gezeigt werden Text und Anhangnamen. Die echten PDFs verschickt
 // scripts/send-test-mails.ts.
 ausgeben(
-  "3. An den Gast – Zusage mit Rechnung im Anhang",
+  "3. An den Gast – Zusage mit Rechnung und Mietbedingungen im Anhang",
   'wenn im Admin auf "Bestätigen" geklickt wird',
-  buildGuestConfirmation(BEISPIEL, {
-    number: "RE-2027-0001",
-    pdf: new TextEncoder().encode("%PDF- Platzhalter"),
-  }),
+  buildGuestConfirmation(
+    BEISPIEL,
+    { number: "RE-2027-0001", pdf: new TextEncoder().encode("%PDF- Platzhalter") },
+    new TextEncoder().encode("%PDF- Platzhalter Mietbedingungen"),
+  ),
 );
 
 ausgeben(
   "3b. Dieselbe Zusage, wenn die Rechnung nicht erstellt werden konnte",
   "die Betreiberin erstellt die Rechnung dann im Detaildialog und schickt sie nach",
-  buildGuestConfirmation(BEISPIEL),
+  buildGuestConfirmation(
+    BEISPIEL,
+    undefined,
+    new TextEncoder().encode("%PDF- Platzhalter Mietbedingungen"),
+  ),
+);
+
+ausgeben(
+  "3c. Dieselbe Zusage, wenn das Mietbedingungen-PDF nicht erzeugt werden konnte",
+  "die Mail verlinkt dann die Seite; die Betreiberin bekommt eine Warnung",
+  buildGuestConfirmation(BEISPIEL, {
+    number: "RE-2027-0001",
+    pdf: new TextEncoder().encode("%PDF- Platzhalter"),
+  }),
 );
 
 ausgeben(
@@ -118,5 +135,5 @@ ausgeben(
 );
 
 console.log(
-  "\nHinweis: Alle Mails gehen als reiner Text raus, ohne HTML und ohne Bilder; die Zusage mit der Rechnung als PDF-Anhang.\n",
+  "\nHinweis: Alle Mails gehen als reiner Text raus, ohne HTML und ohne Bilder; die Zusage mit Rechnung und Mietbedingungen als PDF-Anhängen.\n",
 );

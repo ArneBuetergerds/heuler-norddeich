@@ -4,6 +4,7 @@ import {
   bookingRequestSchema,
   looksLikeAddress,
   manualBookingSchema,
+  TERMS_REQUIRED_MESSAGE,
 } from "./validation";
 
 const ADRESSE = { street: "Musterweg 1", postalCode: "12345", city: "Musterstadt" };
@@ -13,6 +14,7 @@ const base = {
   email: "erika@example.invalid",
   guests: 2,
   ...ADRESSE,
+  termsAccepted: true,
 };
 
 /** Weit genug in der Zukunft, dass die Wäsche-Vorlauffrist nie greift. */
@@ -360,8 +362,50 @@ describe("blockedPeriodCreateSchema", () => {
   });
 });
 
+describe("bookingRequestSchema – Mietbedingungen", () => {
+  it.each([
+    ["fehlt", undefined],
+    ["false ist", false],
+    ['der Text "on" ist', "on"],
+  ])("lehnt ab, wenn der Haken %s – mit Meldung am Feld", (_fall, termsAccepted) => {
+    const result = bookingRequestSchema.safeParse({ ...base, ...WEIT_VORAUS, termsAccepted });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toEqual(["termsAccepted"]);
+      expect(result.error.issues[0]?.message).toBe(TERMS_REQUIRED_MESSAGE);
+    }
+  });
+
+  it("meldet Fehler in den Feldern davor zuerst", () => {
+    const result = bookingRequestSchema.safeParse({
+      ...base,
+      ...WEIT_VORAUS,
+      street: "",
+      termsAccepted: false,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toEqual(["street"]);
+    }
+  });
+});
+
 describe("manualBookingSchema", () => {
   const manual = { ...base, startDate: "2027-07-10", endDate: "2027-07-12" };
+
+  it("verlangt keinen Haken für die Mietbedingungen und übernimmt ihn nicht", () => {
+    const ohneHaken: Record<string, unknown> = { ...manual };
+    delete ohneHaken.termsAccepted;
+    const result = manualBookingSchema.safeParse(ohneHaken);
+
+    expect(result.success).toBe(true);
+    expect(manualBookingSchema.safeParse({ ...ohneHaken, termsAccepted: false }).success).toBe(true);
+    if (result.success) {
+      expect("termsAccepted" in result.data).toBe(false);
+    }
+  });
 
   it("akzeptiert eine Buchung ohne Mindestaufenthalt der Saison", () => {
     // 01.07.–31.08. verlangt online 7 Nächte, manuell genügen zwei.

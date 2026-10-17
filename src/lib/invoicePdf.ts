@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { darstellbar, umbrechen } from "./pdfText";
 import { BALANCE_DUE_DAYS, DEPOSIT_SHARE } from "./pricing";
 import { DEPOSIT_DUE_DAYS } from "./terms";
 import { PROPERTY, SMALL_BUSINESS_NOTE, type InvoiceSnapshot } from "./invoice";
@@ -19,67 +20,9 @@ function euro(amount: number): string {
     .replaceAll("\u00a0", " ");
 }
 
-/**
- * Buchstaben mit Querstrich zerfallen unter NFD nicht in Grundbuchstabe plus
- * Akzent – sie brauchen eine feste Zuordnung.
- */
-const ERSATZ: Record<string, string> = {
-  "Ł": "L", "ł": "l", "Đ": "D", "đ": "d", "Ħ": "H", "ħ": "h", "ı": "i",
-};
-
-/**
- * Die Standardschriften von PDF kennen nur WinAnsi. Deutsche Umlaute, ß und €
- * sind darin enthalten – ein Gastname wie "Łukasz" oder "Şahin" aber nicht,
- * und pdf-lib bricht dann die ganze Erzeugung mit einer Exception ab.
- *
- * Deshalb wird jeder Text vorher entschärft: Was die Schrift kann, bleibt;
- * Buchstaben mit Akzent werden auf den Grundbuchstaben zurückgeführt
- * ("Ş" → "S"); was dann immer noch fehlt, wird zu "?". Lieber ein leicht
- * vereinfachter Name auf der Rechnung als gar keine Rechnung.
- */
-function darstellbar(text: string, font: PDFFont): string {
-  const zeichensatz = new Set(font.getCharacterSet());
-  const kann = (zeichen: string) =>
-    [...zeichen].every((z) => zeichensatz.has(z.codePointAt(0)!));
-
-  return [...text]
-    .map((zeichen) => {
-      if (kann(zeichen)) {
-        return zeichen;
-      }
-      const ersatz = ERSATZ[zeichen] ?? zeichen.normalize("NFD").replace(/\p{M}/gu, "");
-      return ersatz && kann(ersatz) ? ersatz : "?";
-    })
-    .join("");
-}
-
 function datum(iso: string): string {
   const [jahr, monat, tag] = iso.split("-");
   return `${tag}.${monat}.${jahr}`;
-}
-
-/**
- * Bricht Text an Wortgrenzen um, damit lange Zeilen – etwa die Hinweise zum
- * Gästebeitrag – nicht über den Rand laufen. pdf-lib bricht selbst nicht um.
- */
-function umbrechen(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const woerter = text.split(" ");
-  const zeilen: string[] = [];
-  let aktuell = "";
-
-  for (const wort of woerter) {
-    const versuch = aktuell ? `${aktuell} ${wort}` : wort;
-    if (font.widthOfTextAtSize(versuch, size) > maxWidth && aktuell) {
-      zeilen.push(aktuell);
-      aktuell = wort;
-    } else {
-      aktuell = versuch;
-    }
-  }
-  if (aktuell) {
-    zeilen.push(aktuell);
-  }
-  return zeilen;
 }
 
 class Schreiber {

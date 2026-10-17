@@ -46,6 +46,8 @@ const request: BookingRequest = {
   createdAt: new Date("2027-01-01"),
   decidedAt: null,
   anonymizedAt: null,
+  termsAcceptedAt: null,
+  termsVersion: null,
 };
 
 describe("email", () => {
@@ -243,8 +245,9 @@ describe("Mietbedingungen in den Gast-Mails", () => {
   });
 });
 
-describe("Rechnung im Anhang der Bestätigung", () => {
+describe("Rechnung und Mietbedingungen im Anhang der Bestätigung", () => {
   const pdf = new TextEncoder().encode("%PDF-1.7 Beispiel");
+  const mietbedingungen = new TextEncoder().encode("%PDF-1.7 Mietbedingungen");
 
   beforeEach(() => {
     sendMail.mockReset();
@@ -254,21 +257,54 @@ describe("Rechnung im Anhang der Bestätigung", () => {
     process.env.SMTP_PASS = "secret";
   });
 
-  it("hängt das PDF mit Rechnungsnummer im Dateinamen an und nennt es im Text", async () => {
-    await sendGuestConfirmation(request, { number: "RE-2027-0001", pdf });
+  it("hängt Rechnung und Mietbedingungen als zwei PDFs an und nennt beide im Text", async () => {
+    await sendGuestConfirmation(request, { number: "RE-2027-0001", pdf }, mietbedingungen);
 
     const mail = sendMail.mock.calls[0]?.[0] as {
       text: string;
       attachments: { filename: string; content: Buffer; contentType: string }[];
     };
-    expect(mail.attachments).toHaveLength(1);
+    expect(mail.attachments).toHaveLength(2);
     expect(mail.attachments[0]).toMatchObject({
       filename: "Rechnung-RE-2027-0001.pdf",
       contentType: "application/pdf",
     });
     expect(Buffer.isBuffer(mail.attachments[0].content)).toBe(true);
     expect(mail.attachments[0].content.equals(Buffer.from(pdf))).toBe(true);
+    expect(mail.attachments[1]).toMatchObject({
+      filename: "Mietbedingungen-Heuler.pdf",
+      contentType: "application/pdf",
+    });
+    expect(mail.attachments[1].content.equals(Buffer.from(mietbedingungen))).toBe(true);
+    expect(mail.text).toContain("die Rechnung RE-2027-0001 und unsere");
+    expect(mail.text).toContain("Mietbedingungen (Mietbedingungen-Heuler.pdf)");
+    expect(mail.text).toContain("https://norddeich-heuler.de/mietbedingungen");
+    expect(mail.text).toContain("Ein Widerrufsrecht besteht für die Buchung nicht");
+  });
+
+  it("hängt nur die Rechnung an und verlinkt die Mietbedingungen, wenn deren PDF fehlt", async () => {
+    await sendGuestConfirmation(request, { number: "RE-2027-0001", pdf });
+
+    const mail = sendMail.mock.calls[0]?.[0] as {
+      text: string;
+      attachments: { filename: string }[];
+    };
+    expect(mail.attachments.map((a) => a.filename)).toEqual(["Rechnung-RE-2027-0001.pdf"]);
     expect(mail.text).toContain("Die Rechnung RE-2027-0001 finden Sie im Anhang");
+    expect(mail.text).not.toContain("Mietbedingungen-Heuler.pdf");
+    expect(mail.text).toContain("https://norddeich-heuler.de/mietbedingungen");
+  });
+
+  it("hängt nur die Mietbedingungen an, wenn die Rechnung fehlt, und kündigt diese an", async () => {
+    await sendGuestConfirmation(request, undefined, mietbedingungen);
+
+    const mail = sendMail.mock.calls[0]?.[0] as {
+      text: string;
+      attachments: { filename: string }[];
+    };
+    expect(mail.attachments.map((a) => a.filename)).toEqual(["Mietbedingungen-Heuler.pdf"]);
+    expect(mail.text).toContain("Die Rechnung senden wir Ihnen gesondert zu.");
+    expect(mail.text).toContain("Mietbedingungen (Mietbedingungen-Heuler.pdf) finden Sie im Anhang");
   });
 
   it("kündigt die Rechnung ohne Anhang an, wenn keine mitgeht", async () => {

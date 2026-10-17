@@ -23,6 +23,7 @@ import {
 } from "./terms";
 import { invoiceFileName } from "./invoice";
 import { SITE_URL } from "./site";
+import { RENTAL_TERMS_FILE_NAME, RENTAL_TERMS_PATH } from "./rentalTerms";
 
 const FROM = "Ferienwohnung Heuler <noreply@norddeich-heuler.de>";
 
@@ -142,6 +143,43 @@ export function invoiceAttachment(invoice: InvoiceForMail): MailAttachment {
     content: Buffer.from(invoice.pdf),
     contentType: "application/pdf",
   };
+}
+
+/** Mietbedingungen-PDF als Mailanhang, Dateiname wie beim Download der Website. */
+export function rentalTermsAttachment(pdf: Uint8Array): MailAttachment {
+  return {
+    filename: RENTAL_TERMS_FILE_NAME,
+    content: Buffer.from(pdf),
+    contentType: "application/pdf",
+  };
+}
+
+/**
+ * Was die Bestätigung über ihre Anhänge sagt. Fehlt ein PDF, nennt der Text
+ * den Ersatz: die Rechnung kommt gesondert, die Mietbedingungen stehen
+ * unter dem Link.
+ */
+function attachmentLines(invoice: InvoiceForMail | undefined, rentalTerms: boolean): string[] {
+  const link = `${SITE_URL}${RENTAL_TERMS_PATH}`;
+  const zeilen: string[] = [];
+  if (invoice && rentalTerms) {
+    zeilen.push(
+      `Im Anhang dieser E-Mail finden Sie die Rechnung ${invoice.number} und unsere`,
+      `Mietbedingungen (${RENTAL_TERMS_FILE_NAME}).`,
+    );
+  } else if (invoice) {
+    zeilen.push(`Die Rechnung ${invoice.number} finden Sie im Anhang dieser E-Mail.`);
+  } else {
+    zeilen.push("Die Rechnung senden wir Ihnen gesondert zu.");
+    if (rentalTerms) {
+      zeilen.push(`Unsere Mietbedingungen (${RENTAL_TERMS_FILE_NAME}) finden Sie im Anhang.`);
+    }
+  }
+  zeilen.push(
+    `Die Mietbedingungen stehen auch unter ${link}`,
+    "Ein Widerrufsrecht besteht für die Buchung nicht; es gelten die Stornobedingungen.",
+  );
+  return zeilen;
 }
 
 /** Absender und Antwortziel, wie sie beim Versand gesetzt werden. */
@@ -280,9 +318,19 @@ export async function sendGuestRequestReceived(request: BookingRequest): Promise
 /**
  * Zusage an den Gast. Mit `invoice` hängt die Rechnung als PDF an; ohne
  * (Rechnung konnte nicht erstellt werden) kündigt die Mail sie an – die
- * Betreiberin schickt sie dann aus dem Admin nach.
+ * Betreiberin schickt sie dann aus dem Admin nach. Mit `rentalTerms` hängen
+ * die Mietbedingungen als zweites PDF an; ohne verweist die Mail auf die
+ * Seite.
  */
-export function buildGuestConfirmation(request: BookingRequest, invoice?: InvoiceForMail): Mail {
+export function buildGuestConfirmation(
+  request: BookingRequest,
+  invoice?: InvoiceForMail,
+  rentalTerms?: Uint8Array,
+): Mail {
+  const attachments = [
+    ...(invoice ? [invoiceAttachment(invoice)] : []),
+    ...(rentalTerms ? [rentalTermsAttachment(rentalTerms)] : []),
+  ];
   return {
     to: request.email,
     replyTo: REPLY_TO,
@@ -297,9 +345,7 @@ export function buildGuestConfirmation(request: BookingRequest, invoice?: Invoic
       "",
       ...paymentLines(request),
       "",
-      invoice
-        ? `Die Rechnung ${invoice.number} finden Sie im Anhang dieser E-Mail.`
-        : "Die Rechnung senden wir Ihnen gesondert zu.",
+      ...attachmentLines(invoice, rentalTerms !== undefined),
       "",
       `Vor Ort in bar: Endreinigung ${CLEANING_FEE} €, Servicegebühr ${SERVICE_FEE} €, Gästebeitrag`,
       "(3,50 € je Person ab 14 Jahren und Nacht in der Hauptsaison,",
@@ -316,16 +362,20 @@ export function buildGuestConfirmation(request: BookingRequest, invoice?: Invoic
       "Viele Grüße",
       "Ferienwohnung Heuler, Norddeich",
     ].join("\n"),
-    ...(invoice ? { attachments: [invoiceAttachment(invoice)] } : {}),
+    ...(attachments.length > 0 ? { attachments } : {}),
   };
 }
 
-/** Sagt dem Gast den Aufenthalt verbindlich zu, mit Rechnung im Anhang, falls vorhanden. */
+/**
+ * Sagt dem Gast den Aufenthalt verbindlich zu, mit Rechnung und
+ * Mietbedingungen im Anhang, soweit vorhanden.
+ */
 export async function sendGuestConfirmation(
   request: BookingRequest,
   invoice?: InvoiceForMail,
+  rentalTerms?: Uint8Array,
 ): Promise<void> {
-  await sendMail(buildGuestConfirmation(request, invoice));
+  await sendMail(buildGuestConfirmation(request, invoice, rentalTerms));
 }
 
 /**

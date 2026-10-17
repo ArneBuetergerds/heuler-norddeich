@@ -37,6 +37,10 @@ function anonymizedValues(now: Date) {
     message: null,
     // Freitext an den Gast, kann Persönliches enthalten.
     reasonNote: null,
+    // Bewusst nicht geleert: `termsAcceptedAt` und `termsVersion` (Zeitpunkt
+    // und Stand der bestätigten Mietbedingungen). Ohne Name und Kontaktdaten
+    // lassen sie auf niemanden schließen, belegen aber, unter welchen
+    // Bedingungen die Buchung zur aufbewahrten Rechnung zustande kam.
     anonymizedAt: now,
   };
 }

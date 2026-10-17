@@ -23,6 +23,7 @@ import {
   notifyAboutBookingRequest,
 } from "@/lib/bookingNotifications";
 import { withRouteErrors } from "@/lib/routeErrors";
+import { RENTAL_TERMS_VERSION } from "@/lib/rentalTerms";
 
 // Je Besucher genügen ein paar Versuche (Tippfehler, zweiter Zeitraum); das
 // Limit je IP ist die einzige harte Ablehnung. Das Gesamtlimit fängt verteilte
@@ -156,6 +157,10 @@ async function postBookingRequest(request: Request) {
       guests,
       linens,
       towels,
+      // Nachweis, welche Mietbedingungen der Gast bestätigt hat: Das Schema
+      // lässt die Anfrage nur mit `termsAccepted: true` durch.
+      termsAcceptedAt: new Date(),
+      termsVersion: RENTAL_TERMS_VERSION,
     })
     .$returningId();
 
