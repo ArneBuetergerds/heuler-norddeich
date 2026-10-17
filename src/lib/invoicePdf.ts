@@ -172,7 +172,6 @@ export async function renderInvoicePdf(snapshot: InvoiceSnapshot): Promise<Uint8
   const kopf: [string, string][] = [
     ["Rechnungsnummer", snapshot.number],
     ["Rechnungsdatum", datum(snapshot.issuedAt)],
-    ["Steuernummer", snapshot.seller.taxNumber],
   ];
   kopf.forEach(([label, wert], i) => {
     const y = kopfY - i * 14;

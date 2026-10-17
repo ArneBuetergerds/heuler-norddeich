@@ -13,7 +13,15 @@ import {
   stayTotal,
 } from "./pricing";
 import { formatDate, formatEuro } from "./format";
-import { DEPOSIT_DUE_DAYS, PARKING, RESPONSE_HOURS, cancellationLines } from "./terms";
+import {
+  CHECK_IN_TIME,
+  CHECK_OUT_TIME,
+  DEPOSIT_DUE_DAYS,
+  PARKING,
+  RESPONSE_HOURS,
+  cancellationLines,
+} from "./terms";
+import { invoiceFileName } from "./invoice";
 import { SITE_URL } from "./site";
 
 const FROM = "Ferienwohnung Heuler <noreply@norddeich-heuler.de>";
@@ -106,12 +114,35 @@ function paymentLines(request: BookingRequest): string[] {
   ];
 }
 
+/** Dateianhang, wie ihn nodemailer erwartet. */
+export type MailAttachment = {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+};
+
 export type Mail = {
   to: string;
   replyTo?: string;
   subject: string;
   text: string;
+  attachments?: MailAttachment[];
 };
+
+/** Die Rechnung, die mit der Bestätigung an den Gast geht. */
+export type InvoiceForMail = {
+  number: string;
+  pdf: Uint8Array;
+};
+
+/** Rechnungs-PDF als Mailanhang, Dateiname wie beim Download im Admin. */
+export function invoiceAttachment(invoice: InvoiceForMail): MailAttachment {
+  return {
+    filename: invoiceFileName(invoice.number),
+    content: Buffer.from(invoice.pdf),
+    contentType: "application/pdf",
+  };
+}
 
 /** Absender und Antwortziel, wie sie beim Versand gesetzt werden. */
 export const MAIL_ABSENDER = { from: FROM, replyTo: REPLY_TO } as const;
@@ -246,7 +277,12 @@ export async function sendGuestRequestReceived(request: BookingRequest): Promise
   await sendMail(buildGuestRequestReceived(request));
 }
 
-export function buildGuestConfirmation(request: BookingRequest): Mail {
+/**
+ * Zusage an den Gast. Mit `invoice` hängt die Rechnung als PDF an; ohne
+ * (Rechnung konnte nicht erstellt werden) kündigt die Mail sie an – die
+ * Betreiberin schickt sie dann aus dem Admin nach.
+ */
+export function buildGuestConfirmation(request: BookingRequest, invoice?: InvoiceForMail): Mail {
   return {
     to: request.email,
     replyTo: REPLY_TO,
@@ -261,12 +297,16 @@ export function buildGuestConfirmation(request: BookingRequest): Mail {
       "",
       ...paymentLines(request),
       "",
+      invoice
+        ? `Die Rechnung ${invoice.number} finden Sie im Anhang dieser E-Mail.`
+        : "Die Rechnung senden wir Ihnen gesondert zu.",
+      "",
       `Vor Ort in bar: Endreinigung ${CLEANING_FEE} €, Servicegebühr ${SERVICE_FEE} €, Gästebeitrag`,
       "(3,50 € je Person ab 14 Jahren und Nacht in der Hauptsaison,",
       "sonst 1,80 €).",
       ...(extrasLines(request).length > 0 ? ["", ...extrasLines(request)] : []),
       "",
-      "Anreise ab 14 Uhr, Abreise bis 10 Uhr.",
+      `Anreise ab ca. ${CHECK_IN_TIME}, Abreise bis ${CHECK_OUT_TIME}.`,
       `Parken: ${PARKING}.`,
       "",
       ...cancellationLines(),
@@ -276,12 +316,16 @@ export function buildGuestConfirmation(request: BookingRequest): Mail {
       "Viele Grüße",
       "Ferienwohnung Heuler, Norddeich",
     ].join("\n"),
+    ...(invoice ? { attachments: [invoiceAttachment(invoice)] } : {}),
   };
 }
 
-/** Sagt dem Gast den Aufenthalt verbindlich zu. */
-export async function sendGuestConfirmation(request: BookingRequest): Promise<void> {
-  await sendMail(buildGuestConfirmation(request));
+/** Sagt dem Gast den Aufenthalt verbindlich zu, mit Rechnung im Anhang, falls vorhanden. */
+export async function sendGuestConfirmation(
+  request: BookingRequest,
+  invoice?: InvoiceForMail,
+): Promise<void> {
+  await sendMail(buildGuestConfirmation(request, invoice));
 }
 
 /**

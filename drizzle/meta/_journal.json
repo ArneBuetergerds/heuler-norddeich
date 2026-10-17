@@ -43,6 +43,13 @@
       "when": 1792264897342,
       "tag": "0005_manual_internal_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1792271111845,
+      "tag": "0006_booking_address",
+      "breakpoints": true
     }
   ]
 }

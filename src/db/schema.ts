@@ -35,6 +35,15 @@ export const bookingRequest = mysqlTable(
     name: text("name").notNull(),
     email: text("email").notNull(),
     phone: text("phone"),
+    // Rechnungsanschrift: Empfänger der Rechnung, die mit der Bestätigung
+    // verschickt wird. Online Pflicht, bei manuellen Buchungen optional.
+    // Nullable, weil Anfragen von vor diesen Spalten keine Anschrift haben –
+    // für sie fragt der Bestätigen-Dialog sie ab. Längen wie in
+    // src/lib/invoice.ts (ADDRESS_LIMITS).
+    street: varchar("street", { length: 150 }),
+    postalCode: varchar("postal_code", { length: 12 }),
+    city: varchar("city", { length: 100 }),
+    country: varchar("country", { length: 60 }),
     startDate: date("start_date", { mode: "date" }).notNull(),
     endDate: date("end_date", { mode: "date" }).notNull(),
     message: text("message"),
@@ -56,7 +65,7 @@ export const bookingRequest = mysqlTable(
     // (src/lib/retention.ts). Nullable, damit Zeilen von vor dieser Spalte
     // gültig bleiben; für sie gilt ersatzweise `created_at`.
     decidedAt: timestamp("decided_at", { mode: "date" }),
-    // Gesetzt, sobald Name, E-Mail, Telefon und Nachricht entfernt wurden,
+    // Gesetzt, sobald Name, E-Mail, Telefon, Anschrift und Nachricht entfernt wurden,
     // weil eine aufzubewahrende Rechnung das Löschen der Zeile verhindert.
     anonymizedAt: timestamp("anonymized_at", { mode: "date" }),
   },

@@ -13,6 +13,7 @@ import {
 import { FELD, Feld, FehlerText, Zahlenfeld, type Fehler } from "@/components/FormFields";
 import { formatDate } from "@/lib/format";
 import { adminOverviewHref, startOfUtcMonth } from "@/lib/month";
+import { ADDRESS_LIMITS } from "@/lib/invoice";
 import { EXTRAS, MAX_GUESTS } from "@/lib/pricing";
 import { INTERNAL_RETENTION_MONTHS, internalStayDeletionDate } from "@/lib/retention";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,10 @@ const FELD_ID: Record<string, string> = {
   name: "name",
   email: "email",
   phone: "phone",
+  street: "street",
+  postalCode: "postalCode",
+  city: "city",
+  country: "country",
   message: "message",
   guests: "guests",
   linens: "extras",
@@ -192,6 +197,10 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
                   name: formData.get("name"),
                   email: formData.get("email"),
                   phone: optionalText(formData, "phone"),
+                  street: optionalText(formData, "street"),
+                  postalCode: optionalText(formData, "postalCode"),
+                  city: optionalText(formData, "city"),
+                  country: optionalText(formData, "country"),
                   guests,
                   linens: extras.linens,
                   towels: extras.towels,
@@ -444,6 +453,76 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
               className={FELD}
             />
           </Feld>
+
+          {/* Freiwillig; eingetragen belegt sie die Rechnung im
+              Detaildialog vor. Ganz leer oder vollständig – eine halbe
+              Anschrift meldet der Server am fehlenden Feld. Hinweis außerhalb
+              der Legende wie im Gastformular; `min-w-0` gegen Überlauf des
+              PLZ/Ort-Rasters. */}
+          <fieldset
+            aria-describedby="anschrift-hinweis"
+            className="flex min-w-0 flex-col gap-5"
+          >
+            <legend className="text-klein font-medium text-schlick">
+              Rechnungsanschrift
+              <span className="font-normal text-schlick-2"> — optional</span>
+            </legend>
+            <p id="anschrift-hinweis" className="mt-0.5 text-mikro text-schlick-2">
+              Kann leer bleiben – dann bei der Rechnung eintragen.
+            </p>
+
+            <Feld id="street" fehler={fehler} label="Straße und Hausnummer">
+              <input
+                id="street"
+                name="street"
+                {...fehlerAttribute("street")}
+                type="text"
+                maxLength={ADDRESS_LIMITS.street}
+                autoComplete="off"
+                placeholder="Musterstraße 1"
+                className={FELD}
+              />
+            </Feld>
+
+            <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+              <Feld id="postalCode" fehler={fehler} label="PLZ">
+                <input
+                  id="postalCode"
+                  name="postalCode"
+                  {...fehlerAttribute("postalCode")}
+                  type="text"
+                  maxLength={ADDRESS_LIMITS.postalCode}
+                  autoComplete="off"
+                  className={FELD}
+                />
+              </Feld>
+
+              <Feld id="city" fehler={fehler} label="Ort">
+                <input
+                  id="city"
+                  name="city"
+                  {...fehlerAttribute("city")}
+                  type="text"
+                  maxLength={ADDRESS_LIMITS.city}
+                  autoComplete="off"
+                  className={FELD}
+                />
+              </Feld>
+            </div>
+
+            <Feld id="country" fehler={fehler} label="Land" optional>
+              <input
+                id="country"
+                name="country"
+                {...fehlerAttribute("country")}
+                type="text"
+                maxLength={ADDRESS_LIMITS.country}
+                autoComplete="off"
+                placeholder="Deutschland"
+                className={FELD}
+              />
+            </Feld>
+          </fieldset>
 
           <Feld id="message" fehler={fehler} label="Nachricht / Notiz" optional>
             <textarea

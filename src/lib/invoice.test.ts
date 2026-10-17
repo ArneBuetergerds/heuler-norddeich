@@ -1,11 +1,16 @@
 import { describe, it, expect } from "vitest";
+import { inflateSync } from "node:zlib";
 import { PDFDocument } from "pdf-lib";
 import type { BookingRequest } from "@/db/schema";
 import {
   buildInvoiceSnapshot,
   formatInvoiceNumber,
+  hasPostalAddress,
+  invoiceFileName,
   parseAddress,
+  postalAddressLines,
   SMALL_BUSINESS_NOTE,
+  type InvoiceSnapshot,
 } from "./invoice";
 import { renderInvoicePdf } from "./invoicePdf";
 
@@ -14,6 +19,10 @@ const request: BookingRequest = {
   name: "Erika Musterfrau",
   email: "erika@example.invalid",
   phone: null,
+  street: "Musterweg 1",
+  postalCode: "12345",
+  city: "Musterstadt",
+  country: null,
   // Über den Saisonwechsel 31.08./01.09.: 3 Nächte zu 94 €, 4 zu 74 €.
   startDate: new Date("2027-08-29"),
   endDate: new Date("2027-09-05"),
@@ -36,7 +45,6 @@ function snapshot(overrides: Partial<Parameters<typeof buildInvoiceSnapshot>[0]>
     issuedAt: new Date("2027-02-10"),
     recipientName: "Erika Musterfrau",
     recipientAddress: ["Musterweg 1", "12345 Musterstadt"],
-    taxNumber: "12/345/67890",
     bankDetails: null,
     ...overrides,
   });
@@ -141,5 +149,84 @@ describe("renderInvoicePdf", () => {
 
     // Ein zusätzlicher Textblock macht das Dokument messbar größer.
     expect(mit.length).toBeGreaterThan(ohne.length);
+  });
+});
+
+/**
+ * Prüft, ob ein Text im PDF gezeichnet wird. pdf-lib komprimiert die
+ * Seiteninhalte (FlateDecode) und schreibt Text der Standardschriften als
+ * Hex-String – gesucht wird deshalb in den entpackten Streams nach dem Hex.
+ */
+function pdfDrawsText(bytes: Uint8Array, text: string): boolean {
+  const buffer = Buffer.from(bytes);
+  const raw = buffer.toString("latin1");
+  const hex = Buffer.from(text, "latin1").toString("hex").toUpperCase();
+  const streamStart = /stream\r?\n/g;
+  for (let match = streamStart.exec(raw); match; match = streamStart.exec(raw)) {
+    const start = match.index + match[0].length;
+    const end = raw.indexOf("endstream", start);
+    try {
+      if (inflateSync(buffer.subarray(start, end)).toString("latin1").includes(hex)) {
+        return true;
+      }
+    } catch {
+      // Kein Flate-Stream (z. B. eingebettete Daten) – überspringen.
+    }
+  }
+  return false;
+}
+
+describe("Rechnung ohne Steuernummer", () => {
+  it("hat im Snapshot keine Steuernummer", () => {
+    expect(snapshot().seller).toEqual({
+      name: "Sabrina Rönne",
+      address: ["Am Tannenkamp 1", "48465 Schüttorf"],
+    });
+  });
+
+  it("druckt keine Steuernummer, auch nicht aus einem älteren Snapshot, der noch eine trägt", async () => {
+    const alt = {
+      ...snapshot(),
+      seller: { ...snapshot().seller, taxNumber: "12/345/67890" },
+    } as InvoiceSnapshot;
+
+    for (const bytes of [await renderInvoicePdf(snapshot()), await renderInvoicePdf(alt)]) {
+      // Gegenprobe: Die Suche findet, was wirklich gedruckt wird.
+      expect(pdfDrawsText(bytes, "Rechnungsnummer")).toBe(true);
+      expect(pdfDrawsText(bytes, "Steuernummer")).toBe(false);
+      expect(pdfDrawsText(bytes, "12/345/67890")).toBe(false);
+    }
+  });
+});
+
+describe("Rechnungsanschrift aus der Anfrage", () => {
+  const anschrift = { street: "Musterweg 1", postalCode: "12345", city: "Musterstadt", country: null };
+
+  it("bildet Straße und PLZ/Ort als eigene Zeilen", () => {
+    expect(postalAddressLines(anschrift)).toEqual(["Musterweg 1", "12345 Musterstadt"]);
+  });
+
+  it.each(["", "  ", "Deutschland", "deutschland", "Germany", "DE"])(
+    "lässt das Land %j weg",
+    (country) => {
+      expect(postalAddressLines({ ...anschrift, country })).toHaveLength(2);
+    },
+  );
+
+  it("nennt ein anderes Land in einer dritten Zeile", () => {
+    expect(
+      postalAddressLines({ street: "Hauptstraße 3", postalCode: "1010", city: "Wien", country: "Österreich" }),
+    ).toEqual(["Hauptstraße 3", "1010 Wien", "Österreich"]);
+  });
+
+  it("verlangt für eine Rechnung Straße, PLZ und Ort", () => {
+    expect(hasPostalAddress(anschrift)).toBe(true);
+    expect(hasPostalAddress({ ...anschrift, street: null })).toBe(false);
+    expect(hasPostalAddress({ ...anschrift, postalCode: " " })).toBe(false);
+    expect(hasPostalAddress({ street: null, postalCode: null, city: null, country: null })).toBe(false);
+  });
+
+  it("benennt das PDF nach der Rechnungsnummer", () => {
+    expect(invoiceFileName("RE-2027-0001")).toBe("Rechnung-RE-2027-0001.pdf");
   });
 });

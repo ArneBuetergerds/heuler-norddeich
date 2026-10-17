@@ -16,6 +16,7 @@ import {
   minNightsMessage,
 } from "@/lib/pricing";
 import { RESPONSE_HOURS } from "@/lib/terms";
+import { ADDRESS_LIMITS } from "@/lib/invoice";
 import { FELD, Feld, FehlerText, Zahlenfeld, type Fehler } from "./FormFields";
 import { PriceQuote } from "./PriceQuote";
 
@@ -31,6 +32,10 @@ const FELD_ID: Record<string, string> = {
   name: "name",
   email: "email",
   phone: "phone",
+  street: "street",
+  postalCode: "postalCode",
+  city: "city",
+  country: "country",
   message: "message",
   guests: "guests",
   linens: "extras",
@@ -150,6 +155,10 @@ export function BookingRequestForm({ occupancy, range, onRangeChange }: Props) {
         name: formData.get("name"),
         email: formData.get("email"),
         phone: formData.get("phone"),
+        street: formData.get("street"),
+        postalCode: formData.get("postalCode"),
+        city: formData.get("city"),
+        country: formData.get("country"),
         startDate: toDateInputValue(range.from),
         endDate: toDateInputValue(range.to),
         message: formData.get("message"),
@@ -354,6 +363,75 @@ export function BookingRequestForm({ occupancy, range, onRangeChange }: Props) {
           className={FELD}
         />
       </Feld>
+
+      {/* Rechnungsanschrift: Die Rechnung entsteht bei der Zusage
+          automatisch und kommt mit der Bestätigungsmail. Der Hinweis steht
+          außerhalb der Legende, damit der Gruppenname im Screenreader kurz
+          bleibt; `min-w-0` hebt die Mindestbreite von <fieldset> auf, sonst
+          drückt das PLZ/Ort-Raster auf 360px über den Rand. */}
+      <fieldset aria-describedby="anschrift-hinweis" className="flex min-w-0 flex-col gap-5">
+        <legend className="text-klein font-medium text-schlick">Rechnungsanschrift</legend>
+        <p id="anschrift-hinweis" className="mt-0.5 text-mikro text-schlick-2">
+          Für die Rechnung, die Sie mit der Bestätigung erhalten.
+        </p>
+
+        <Feld id="street" fehler={fehler} label="Straße und Hausnummer">
+          <input
+            id="street"
+            name="street"
+            {...fehlerAttribute("street")}
+            maxLength={ADDRESS_LIMITS.street}
+            type="text"
+            required
+            autoComplete="address-line1"
+            placeholder="Musterstraße 1"
+            className={FELD}
+          />
+        </Feld>
+
+        <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <Feld id="postalCode" fehler={fehler} label="PLZ">
+            <input
+              id="postalCode"
+              name="postalCode"
+              {...fehlerAttribute("postalCode")}
+              maxLength={ADDRESS_LIMITS.postalCode}
+              type="text"
+              required
+              autoComplete="postal-code"
+              placeholder="12345"
+              className={FELD}
+            />
+          </Feld>
+
+          <Feld id="city" fehler={fehler} label="Ort">
+            <input
+              id="city"
+              name="city"
+              {...fehlerAttribute("city")}
+              maxLength={ADDRESS_LIMITS.city}
+              type="text"
+              required
+              autoComplete="address-level2"
+              placeholder="Musterstadt"
+              className={FELD}
+            />
+          </Feld>
+        </div>
+
+        <Feld id="country" fehler={fehler} label="Land" optional>
+          <input
+            id="country"
+            name="country"
+            {...fehlerAttribute("country")}
+            maxLength={ADDRESS_LIMITS.country}
+            type="text"
+            autoComplete="country-name"
+            placeholder="Deutschland"
+            className={FELD}
+          />
+        </Feld>
+      </fieldset>
 
       <Feld id="message" fehler={fehler} label="Nachricht" optional>
         <textarea

@@ -49,7 +49,15 @@ function iso(date: Date): string {
  */
 async function manuelleBuchung(
   tx: Tx,
-  buchung: { name: string; email: string; startDate: Date; endDate: Date; guests: number },
+  buchung: {
+    name: string;
+    email: string;
+    startDate: Date;
+    endDate: Date;
+    guests: number;
+    /** Rechnungsanschrift, bei manuellen Buchungen freiwillig. */
+    anschrift?: { street: string; postalCode: string; city: string; country?: string };
+  },
 ): Promise<number> {
   const [{ id }] = await tx
     .insert(bookingRequest)
@@ -59,6 +67,10 @@ async function manuelleBuchung(
       startDate: buchung.startDate,
       endDate: buchung.endDate,
       guests: buchung.guests,
+      street: buchung.anschrift?.street ?? null,
+      postalCode: buchung.anschrift?.postalCode ?? null,
+      city: buchung.anschrift?.city ?? null,
+      country: buchung.anschrift?.country ?? null,
       status: "confirmed",
       source: "manual",
       decidedAt: new Date(),
@@ -113,6 +125,8 @@ async function main(): Promise<void> {
       startDate: tag(4),
       endDate: tag(11),
       guests: 4,
+      // Mit Anschrift: Im Detaildialog ist die Rechnung damit vorbelegt.
+      anschrift: { street: "Deichweg 12", postalCode: "26506", city: "Norden" },
     });
     // Manuelle Buchung B – erzeugt zusammen mit A den Wechseltag.
     await manuelleBuchung(tx, {
@@ -121,6 +135,7 @@ async function main(): Promise<void> {
       startDate: tag(11),
       endDate: tag(16),
       guests: 2,
+      // Ohne Anschrift: Sie ist bei manuellen Buchungen freiwillig.
     });
 
     await tx.insert(blockedPeriod).values([
@@ -159,6 +174,10 @@ async function main(): Promise<void> {
         name: `${MARKER} Erika Musterfrau`,
         email: "erika.musterfrau@beispiel.invalid",
         phone: "0176 12345678",
+        street: "Hauptstraße 3",
+        postalCode: "1010",
+        city: "Wien",
+        country: "Österreich",
         startDate: new Date("2027-08-29"),
         endDate: new Date("2027-09-05"),
         message: "Wir reisen mit dem Zug an.",

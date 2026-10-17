@@ -94,6 +94,36 @@ describe("POST /api/admin/manual-booking", () => {
     }
   });
 
+  it("speichert eine freiwillige Anschrift, ohne sie leer als null", async () => {
+    await POST(
+      post({ ...BOOKING, street: "Musterweg 1", postalCode: "12345", city: "Musterstadt", country: "" }),
+    );
+    expect(state.inserts[0].values).toMatchObject({
+      street: "Musterweg 1",
+      postalCode: "12345",
+      city: "Musterstadt",
+      country: null,
+    });
+
+    state.inserts.length = 0;
+    const response = await POST(post(BOOKING));
+    expect(response.status).toBe(201);
+    expect(state.inserts[0].values).toMatchObject({
+      street: null,
+      postalCode: null,
+      city: null,
+      country: null,
+    });
+  });
+
+  it("verlangt eine angefangene Anschrift vollständig", async () => {
+    const response = await POST(post({ ...BOOKING, city: "Musterstadt" }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ field: "street" });
+    expect(state.inserts).toHaveLength(0);
+  });
+
   it("antwortet 400 mit lesbarer Meldung und Feld", async () => {
     const response = await POST(post({ ...BOOKING, towels: 3 }));
 

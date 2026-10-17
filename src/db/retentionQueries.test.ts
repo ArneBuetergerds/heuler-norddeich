@@ -149,6 +149,10 @@ function guestRequest(overrides: Row): Row {
     name: "Erika Musterfrau",
     email: "erika@example.invalid",
     phone: "0176 1234567",
+    street: "Deichstraße 5",
+    postalCode: "26506",
+    city: "Norden",
+    country: "Deutschland",
     startDate: day("2026-08-01"),
     endDate: day("2026-08-08"),
     message: "Wir kommen mit Hund",
@@ -165,7 +169,7 @@ function guestRequest(overrides: Row): Row {
 }
 
 /** Alle Namen, Adressen und Texte der Testgäste – keiner darf im Protokoll landen. */
-const PERSONAL = ["Musterfrau", "erika@", "0176", "Hund", "Janssen", "Wasserschaden"];
+const PERSONAL = ["Musterfrau", "erika@", "0176", "Deichstraße", "Hund", "Janssen", "Wasserschaden"];
 
 const ACTOR = "admin@example.invalid";
 const TODAY = day("2027-03-01");
@@ -250,6 +254,10 @@ describe("deleteBookingRequest", () => {
       name: "gelöscht",
       email: "gelöscht",
       phone: null,
+      street: null,
+      postalCode: null,
+      city: null,
+      country: null,
       message: null,
       reasonNote: null,
       anonymizedAt: now,
@@ -375,6 +383,10 @@ describe("purgeExpiredData", () => {
       name: "gelöscht",
       email: "gelöscht",
       phone: null,
+      street: null,
+      postalCode: null,
+      city: null,
+      country: null,
       message: null,
       anonymizedAt: now,
     });

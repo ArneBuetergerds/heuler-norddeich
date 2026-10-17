@@ -4,6 +4,7 @@ import { isDateBlocked, dayOccupancy } from "@/lib/calendar";
 import type { MonthLinks } from "@/lib/month";
 import type { Occupancy } from "@/lib/occupancy";
 import { staysForDay, stayRoleOnDay } from "@/lib/stayForDay";
+import { CHECK_IN_TIME, CHECK_OUT_TIME } from "@/lib/terms";
 import { ChangeDayChoice } from "./ChangeDayChoice";
 import { MonthCalendar, CalendarLegendItem, type DayAppearance } from "./MonthCalendar";
 import { useOpenStayDetail } from "./StayDetailProvider";
@@ -65,14 +66,14 @@ export function OccupancyCalendar({
 
     if (state === "departure") {
       const stay = occupancy.stays.find((entry) => entry.endDate.getTime() === day.getTime());
-      return { className: DEPARTURE, title: `${stay?.guestName ?? "Gast"} (Abreise bis 10 Uhr)` };
+      return { className: DEPARTURE, title: `${stay?.guestName ?? "Gast"} (Abreise bis ${CHECK_OUT_TIME})` };
     }
 
     if (state === "arrival") {
       const stay = occupancy.stays.find(
         (entry) => entry.startDate.getTime() === day.getTime(),
       );
-      return { className: ARRIVAL, title: `${stay?.guestName ?? "Gast"} (Anreise ab 14 Uhr)` };
+      return { className: ARRIVAL, title: `${stay?.guestName ?? "Gast"} (Anreise ab ${CHECK_IN_TIME})` };
     }
 
     // state === "occupied": Sperrzeitraum, ein durchgehender Aufenthalt,

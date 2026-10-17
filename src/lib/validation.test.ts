@@ -6,10 +6,13 @@ import {
   manualBookingSchema,
 } from "./validation";
 
+const ADRESSE = { street: "Musterweg 1", postalCode: "12345", city: "Musterstadt" };
+
 const base = {
   name: "Erika Musterfrau",
   email: "erika@example.invalid",
   guests: 2,
+  ...ADRESSE,
 };
 
 /** Weit genug in der Zukunft, dass die Wäsche-Vorlauffrist nie greift. */
@@ -217,6 +220,67 @@ describe("bookingRequestSchema", () => {
   });
 });
 
+describe("Rechnungsanschrift im Online-Formular", () => {
+  function parse(input: Record<string, unknown>) {
+    return bookingRequestSchema.safeParse({ ...base, ...WEIT_VORAUS, ...input });
+  }
+
+  function issue(input: Record<string, unknown>) {
+    const result = parse(input);
+    return result.success ? undefined : result.error.issues[0];
+  }
+
+  it.each([
+    ["street", "Bitte Straße und Hausnummer angeben"],
+    ["postalCode", "Bitte die Postleitzahl angeben"],
+    ["city", "Bitte den Ort angeben"],
+  ])("verlangt %s, mit Meldung am Feld", (field, message) => {
+    expect(issue({ [field]: "" })).toMatchObject({ path: [field], message });
+    expect(issue({ [field]: "   " })).toMatchObject({ path: [field], message });
+    expect(issue({ [field]: undefined })).toMatchObject({ path: [field], message });
+  });
+
+  it("lässt das Land weg und nimmt es, wenn angegeben", () => {
+    expect(parse({}).success).toBe(true);
+    const result = parse({ country: " Österreich " });
+    expect(result.success && result.data.country).toBe("Österreich");
+  });
+
+  it.each(["12345", "1010", "SW1A 1AA", "00-001", "NL 1234 AB"])(
+    "akzeptiert die Postleitzahl %j",
+    (postalCode) => {
+      expect(parse({ postalCode }).success).toBe(true);
+    },
+  );
+
+  it.each(["12345!", "-12345", "1234/5", "١٢٣٤٥"])("lehnt die Postleitzahl %j ab", (postalCode) => {
+    expect(issue({ postalCode })?.path).toEqual(["postalCode"]);
+  });
+
+  it.each([
+    ["street", "Musterweg 1\nZweite Zeile"],
+    ["street", "Musterweg\t1"],
+    ["city", "Muster\u200Bstadt"],
+    ["country", "Öster\nreich"],
+  ])("lehnt Steuerzeichen in %s ab", (field, value) => {
+    expect(issue({ [field]: value })?.path).toEqual([field]);
+  });
+
+  it("begrenzt die Längen wie die Datenbankspalten", () => {
+    expect(issue({ street: "x".repeat(151) })?.path).toEqual(["street"]);
+    expect(issue({ postalCode: "1".repeat(13) })?.path).toEqual(["postalCode"]);
+    expect(issue({ city: "x".repeat(101) })?.path).toEqual(["city"]);
+    expect(issue({ country: "x".repeat(61) })?.path).toEqual(["country"]);
+    expect(parse({ street: "x".repeat(150), city: "x".repeat(100), country: "x".repeat(60) }).success).toBe(true);
+  });
+
+  it("akzeptiert Straßen und Orte mit Umlauten, Punkt, Komma und Schrägstrich", () => {
+    expect(
+      parse({ street: "Hauptstr. 12a / Hinterhaus, c/o Müller", city: "Frankfurt (Oder)" }).success,
+    ).toBe(true);
+  });
+});
+
 describe("blockedPeriodCreateSchema", () => {
   it("akzeptiert einen Sperrzeitraum über genau einen Tag (Ende = letzter gesperrter Tag)", () => {
     const result = blockedPeriodCreateSchema.safeParse({
@@ -365,6 +429,34 @@ describe("manualBookingSchema", () => {
         message: "Nicht mehr Sätze als Personen",
       });
     }
+  });
+
+  it("akzeptiert eine Buchung ohne Anschrift", () => {
+    const ohne = { name: base.name, email: base.email, guests: 2, startDate: "2027-07-10", endDate: "2027-07-12" };
+    expect(manualBookingSchema.safeParse(ohne).success).toBe(true);
+    expect(
+      manualBookingSchema.safeParse({ ...ohne, street: "", postalCode: "", city: "", country: "" }).success,
+    ).toBe(true);
+  });
+
+  it("übernimmt eine vollständige Anschrift", () => {
+    const result = manualBookingSchema.safeParse({ ...manual, country: "Niederlande" });
+    expect(result.success && result.data).toMatchObject({ ...ADRESSE, country: "Niederlande" });
+  });
+
+  it("verlangt eine angefangene Anschrift vollständig, mit Meldung am fehlenden Feld", () => {
+    const result = manualBookingSchema.safeParse({ ...manual, street: "", postalCode: "" });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path[0])).toEqual(["street", "postalCode"]);
+      expect(result.error.issues[0]?.message).toContain("Straße und Hausnummer");
+    }
+  });
+
+  it("prüft auch freiwillige Anschriftsfelder auf Zeichen und Länge", () => {
+    expect(manualBookingSchema.safeParse({ ...manual, postalCode: "12345!" }).success).toBe(false);
+    expect(manualBookingSchema.safeParse({ ...manual, city: "x".repeat(101) }).success).toBe(false);
   });
 
   it("begrenzt die Nächte zum Schutz der Preisberechnung", () => {

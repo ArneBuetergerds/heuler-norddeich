@@ -26,10 +26,10 @@ markierten Stellen ausfüllen.
 
 | | |
 |---|---|
-| **Zweck** | Entgegennahme, Prüfung und Beantwortung von Anfragen; Abwicklung des Mietverhältnisses; Kommunikation mit Gästen |
+| **Zweck** | Entgegennahme, Prüfung und Beantwortung von Anfragen; Abwicklung des Mietverhältnisses einschließlich Rechnungsstellung; Kommunikation mit Gästen |
 | **Rechtsgrundlage** | Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahmen und Vertragserfüllung) |
 | **Betroffene Personen** | Anfragende und Gäste |
-| **Datenkategorien** | Name, E-Mail-Adresse, Telefonnummer (optional), Anreise- und Abreisedatum, Freitextnachricht, Status der Anfrage, Begründung bei Absage oder Storno, Eingangszeitpunkt |
+| **Datenkategorien** | Name, E-Mail-Adresse, Anschrift (Straße und Hausnummer, Postleitzahl, Ort, Land optional; online Pflicht, bei telefonischen Buchungen freiwillig – Empfänger der Rechnung, die mit der Buchungsbestätigung per E-Mail versandt wird), Telefonnummer (optional), Anreise- und Abreisedatum, Freitextnachricht, Status der Anfrage, Begründung bei Absage oder Storno, Eingangszeitpunkt |
 | **Empfänger** | Bütergerds Digital Solutions (Auftragsverarbeiter); netcup GmbH und IONOS SE (Unterauftragsverarbeiter) |
 | **Drittlandübermittlung** | keine |
 | **Löschfrist** | siehe Löschkonzept unter Abschnitt 6 |
@@ -100,8 +100,9 @@ Buchungen und Rechnungen sind in der Anwendung umgesetzt (zentral in
 
 **Technische Umsetzung:** Die Anwendung löscht abgelaufene Anfragen, Buchungen
 und Rechnungen einmal täglich automatisch. Hängt an einer Buchung eine Rechnung,
-die noch aufzubewahren ist, werden Name, E-Mail-Adresse, Telefonnummer und
-Nachricht der Anfrage entfernt (anonymisiert); Rechnung und Anfrage werden mit
+die noch aufzubewahren ist, werden Name, E-Mail-Adresse, Telefonnummer,
+Anschrift und Nachricht der Anfrage entfernt (anonymisiert); Name und Anschrift
+des Rechnungsempfängers bleiben dann nur in der Rechnung selbst erhalten; Rechnung und Anfrage werden mit
 Ablauf der Rechnungsfrist gelöscht. Im Administrationsbereich lässt sich eine
 Anfrage zusätzlich von Hand löschen bzw. anonymisieren. Offen bleibt die
 Abstimmung der Fristen mit der Steuerberatung. Ablauf, Reihenfolge und

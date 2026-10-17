@@ -14,12 +14,19 @@
  * BANK_TRANSFER_DETAILS. OWNER_NOTIFICATION_EMAIL wird nicht gebraucht – auch
  * die Mail an die Betreiberin geht an die angegebene Adresse.
  *
+ * Die Zusage geht wie im Betrieb mit einer Rechnung als PDF-Anhang raus. Die
+ * Rechnung ist ein Beispiel (Nummer RE-0000-0000), erzeugt aus der
+ * Beispielanfrage mit denselben Funktionen wie im Betrieb, aber ohne Datenbank
+ * und ohne Nummernkreis.
+ *
  * Texte und Versand sind dieselben wie im Betrieb: die `build…`-Funktionen und
  * `sendMail` aus src/lib/email.ts. Nur der Empfänger und der Betreff werden vor
  * dem Versand umgeschrieben; die `send…`-Funktionen selbst lassen sich nicht
  * auf eine Testadresse umleiten.
  */
 import type { BookingRequest } from "../src/db/schema";
+import { buildInvoiceSnapshot, postalAddressLines } from "../src/lib/invoice";
+import { renderInvoicePdf } from "../src/lib/invoicePdf";
 import {
   buildBookingRequestNotification,
   buildGuestConfirmation,
@@ -55,6 +62,10 @@ const BEISPIEL: BookingRequest = {
   name: "Erika Musterfrau",
   email: empfaenger,
   phone: "0176 12345678",
+  street: "Musterweg 1",
+  postalCode: "12345",
+  city: "Musterstadt",
+  country: null,
   startDate: new Date("2027-07-10"),
   endDate: new Date("2027-07-17"),
   message: "Kommen wir mit dem Zug an? Gibt es einen Parkplatz am Haus?",
@@ -69,24 +80,45 @@ const BEISPIEL: BookingRequest = {
   anonymizedAt: null,
 };
 
-const mails: Array<[string, Mail]> = [
-  ["Eingangsbestätigung an den Gast", buildGuestRequestReceived(BEISPIEL)],
-  ["Info an die Betreiberin", buildBookingRequestNotification(BEISPIEL, empfaenger)],
-  ["Zusage an den Gast", buildGuestConfirmation({ ...BEISPIEL, status: "confirmed" })],
-  [
-    "Absage an den Gast",
-    buildGuestDecline(
-      { ...BEISPIEL, status: "declined" },
-      "Der Zeitraum ist inzwischen anderweitig vergeben.",
-    ),
-  ],
-  [
-    "Sammelmeldung an die Betreiberin (über dem Gesamtlimit)",
-    buildOperatorDigest(12, empfaenger, { limit: 40, windowHours: 24 }),
-  ],
-];
+/** Beispielrechnung zur Beispielanfrage, wie sie beim Bestätigen entstünde. */
+async function beispielRechnung(): Promise<{ number: string; pdf: Uint8Array }> {
+  const number = "RE-0000-0000";
+  const bank = process.env.BANK_TRANSFER_DETAILS?.trim();
+  const snapshot = buildInvoiceSnapshot({
+    request: { ...BEISPIEL, status: "confirmed" },
+    number,
+    issuedAt: new Date(),
+    recipientName: BEISPIEL.name,
+    recipientAddress: postalAddressLines(BEISPIEL),
+    bankDetails: bank ? bank.split("\n").map((zeile) => zeile.trim()) : null,
+  });
+  return { number, pdf: await renderInvoicePdf(snapshot) };
+}
+
+async function testMails(): Promise<Array<[string, Mail]>> {
+  return [
+    ["Eingangsbestätigung an den Gast", buildGuestRequestReceived(BEISPIEL)],
+    ["Info an die Betreiberin", buildBookingRequestNotification(BEISPIEL, empfaenger)],
+    [
+      "Zusage an den Gast (mit Beispielrechnung im Anhang)",
+      buildGuestConfirmation({ ...BEISPIEL, status: "confirmed" }, await beispielRechnung()),
+    ],
+    [
+      "Absage an den Gast",
+      buildGuestDecline(
+        { ...BEISPIEL, status: "declined" },
+        "Der Zeitraum ist inzwischen anderweitig vergeben.",
+      ),
+    ],
+    [
+      "Sammelmeldung an die Betreiberin (über dem Gesamtlimit)",
+      buildOperatorDigest(12, empfaenger, { limit: 40, windowHours: 24 }),
+    ],
+  ];
+}
 
 async function main(): Promise<void> {
+  const mails = await testMails();
   let fehler = 0;
   for (const [titel, mail] of mails) {
     const test: Mail = { ...mail, to: empfaenger, subject: `[TEST] ${mail.subject}` };

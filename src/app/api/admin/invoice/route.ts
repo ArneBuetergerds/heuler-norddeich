@@ -6,7 +6,6 @@ import {
   INVOICE_EXISTS_ERROR,
   INVOICE_NUMBER_CONFLICT_ERROR,
   NOT_CONFIRMED_ERROR,
-  TAX_NUMBER_MISSING_ERROR,
 } from "@/db/invoiceQueries";
 import { parseAddress } from "@/lib/invoice";
 import { withRouteErrors } from "@/lib/routeErrors";
@@ -27,7 +26,6 @@ const FEHLER: Record<string, number> = {
   [INVOICE_EXISTS_ERROR]: 409,
   [INVOICE_NUMBER_CONFLICT_ERROR]: 409,
   [NOT_CONFIRMED_ERROR]: 409,
-  [TAX_NUMBER_MISSING_ERROR]: 503,
 };
 
 export const POST = withRouteErrors("POST /api/admin/invoice", postInvoice);

@@ -3,6 +3,7 @@
 import type { DateRange } from "react-day-picker";
 import { dayOccupancy } from "@/lib/calendar";
 import { nightsBetween } from "@/lib/pricing";
+import { CHECK_IN_TIME, CHECK_OUT_TIME } from "@/lib/terms";
 import { isSelectable, nextStaySelection, type StaySelection } from "@/lib/staySelection";
 import { toUtcMidnight } from "./DateRangePicker";
 import { MonthCalendar, CalendarLegendItem, type DayAppearance } from "./MonthCalendar";
@@ -68,11 +69,11 @@ export function AvailabilityCalendar({ occupancy, range, onRangeChange }: Props)
       case "occupied":
         return { className: BLOCKED, title: "Belegt oder gesperrt" };
       case "departure":
-        return { className: DEPARTURE, title: "Wechseltag: Anreise ab 14 Uhr möglich" };
+        return { className: DEPARTURE, title: `Wechseltag: Anreise ab ${CHECK_IN_TIME} möglich` };
       case "arrival":
         // Ab 14 Uhr zieht hier ein anderer Gast ein – der Tag taugt nur noch
         // als Abreisetag (bis 10 Uhr), nicht als Anreise.
-        return { className: ARRIVAL, title: "Nur Abreise möglich (bis 10 Uhr)" };
+        return { className: ARRIVAL, title: `Nur Abreise möglich (bis ${CHECK_OUT_TIME})` };
       case "free":
         return { className: FREE, title: "Frei" };
     }
@@ -112,10 +113,10 @@ export function AvailabilityCalendar({ occupancy, range, onRangeChange }: Props)
           <>
             <CalendarLegendItem colorClassName="bg-green-500">Frei</CalendarLegendItem>
             <CalendarLegendItem colorClassName="bg-[linear-gradient(to_bottom_right,var(--color-red-500)_50%,var(--color-green-500)_50%)]">
-              Anreise ab 14 Uhr möglich
+              Anreise ab {CHECK_IN_TIME} möglich
             </CalendarLegendItem>
             <CalendarLegendItem colorClassName="bg-[linear-gradient(to_bottom_right,var(--color-green-500)_50%,var(--color-red-500)_50%)]">
-              Nur Abreise möglich (bis 10 Uhr)
+              Nur Abreise möglich (bis {CHECK_OUT_TIME})
             </CalendarLegendItem>
             <CalendarLegendItem colorClassName="bg-red-500">Belegt / gesperrt</CalendarLegendItem>
             {onRangeChange && (

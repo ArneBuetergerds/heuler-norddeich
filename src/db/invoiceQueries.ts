@@ -7,8 +7,6 @@ import { logAdminAction } from "./adminActionLog";
 
 export const INVOICE_EXISTS_ERROR = "Für diese Buchung gibt es bereits eine Rechnung";
 export const NOT_CONFIRMED_ERROR = "Rechnungen gibt es nur für bestätigte Buchungen";
-export const TAX_NUMBER_MISSING_ERROR =
-  "Keine Steuernummer hinterlegt (INVOICE_TAX_NUMBER) – ohne sie ist eine Rechnung unvollständig";
 export const INVOICE_NUMBER_CONFLICT_ERROR =
   "Die Rechnungsnummer wurde gerade gleichzeitig vergeben. Bitte die Rechnung noch einmal erstellen.";
 
@@ -91,11 +89,6 @@ export async function createInvoice(
   },
   db: Db = defaultDb,
 ): Promise<Invoice> {
-  const taxNumber = process.env.INVOICE_TAX_NUMBER?.trim();
-  if (!taxNumber) {
-    throw new Error(TAX_NUMBER_MISSING_ERROR);
-  }
-
   const bank = process.env.BANK_TRANSFER_DETAILS?.trim();
   const bankDetails = bank ? bank.split("\n").map((zeile) => zeile.trim()) : null;
   const issuedAt = input.issuedAt ?? new Date();
@@ -105,7 +98,7 @@ export async function createInvoice(
 
   for (let attempt = 1; ; attempt++) {
     try {
-      return await insertInvoice(db, input, { year, issuedAt, taxNumber, bankDetails });
+      return await insertInvoice(db, input, { year, issuedAt, bankDetails });
     } catch (error) {
       const key = duplicateKeyName(error);
       if (key === "invoice_booking_request") {
@@ -134,9 +127,8 @@ async function insertInvoice(
   {
     year,
     issuedAt,
-    taxNumber,
     bankDetails,
-  }: { year: number; issuedAt: Date; taxNumber: string; bankDetails: string[] | null },
+  }: { year: number; issuedAt: Date; bankDetails: string[] | null },
 ): Promise<Invoice> {
   return db.transaction(async (tx) => {
     const [request] = await tx
@@ -171,7 +163,6 @@ async function insertInvoice(
       issuedAt,
       recipientName: input.recipientName,
       recipientAddress: input.recipientAddress,
-      taxNumber,
       bankDetails,
     });
 
@@ -202,6 +193,18 @@ async function insertInvoice(
 
 export async function getInvoice(id: number, db: Db = defaultDb): Promise<Invoice | undefined> {
   const [row] = await db.select().from(invoice).where(eq(invoice.id, id));
+  return row;
+}
+
+/** Die Rechnung zu einer Buchung, falls es eine gibt (höchstens eine je Buchung). */
+export async function getInvoiceForBookingRequest(
+  bookingRequestId: number,
+  db: Db = defaultDb,
+): Promise<Invoice | undefined> {
+  const [row] = await db
+    .select()
+    .from(invoice)
+    .where(eq(invoice.bookingRequestId, bookingRequestId));
   return row;
 }
 

@@ -38,3 +38,21 @@ export function cancellationLines(): string[] {
 }
 
 export const PARKING = "Eigener Stellplatz direkt am Haus, kostenlos";
+
+/**
+ * Anreise- und Abreisezeit. Eine Quelle für Website (Mietbedingungen, FAQ,
+ * Kalender), strukturierte Daten und Bestätigungsmail. Zwischen 10 und 14 Uhr
+ * wird gereinigt – darauf beruht der Wechseltag im Kalender
+ * (src/lib/calendar.ts).
+ */
+export const CHECK_IN_HOUR = 14;
+export const CHECK_OUT_HOUR = 10;
+
+/** Für Texte: „14 Uhr“. */
+export const CHECK_IN_TIME = `${CHECK_IN_HOUR} Uhr`;
+export const CHECK_OUT_TIME = `${CHECK_OUT_HOUR} Uhr`;
+
+/** Für strukturierte Daten (schema.org): „14:00“. */
+export function isoTime(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
