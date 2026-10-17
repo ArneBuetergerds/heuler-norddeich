@@ -28,6 +28,12 @@ function anonymizedValues(now: Date) {
     name: ANONYMIZED_PLACEHOLDER,
     email: ANONYMIZED_PLACEHOLDER,
     phone: null,
+    // Die Rechnungsanschrift steht, solange sie aufzubewahren ist, in der
+    // Rechnung selbst (Snapshot); an der Anfrage wird sie nicht mehr gebraucht.
+    street: null,
+    postalCode: null,
+    city: null,
+    country: null,
     message: null,
     // Freitext an den Gast, kann Persönliches enthalten.
     reasonNote: null,

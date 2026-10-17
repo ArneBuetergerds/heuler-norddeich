@@ -57,7 +57,8 @@ Die Abstimmung der Fristen mit der Steuerberatung steht noch aus (siehe
   Belegungskalender.
 - **Anonymisieren** gibt es nur, wenn zu einer Buchung eine Rechnung gehört, die
   noch aufbewahrt werden muss. Dann werden Name und E-Mail-Adresse durch „gelöscht“
-  ersetzt und Telefonnummer, Nachricht und die Begründung an den Gast entfernt.
+  ersetzt und Telefonnummer, Anschrift (Straße, PLZ, Ort, Land), Nachricht und die
+  Begründung an den Gast entfernt.
   Zeitraum, Personenzahl und Status bleiben, weil sich die Rechnung darauf bezieht;
   der Kalendereintrag bleibt ebenfalls. Die Rechnung selbst (mit Name und Anschrift
   des Rechnungsempfängers) bleibt bis zum Ende ihrer Frist unverändert.

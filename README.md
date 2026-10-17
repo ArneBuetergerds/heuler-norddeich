@@ -79,7 +79,7 @@ Zusätzlich prüft ein Skript den kompletten Buchungsablauf (Anfrage, Bestätigu
 npx tsx --env-file=.env.local scripts/verify-booking-flow.ts
 ```
 
-Echter SMTP-Testversand: Das Skript schickt alle automatischen Mails (Eingangsbestätigung, Info an die Betreiberin, Zusage, Absage, Sammelmeldung über dem Gesamtlimit) mit Beispieldaten über den konfigurierten SMTP-Zugang – alle an die eine angegebene Adresse, Betreff mit „[TEST]“. Ohne Datenbank; ohne Empfänger bricht es ab. Nötig sind `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` (optional `SMTP_PORT`, `BANK_TRANSFER_DETAILS`).
+Echter SMTP-Testversand: Das Skript schickt alle automatischen Mails (Eingangsbestätigung, Info an die Betreiberin, Zusage mit Beispielrechnung als PDF-Anhang, Absage, Sammelmeldung über dem Gesamtlimit) mit Beispieldaten über den konfigurierten SMTP-Zugang – alle an die eine angegebene Adresse, Betreff mit „[TEST]“. Ohne Datenbank; ohne Empfänger bricht es ab. Nötig sind `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` (optional `SMTP_PORT`, `BANK_TRANSFER_DETAILS`).
 ```bash
 npx tsx --env-file=.env.local scripts/send-test-mails.ts test@example.de
 ```

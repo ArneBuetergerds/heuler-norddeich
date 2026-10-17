@@ -11,7 +11,14 @@ import {
   SERVICE_FEE,
 } from "@/lib/pricing";
 import { pageMetadata } from "@/lib/site";
-import { CANCELLATION_TIERS, DEPOSIT_DUE_DAYS, PARKING, RESPONSE_HOURS } from "@/lib/terms";
+import {
+  CANCELLATION_TIERS,
+  CHECK_IN_TIME,
+  CHECK_OUT_TIME,
+  DEPOSIT_DUE_DAYS,
+  PARKING,
+  RESPONSE_HOURS,
+} from "@/lib/terms";
 
 const minNights = SEASONS.map((season) => season.minNights);
 const euro = (betrag: number) => betrag.toLocaleString("de-DE", { minimumFractionDigits: 2 });
@@ -56,8 +63,7 @@ const FAQ: readonly { frage: string; antwort: string }[] = [
   },
   {
     frage: "Wann kann ich anreisen, wann muss ich abreisen?",
-    antwort:
-      "Anreise ab 14 Uhr, Abreise bis 10 Uhr. Eine spätere Anreise ist nach Absprache möglich – schreiben Sie es einfach in die Anfrage.",
+    antwort: `Anreise ab ${CHECK_IN_TIME}, Abreise bis ${CHECK_OUT_TIME}. Eine spätere Anreise ist nach Absprache möglich – schreiben Sie es einfach in die Anfrage.`,
   },
   {
     frage: "Ist die Wohnung für Kinder geeignet?",

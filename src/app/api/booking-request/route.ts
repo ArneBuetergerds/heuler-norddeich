@@ -116,8 +116,21 @@ async function postBookingRequest(request: Request) {
   // an den Client bleibt dieselbe.
   const withinGlobalLimit = allVisitors.hit("alle");
 
-  const { name, email, phone, startDate, endDate, message, guests, linens, towels } =
-    parsed.data;
+  const {
+    name,
+    email,
+    phone,
+    street,
+    postalCode,
+    city,
+    country,
+    startDate,
+    endDate,
+    message,
+    guests,
+    linens,
+    towels,
+  } = parsed.data;
 
   if (!(await isRangeFree(startDate, endDate))) {
     return NextResponse.json(
@@ -128,7 +141,22 @@ async function postBookingRequest(request: Request) {
 
   const [{ id }] = await db
     .insert(bookingRequest)
-    .values({ name, email, phone, startDate, endDate, message, guests, linens, towels })
+    .values({
+      name,
+      email,
+      phone,
+      street,
+      postalCode,
+      city,
+      // Ohne Angabe gilt Deutschland, siehe postalAddressLines.
+      country: country || null,
+      startDate,
+      endDate,
+      message,
+      guests,
+      linens,
+      towels,
+    })
     .$returningId();
 
   // Die Anfrage ist gespeichert, der Gast bekommt sofort seine Antwort. Mails

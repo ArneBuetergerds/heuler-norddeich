@@ -18,6 +18,7 @@ import {
   monthWindow,
   resolveMonth,
 } from "@/lib/month";
+import { hasPostalAddress, postalAddressLines } from "@/lib/invoice";
 import { EXTRAS, extrasTotal } from "@/lib/pricing";
 import { vapidConfig } from "@/lib/push";
 import { adminDeletionDecision, berlinDay } from "@/lib/retention";
@@ -112,10 +113,11 @@ export default async function AdminPage({
         <div className="flex flex-col gap-3.5">
           {pending.map((request) => {
             const conflict = deriveConflict(request, pendingOccupancy, pending);
+            const addressLines = postalAddressLines(request);
             return (
               <div key={request.id} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="mb-1 text-[15px] font-bold">{request.name}</p>
                     {/* Antippbar: Am Handy ruft Sabrina direkt an oder
                         schreibt zurück, ohne die Nummer abzutippen. */}
@@ -135,6 +137,25 @@ export default async function AdminPage({
                         </a>
                       )}
                     </p>
+                    {/* Rechnungsanschrift, dezent unter den Kontaktdaten. Fehlt
+                        sie (Anfragen vor dem Pflichtfeld), fragt „Bestätigen“
+                        sie ab. */}
+                    {addressLines.length > 0 ? (
+                      <address className="mt-1.5 text-[13px] break-words text-schlick-2 not-italic">
+                        {addressLines.map((line) => (
+                          <span key={line} className="block">
+                            {line}
+                          </span>
+                        ))}
+                      </address>
+                    ) : (
+                      <p className="mt-1.5 text-[13px] text-schlick-3">keine Anschrift</p>
+                    )}
+                    {!hasPostalAddress(request) && (
+                      <p className="text-[13px] text-schlick-3">
+                        Wird beim Bestätigen für die Rechnung abgefragt.
+                      </p>
+                    )}
                   </div>
                   <StatusBadge status={conflict ? "conflict" : "pending"} />
                 </div>

@@ -81,11 +81,37 @@ function period(start: Date, end: Date) {
   return { startDate: isoDay(start), endDate: isoDay(end) };
 }
 
-/** `actor`: E-Mail des angemeldeten Admins, für das Protokoll. */
+/** Rechnungsanschrift, wie sie an der Anfrage gespeichert wird. */
+export type BookingAddress = {
+  street: string;
+  postalCode: string;
+  city: string;
+  country?: string;
+};
+
+/** Spalten der Anschrift; ein leeres Land wird als „nicht angegeben“ gespeichert. */
+function addressColumns(address: BookingAddress) {
+  return {
+    street: address.street,
+    postalCode: address.postalCode,
+    city: address.city,
+    country: address.country || null,
+  };
+}
+
+/**
+ * `actor`: E-Mail des angemeldeten Admins, für das Protokoll.
+ *
+ * `address`: Rechnungsanschrift aus dem Bestätigen-Dialog (Anfragen von vor
+ * dem Pflichtfeld). Wird in derselben Transaktion an der Anfrage gespeichert,
+ * damit keine bestätigte Buchung ohne die Anschrift entsteht, mit der sie
+ * bestätigt wurde.
+ */
 export async function confirmBookingRequest(
   db: DbLike,
   id: number,
   actor: string,
+  address?: BookingAddress,
 ): Promise<void> {
   const request = await db.query.bookingRequest.findFirst({
     where: eq(bookingRequest.id, id),
@@ -121,7 +147,11 @@ export async function confirmBookingRequest(
 
     await tx
       .update(bookingRequest)
-      .set({ status: "confirmed", decidedAt: new Date() })
+      .set({
+        status: "confirmed",
+        decidedAt: new Date(),
+        ...(address ? addressColumns(address) : {}),
+      })
       .where(eq(bookingRequest.id, id));
 
     await logAdminAction(tx, {
@@ -226,6 +256,11 @@ export async function createManualBooking(
     guests: number;
     linens: number;
     towels: number;
+    /** Rechnungsanschrift, freiwillig; vollständig oder gar nicht (manualBookingSchema). */
+    street?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
   },
   actor: string,
   now: Date = new Date(),
@@ -241,6 +276,10 @@ export async function createManualBooking(
         // Leere Eingaben wie bei fehlenden Angaben speichern.
         phone: booking.phone || null,
         message: booking.message || null,
+        street: booking.street || null,
+        postalCode: booking.postalCode || null,
+        city: booking.city || null,
+        country: booking.country || null,
         startDate: booking.startDate,
         endDate: booking.endDate,
         guests: booking.guests,

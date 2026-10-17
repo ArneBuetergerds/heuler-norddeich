@@ -173,6 +173,27 @@ describe("confirmBookingRequest", () => {
     expect(fakeDb.updated).toContainEqual({ status: "confirmed", decidedAt: expect.any(Date) });
   });
 
+  it("speichert eine Anschrift aus dem Bestätigen-Dialog in derselben Änderung", async () => {
+    const fakeDb = createFakeDb({ request });
+
+    await confirmBookingRequest(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      request.id,
+      ACTOR,
+      { street: "Musterweg 1", postalCode: "12345", city: "Musterstadt", country: "" },
+    );
+
+    expect(fakeDb.updated).toContainEqual({
+      status: "confirmed",
+      decidedAt: expect.any(Date),
+      street: "Musterweg 1",
+      postalCode: "12345",
+      city: "Musterstadt",
+      country: null,
+    });
+  });
+
   it("wirft einen Fehler und schreibt nichts, wenn der Zeitraum inzwischen belegt ist", async () => {
     const fakeDb = createFakeDb({
       request,
@@ -289,6 +310,11 @@ describe("createManualBooking", () => {
         email: "hanna@example.invalid",
         phone: "0176 7654321",
         message: "Kommt mit Hund",
+        // Anschrift freiwillig, hier nicht angegeben.
+        street: null,
+        postalCode: null,
+        city: null,
+        country: null,
         startDate: new Date("2026-09-01"),
         endDate: new Date("2026-09-08"),
         guests: 3,

@@ -1,6 +1,7 @@
 import { GALLERY } from "./gallery";
 import { MAX_GUESTS, SEASONS } from "./pricing";
 import { ADDRESS, GEO, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "./site";
+import { CHECK_IN_HOUR, CHECK_OUT_HOUR, isoTime } from "./terms";
 
 // Nur, was auf der Website auch steht (Ausstattungsseite): Google wertet
 // strukturierte Daten, die dem sichtbaren Inhalt widersprechen, als Spam.
@@ -49,8 +50,8 @@ export function lodgingStructuredData(): Record<string, unknown> {
     },
     priceRange: `${Math.min(...prices)} € – ${Math.max(...prices)} € pro Nacht`,
     currenciesAccepted: "EUR",
-    checkinTime: "14:00",
-    checkoutTime: "10:00",
+    checkinTime: isoTime(CHECK_IN_HOUR),
+    checkoutTime: isoTime(CHECK_OUT_HOUR),
     petsAllowed: false,
     amenityFeature: AMENITIES.map((name) => ({
       "@type": "LocationFeatureSpecification",

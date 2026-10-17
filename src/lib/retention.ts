@@ -265,7 +265,7 @@ export function retentionNotice(): string {
     `zustande gekommene Buchungen mit Ablauf des ${BOOKING_RETENTION_YEARS}. Kalenderjahres nach dem Abreisetag.`,
     `Interne Belegungen (Eigennutzung, Aufenthalte von Familie und Freunden) löschen wir nach ${months(INTERNAL_RETENTION_MONTHS)} ab dem Abreisetag.`,
     `Rechnungen bewahren wir ${years(INVOICE_RETENTION_YEARS)} auf, gerechnet ab dem Ende des Kalenderjahres ihrer Ausstellung.`,
-    "Solange zu einer Buchung eine Rechnung aufbewahrt wird, löschen wir nach Ablauf der oben genannten Frist Name, E-Mail-Adresse, Telefonnummer und Nachricht der Anfrage;",
+    "Solange zu einer Buchung eine Rechnung aufbewahrt wird, löschen wir nach Ablauf der oben genannten Frist Name, E-Mail-Adresse, Telefonnummer, Anschrift und Nachricht der Anfrage;",
     "die Rechnung selbst einschließlich Name und Anschrift des Rechnungsempfängers bleibt bis zum Ablauf ihrer Aufbewahrungsfrist erhalten und wird danach gelöscht.",
   ].join(" ");
 }
@@ -484,7 +484,7 @@ export function retentionOverview(): RetentionRule[] {
       dataType: "Buchungen mit Rechnung (online und telefonisch eingetragen)",
       ...booking,
       effect: "anonymize",
-      note: "Name, E-Mail-Adresse, Telefonnummer und Nachricht werden entfernt; die Rechnung bleibt bis zum Ende ihrer Frist.",
+      note: "Name, E-Mail-Adresse, Telefonnummer, Anschrift und Nachricht werden entfernt; die Rechnung bleibt bis zum Ende ihrer Frist.",
     },
     {
       dataType: "Rechnungen",

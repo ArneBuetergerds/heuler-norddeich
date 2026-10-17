@@ -1,5 +1,11 @@
 import { formatEuro } from "@/lib/format";
-import { CANCELLATION_NOTES, CANCELLATION_TIERS, DEPOSIT_DUE_DAYS } from "@/lib/terms";
+import {
+  CANCELLATION_NOTES,
+  CANCELLATION_TIERS,
+  CHECK_IN_TIME,
+  CHECK_OUT_TIME,
+  DEPOSIT_DUE_DAYS,
+} from "@/lib/terms";
 import {
   BALANCE_DUE_DAYS,
   CLEANING_FEE,
@@ -43,8 +49,8 @@ export function ArrivalTimes() {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {[
-        { was: "Anreise", wann: "ab 14 Uhr" },
-        { was: "Abreise", wann: "bis 10 Uhr" },
+        { was: "Anreise", wann: `ab ${CHECK_IN_TIME}` },
+        { was: "Abreise", wann: `bis ${CHECK_OUT_TIME}` },
       ].map(({ was, wann }) => (
         <div key={was} className="rounded-card border border-linie bg-muschel p-5">
           <p className="text-label font-semibold uppercase text-schlick-2">{was}</p>

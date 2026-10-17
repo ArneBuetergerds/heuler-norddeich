@@ -22,6 +22,10 @@ const BEISPIEL: BookingRequest = {
   name: "Erika Musterfrau",
   email: "erika.musterfrau@beispiel.de",
   phone: "0176 12345678",
+  street: "Musterweg 1",
+  postalCode: "12345",
+  city: "Musterstadt",
+  country: null,
   startDate: new Date("2027-07-10"),
   endDate: new Date("2027-07-17"),
   message: "Kommen wir mit dem Zug an? Gibt es einen Parkplatz am Haus?",
@@ -56,6 +60,9 @@ function ausgeben(titel: string, wann: string, mail: Mail): void {
   console.log(`An:       ${mail.to}`);
   console.log(`Antwort an: ${mail.replyTo ?? "(nicht gesetzt)"}`);
   console.log(`Betreff:  ${mail.subject}`);
+  for (const anhang of mail.attachments ?? []) {
+    console.log(`Anhang:   ${anhang.filename} (${anhang.contentType}, ${anhang.content.length} Byte)`);
+  }
   console.log("-".repeat(72));
   console.log(mail.text);
 }
@@ -74,9 +81,21 @@ ausgeben(
   buildGuestRequestReceived(BEISPIEL),
 );
 
+// Ohne Datenbank und ohne PDF-Erzeugung: Ein Platzhalter steht für das PDF,
+// gezeigt werden Text und Anhangname. Das echte PDF verschickt
+// scripts/send-test-mails.ts.
 ausgeben(
-  "3. An den Gast – Zusage",
+  "3. An den Gast – Zusage mit Rechnung im Anhang",
   'wenn im Admin auf "Bestätigen" geklickt wird',
+  buildGuestConfirmation(BEISPIEL, {
+    number: "RE-2027-0001",
+    pdf: new TextEncoder().encode("%PDF- Platzhalter"),
+  }),
+);
+
+ausgeben(
+  "3b. Dieselbe Zusage, wenn die Rechnung nicht erstellt werden konnte",
+  "die Betreiberin erstellt die Rechnung dann im Detaildialog und schickt sie nach",
   buildGuestConfirmation(BEISPIEL),
 );
 
@@ -99,5 +118,5 @@ ausgeben(
 );
 
 console.log(
-  "\nHinweis: Alle Mails gehen als reiner Text raus, ohne HTML und ohne Bilder.\n",
+  "\nHinweis: Alle Mails gehen als reiner Text raus, ohne HTML und ohne Bilder; die Zusage mit der Rechnung als PDF-Anhang.\n",
 );

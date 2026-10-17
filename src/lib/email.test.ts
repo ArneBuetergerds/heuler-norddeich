@@ -30,6 +30,10 @@ const request: BookingRequest = {
   name: "Erika Musterfrau",
   email: "erika@example.invalid",
   phone: null,
+  street: "Musterweg 1",
+  postalCode: "12345",
+  city: "Musterstadt",
+  country: null,
   startDate: new Date("2027-05-01"),
   endDate: new Date("2027-05-08"),
   message: null,
@@ -226,8 +230,52 @@ describe("Mietbedingungen in den Gast-Mails", () => {
     expect(text).toContain("bis 42 Tage vor Anreise: kostenfrei");
   });
 
+  it("nennen in der Bestätigung An- und Abreisezeit", async () => {
+    const { buildGuestConfirmation } = await import("./email");
+    expect(buildGuestConfirmation(request).text).toContain(
+      "Anreise ab ca. 14 Uhr, Abreise bis 10 Uhr.",
+    );
+  });
+
   it("sagen in der Eingangsbestätigung eine Antwort binnen 48 Stunden zu", async () => {
     const { buildGuestRequestReceived } = await import("./email");
     expect(buildGuestRequestReceived(request).text).toContain("innerhalb von 48 Stunden");
+  });
+});
+
+describe("Rechnung im Anhang der Bestätigung", () => {
+  const pdf = new TextEncoder().encode("%PDF-1.7 Beispiel");
+
+  beforeEach(() => {
+    sendMail.mockReset();
+    sendMail.mockResolvedValue(undefined);
+    process.env.SMTP_HOST = "smtp.example.invalid";
+    process.env.SMTP_USER = "noreply@example.invalid";
+    process.env.SMTP_PASS = "secret";
+  });
+
+  it("hängt das PDF mit Rechnungsnummer im Dateinamen an und nennt es im Text", async () => {
+    await sendGuestConfirmation(request, { number: "RE-2027-0001", pdf });
+
+    const mail = sendMail.mock.calls[0]?.[0] as {
+      text: string;
+      attachments: { filename: string; content: Buffer; contentType: string }[];
+    };
+    expect(mail.attachments).toHaveLength(1);
+    expect(mail.attachments[0]).toMatchObject({
+      filename: "Rechnung-RE-2027-0001.pdf",
+      contentType: "application/pdf",
+    });
+    expect(Buffer.isBuffer(mail.attachments[0].content)).toBe(true);
+    expect(mail.attachments[0].content.equals(Buffer.from(pdf))).toBe(true);
+    expect(mail.text).toContain("Die Rechnung RE-2027-0001 finden Sie im Anhang");
+  });
+
+  it("kündigt die Rechnung ohne Anhang an, wenn keine mitgeht", async () => {
+    await sendGuestConfirmation(request);
+
+    const mail = sendMail.mock.calls[0]?.[0] as { text: string; attachments?: unknown };
+    expect(mail.attachments).toBeUndefined();
+    expect(mail.text).toContain("Die Rechnung senden wir Ihnen gesondert zu.");
   });
 });

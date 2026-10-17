@@ -10,14 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import type { BookingRequest } from "@/db/schema";
 import type { InvoiceSummary } from "@/db/invoiceQueries";
 import { formatDate } from "@/lib/format";
+import { hasPostalAddress, postalAddressLines } from "@/lib/invoice";
 
 /**
  * Rechnung zu einer bestätigten Buchung: ausstellen oder herunterladen.
  *
- * Die Anschrift wird erst hier erfasst, nicht schon im Anfrageformular. Sie
- * ist nur für bestätigte Buchungen nötig – jede Anfrage danach zu fragen,
- * hieße, sie von allen Anfragenden zu erheben, auch von denen, die nie
- * buchen.
+ * Online-Buchungen bekommen ihre Rechnung beim Bestätigen automatisch (mit
+ * der Anschrift aus dem Anfrageformular). Von Hand ausgestellt wird hier,
+ * wenn das gescheitert ist, und bei manuellen Buchungen – deren Anschrift ist
+ * freiwillig und, wenn eingetragen, vorbelegt.
  */
 export function InvoiceSection({
   request,
@@ -104,6 +105,9 @@ export function InvoiceSection({
           name="recipientAddress"
           rows={3}
           required
+          defaultValue={
+            hasPostalAddress(request) ? postalAddressLines(request).join("\n") : undefined
+          }
           placeholder={"Musterweg 1\n12345 Musterstadt"}
         />
         <p className="text-[11px] text-schlick-2">

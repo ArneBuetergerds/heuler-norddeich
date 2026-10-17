@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { minNightsMessage, extrasBookable, nightsBetween, MAX_GUESTS } from "./pricing";
+import { ADDRESS_LIMITS } from "./invoice";
 
 /**
  * Obergrenzen gegen Missbrauch. Ohne sie legt ein einzelner Request mit
@@ -39,6 +40,111 @@ const ADDRESS_IN_NAME = [
 
 export function looksLikeAddress(name: string): boolean {
   return ADDRESS_IN_NAME.some((pattern) => pattern.test(name));
+}
+
+/**
+ * Steuer- und Formatzeichen (Zeilenumbruch, Tabulator, unsichtbare Zeichen).
+ * Die Anschrift steht einzeilig auf der Rechnung; ein Umbruch darin würde das
+ * Layout verschieben, unsichtbare Zeichen ließen zwei gleich aussehende
+ * Anschriften verschieden sein.
+ */
+const CONTROL_CHARS = /[\p{Cc}\p{Cf}]/u;
+
+/** Ziffern, lateinische Buchstaben, Leerzeichen und Bindestrich. */
+const POSTAL_CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 -]*$/;
+
+const ADDRESS_MESSAGES = {
+  street: "Bitte Straße und Hausnummer angeben",
+  postalCode: "Bitte die Postleitzahl angeben",
+  city: "Bitte den Ort angeben",
+} as const;
+
+function streetField() {
+  return z
+    .string({ error: ADDRESS_MESSAGES.street })
+    .trim()
+    .max(ADDRESS_LIMITS.street, "Die Straße ist zu lang")
+    .refine((value) => !CONTROL_CHARS.test(value), "Bitte die Straße in einer Zeile angeben");
+}
+
+function postalCodeField() {
+  return z
+    .string({ error: ADDRESS_MESSAGES.postalCode })
+    .trim()
+    .max(ADDRESS_LIMITS.postalCode, "Die Postleitzahl ist zu lang")
+    .refine(
+      (value) => value === "" || POSTAL_CODE_PATTERN.test(value),
+      "Bitte nur Ziffern, Buchstaben, Leerzeichen und Bindestrich verwenden",
+    );
+}
+
+function cityField() {
+  return z
+    .string({ error: ADDRESS_MESSAGES.city })
+    .trim()
+    .max(ADDRESS_LIMITS.city, "Der Ort ist zu lang")
+    .refine((value) => !CONTROL_CHARS.test(value), "Bitte den Ort in einer Zeile angeben");
+}
+
+/** Das Land ist überall optional; ohne Angabe gilt Deutschland. */
+function countryField() {
+  return z
+    .string()
+    .trim()
+    .max(ADDRESS_LIMITS.country, "Die Landesangabe ist zu lang")
+    .refine((value) => !CONTROL_CHARS.test(value), "Bitte das Land in einer Zeile angeben")
+    .optional();
+}
+
+/**
+ * Rechnungsanschrift als Pflichtangabe: Straße, PLZ und Ort, Land optional.
+ * Für das Online-Formular und für den Bestätigen-Dialog bei Anfragen ohne
+ * Anschrift (PATCH /api/admin/booking-request/[id]).
+ */
+export const postalAddressFields = {
+  street: streetField().min(1, ADDRESS_MESSAGES.street),
+  postalCode: postalCodeField().min(1, ADDRESS_MESSAGES.postalCode),
+  city: cityField().min(1, ADDRESS_MESSAGES.city),
+  country: countryField(),
+};
+
+export const postalAddressSchema = z.object(postalAddressFields);
+
+export type PostalAddressInput = z.infer<typeof postalAddressSchema>;
+
+/**
+ * Dieselben Felder als freiwillige Angabe (manuelle Buchung). Ob sie
+ * vollständig sind, prüft `addAddressCompleteIssues`.
+ */
+const optionalPostalAddressFields = {
+  street: streetField().optional(),
+  postalCode: postalCodeField().optional(),
+  city: cityField().optional(),
+  country: countryField(),
+};
+
+/**
+ * Freiwillige Anschrift: ganz leer oder vollständig. Eine halbe Anschrift
+ * („nur Ort“) taugt nicht für die Rechnung, die sie vorbelegen soll.
+ */
+function addAddressCompleteIssues(
+  data: { street?: string; postalCode?: string; city?: string; country?: string },
+  ctx: z.RefinementCtx,
+): void {
+  const keys = ["street", "postalCode", "city"] as const;
+  const given = keys.filter((key) => (data[key] ?? "") !== "");
+  if (given.length === 0 && (data.country ?? "") === "") {
+    return;
+  }
+  for (const key of keys) {
+    if ((data[key] ?? "") === "") {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: `${ADDRESS_MESSAGES[key]} – oder die Anschrift ganz leer lassen`,
+      });
+    }
+  }
 }
 
 /**
@@ -94,6 +200,9 @@ function addExtrasWithinGuestsIssues(
 }
 
 export const bookingRequestSchema = bookingRequestFields
+  // Online ist die Rechnungsanschrift Pflicht: Die Rechnung entsteht beim
+  // Bestätigen automatisch und geht mit der Bestätigungsmail an den Gast.
+  .extend(postalAddressFields)
   .refine((data) => data.startDate < data.endDate, {
     message: "Anreisedatum muss vor dem Abreisedatum liegen",
     path: ["endDate"],
@@ -178,10 +287,14 @@ export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;
  * MAX_MONTHS_AHEAD im Voraus, Wäsche eine Woche vorher, Anreise nicht in der
  * Vergangenheit. Geprüft bleiben ein gültiger Zeitraum (Anreise vor Abreise),
  * MAX_NIGHTS als Schutz der Preisberechnung (ein Objekt je Nacht) und
- * höchstens so viele Wäschesätze wie Personen.
+ * höchstens so viele Wäschesätze wie Personen. Die Rechnungsanschrift ist
+ * freiwillig, aber wenn, dann vollständig.
  */
 export const manualBookingSchema = bookingRequestFields
   .extend({
+    // Anschrift freiwillig: Am Telefon wird sie nicht immer erfragt. Ist sie
+    // eingetragen, belegt sie die Rechnung im Detaildialog vor.
+    ...optionalPostalAddressFields,
     startDate: z.coerce.date({ error: "Bitte ein gültiges Anreisedatum angeben" }),
     endDate: z.coerce.date({ error: "Bitte ein gültiges Abreisedatum angeben" }),
   })
@@ -198,6 +311,7 @@ export const manualBookingSchema = bookingRequestFields
       });
     }
     addExtrasWithinGuestsIssues(data, ctx);
+    addAddressCompleteIssues(data, ctx);
   });
 
 export type ManualBookingInput = z.infer<typeof manualBookingSchema>;

@@ -13,6 +13,7 @@ import { InvoiceSection } from "./InvoiceSection";
 import { DeleteRequestButton } from "./DeleteRequestButton";
 import type { Stay } from "@/lib/occupancy";
 import { formatDate, formatDateRange } from "@/lib/format";
+import { postalAddressLines } from "@/lib/invoice";
 import { EXTRAS, extrasTotal, nightsBetween, priceBreakdown, stayTotal } from "@/lib/pricing";
 import { adminDeletionDecision, berlinDay } from "@/lib/retention";
 
@@ -73,6 +74,9 @@ export function StayDetailDialog({
               ) : (
                 <span className="text-schlick-3">nicht angegeben</span>
               )}
+            </Zeile>
+            <Zeile label="Anschrift">
+              <AnschriftZeilen lines={postalAddressLines(request)} />
             </Zeile>
             <Zeile label="Personen">{request.guests}</Zeile>
             <Zeile label="Wäsche">
@@ -172,5 +176,21 @@ function Zeile({ label, children }: { label: string; children: React.ReactNode }
       </dt>
       <dd className="text-[13px] break-words">{children}</dd>
     </>
+  );
+}
+
+/** Rechnungsanschrift mehrzeilig; Deutschland lässt `postalAddressLines` weg. */
+function AnschriftZeilen({ lines }: { lines: string[] }) {
+  if (lines.length === 0) {
+    return <span className="text-schlick-3">keine Anschrift</span>;
+  }
+  return (
+    <address className="not-italic">
+      {lines.map((line) => (
+        <span key={line} className="block">
+          {line}
+        </span>
+      ))}
+    </address>
   );
 }

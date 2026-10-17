@@ -14,6 +14,12 @@ vi.mock("@/lib/safeError", () => import("../../../lib/safeError"));
 vi.mock("@/lib/bookingNotifications", () => import("../../../lib/bookingNotifications"));
 vi.mock("@/lib/routeErrors", () => import("../../../lib/routeErrors"));
 vi.mock("@/db/client", () => ({ db: { insert } }));
+// `after()` braucht den Request-Kontext von Next.js; Benachrichtigungen sind
+// hier nicht Gegenstand.
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
 vi.mock("@/db/queries", () => ({ isRangeFree: vi.fn(async () => true) }));
 vi.mock("@/lib/email", () => ({
   sendBookingRequestNotification: vi.fn(),
@@ -33,6 +39,9 @@ const GUEST = {
   email: "gast@example.org",
   phone: "0151 2345678",
   message: "Wir kommen mit Hund",
+  street: "Musterweg 1",
+  postalCode: "12345",
+  city: "Musterstadt",
 };
 
 function isoDay(daysFromToday: number): string {
@@ -41,7 +50,7 @@ function isoDay(daysFromToday: number): string {
   return day.toISOString().slice(0, 10);
 }
 
-function bookingRequest(): Request {
+function bookingRequest(overrides: Record<string, unknown> = {}): Request {
   return new Request("http://localhost/api/booking-request", {
     method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.7" },
@@ -51,6 +60,7 @@ function bookingRequest(): Request {
       endDate: isoDay(44),
       guests: 2,
       formMs: 10_000,
+      ...overrides,
     }),
   });
 }
@@ -95,5 +105,38 @@ describe("POST /api/booking-request", () => {
       expect(logged).not.toContain(value);
     }
     expect(logged).not.toContain("params");
+  });
+
+  it("speichert die Rechnungsanschrift mit der Anfrage, ein leeres Land als null", async () => {
+    const values = vi.fn();
+    insert.mockReturnValue({
+      values: (v: Record<string, unknown>) => {
+        values(v);
+        return { $returningId: async () => [{ id: 42 }] };
+      },
+    });
+
+    const response = await POST(bookingRequest({ country: "" }));
+
+    expect(response.status).toBe(201);
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        street: "Musterweg 1",
+        postalCode: "12345",
+        city: "Musterstadt",
+        country: null,
+      }),
+    );
+  });
+
+  it("lehnt eine Anfrage ohne Anschrift mit Meldung am Feld ab und speichert nichts", async () => {
+    const response = await POST(bookingRequest({ street: "" }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Bitte Straße und Hausnummer angeben",
+      field: "street",
+    });
+    expect(insert).not.toHaveBeenCalled();
   });
 });

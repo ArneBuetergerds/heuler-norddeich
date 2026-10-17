@@ -15,7 +15,7 @@ const SECTIONS: readonly PrivacySection[] = [
   },
   {
     heading: "Verarbeitung bei Buchungsanfragen",
-    body: "Beim Absenden des Anfrageformulars verarbeiten wir Name, E-Mail-Adresse, optional Telefonnummer, den gewünschten Anreise- und Abreisezeitraum sowie Ihre Nachricht. Diese Daten werden ausschließlich zur Bearbeitung und Beantwortung Ihrer Buchungsanfrage genutzt und in unserer Datenbank gespeichert. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Durchführung vorvertraglicher Maßnahmen auf Ihre Anfrage hin), bei einer zustande gekommenen Buchung zusätzlich zur Erfüllung des Mietvertrags.",
+    body: "Beim Absenden des Anfrageformulars verarbeiten wir Name, E-Mail-Adresse, Ihre Anschrift (Straße und Hausnummer, Postleitzahl, Ort, optional Land), optional Telefonnummer, den gewünschten Anreise- und Abreisezeitraum sowie Ihre Nachricht. Diese Daten werden ausschließlich zur Bearbeitung und Beantwortung Ihrer Buchungsanfrage genutzt und in unserer Datenbank gespeichert. Name und Anschrift benötigen wir zudem für die Rechnung: Kommt die Buchung zustande, wird die Rechnung auf Sie ausgestellt und Ihnen mit der Buchungsbestätigung als PDF-Anhang per E-Mail zugesandt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Durchführung vorvertraglicher Maßnahmen auf Ihre Anfrage hin), bei einer zustande gekommenen Buchung zusätzlich zur Erfüllung des Mietvertrags.",
   },
   {
     heading: "Zugriffsdaten beim Seitenaufruf",

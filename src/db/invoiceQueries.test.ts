@@ -15,7 +15,6 @@ const {
   INVOICE_EXISTS_ERROR,
   INVOICE_NUMBER_CONFLICT_ERROR,
   NOT_CONFIRMED_ERROR,
-  TAX_NUMBER_MISSING_ERROR,
 } = await import("./invoiceQueries");
 
 /**
@@ -114,6 +113,10 @@ const confirmed: BookingRequest = {
   name: "Erika Musterfrau",
   email: "erika@example.invalid",
   phone: null,
+  street: "Musterweg 1",
+  postalCode: "12345",
+  city: "Musterstadt",
+  country: null,
   startDate: new Date("2027-08-29"),
   endDate: new Date("2027-09-05"),
   message: null,
@@ -174,7 +177,6 @@ const input = {
 
 describe("createInvoice", () => {
   beforeEach(() => {
-    vi.stubEnv("INVOICE_TAX_NUMBER", "12/345/67890");
     vi.stubEnv("BANK_TRANSFER_DETAILS", "");
   });
 
@@ -194,7 +196,11 @@ describe("createInvoice", () => {
       number: "RE-2027-0001",
       bookingRequestId: confirmed.id,
     });
-    expect(created.snapshot.seller.taxNumber).toBe("12/345/67890");
+    // Seit BDS-004 ohne Steuernummer (Kleinunternehmerin).
+    expect(created.snapshot.seller).toEqual({
+      name: "Sabrina Rönne",
+      address: ["Am Tannenkamp 1", "48465 Schüttorf"],
+    });
     expect(fakeDb.invoices).toHaveLength(1);
   });
 
@@ -373,17 +379,16 @@ describe("createInvoice", () => {
     expect(created.snapshot.issuedAt).toBe("2027-12-31");
   });
 
-  it.each(["", "   "])(
-    "stellt ohne Steuernummer (INVOICE_TAX_NUMBER = %j) keine Rechnung aus",
-    async (value) => {
-      vi.stubEnv("INVOICE_TAX_NUMBER", value);
-      const fakeDb = createFakeDb({ requests: [confirmed] });
+  it("stellt die Rechnung ohne Steuernummer aus, auch wenn INVOICE_TAX_NUMBER noch gesetzt ist", async () => {
+    vi.stubEnv("INVOICE_TAX_NUMBER", "12/345/67890");
+    const fakeDb = createFakeDb({ requests: [confirmed] });
 
-      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-      await expect(createInvoice(input, fakeDb)).rejects.toThrow(TAX_NUMBER_MISSING_ERROR);
-      expect(fakeDb.invoices).toHaveLength(0);
-    },
-  );
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    const created = await createInvoice(input, fakeDb);
+
+    expect(JSON.stringify(created.snapshot)).not.toContain("12/345/67890");
+    expect(created.snapshot.seller).not.toHaveProperty("taxNumber");
+  });
 });
 
 describe("duplicateKeyName", () => {
