@@ -10,10 +10,14 @@ import {
 } from "@/lib/email";
 import { buildBookingRequestPush, sendPushToAdmins } from "@/lib/push";
 import { clientIp, createRateLimiter } from "@/lib/rateLimit";
+import { notifyAboutBookingRequest } from "@/lib/bookingNotifications";
 
-// Je Besucher genügen ein paar Versuche (Tippfehler, zweiter Zeitraum). Das
-// Gesamtlimit fängt verteilte Bots ab, die viele IPs nutzen – jede Anfrage
-// löst Mails aus, und die sollen nie zur Spam-Schleuder werden.
+// Je Besucher genügen ein paar Versuche (Tippfehler, zweiter Zeitraum); das
+// Limit je IP ist die einzige harte Ablehnung. Das Gesamtlimit fängt verteilte
+// Bots ab, die viele IPs nutzen – es lehnt aber niemanden ab (sonst könnte ein
+// Angreifer das Formular für alle Gäste sperren), sondern unterdrückt nur die
+// Eingangsbestätigung an die angegebene Adresse, damit die Seite nie zur
+// Spam-Schleuder an fremde Postfächer wird. Siehe notifyAboutBookingRequest.
 const perIp = createRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 });
 const allVisitors = createRateLimiter({ limit: 40, windowMs: 24 * 60 * 60 * 1000 });
 
@@ -71,10 +75,10 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!allVisitors.hit("alle")) {
-    console.error("Globales Anfrage-Limit erreicht – möglicher Bot-Angriff");
-    return NextResponse.json({ error: TOO_MANY }, { status: 429 });
-  }
+  // Kein Abbruch bei Überschreitung: Die Anfrage wird gespeichert und die
+  // Betreiberin benachrichtigt, nur die Mail an den Gast entfällt. Die Antwort
+  // an den Client bleibt dieselbe.
+  const withinGlobalLimit = allVisitors.hit("alle");
 
   const { name, email, phone, startDate, endDate, message, guests, linens, towels } =
     parsed.data;
@@ -98,21 +102,17 @@ export async function POST(request: Request) {
     .from(bookingRequest)
     .where(eq(bookingRequest.id, id));
 
-  // Die Anfrage ist gespeichert – ein Mailfehler darf sie nicht verwerfen,
-  // sonst verliert der Gast seine Eingabe wegen eines Problems beim Versand.
-  // Mails und Push unabhängig versenden: schlägt eins fehl, sollen die anderen
-  // trotzdem rausgehen.
-  await Promise.allSettled([
-    sendPushToAdmins(buildBookingRequestPush(created)).catch((error: unknown) => {
-      console.error("Push an die Betreiberin fehlgeschlagen", error);
-    }),
-    sendBookingRequestNotification(created).catch((error: unknown) => {
-      console.error("Benachrichtigung des Betreibers fehlgeschlagen", error);
-    }),
-    sendGuestRequestReceived(created).catch((error: unknown) => {
-      console.error("Eingangsbestätigung an den Gast fehlgeschlagen", error);
-    }),
-  ]);
+  await notifyAboutBookingRequest(
+    created,
+    { withinGlobalLimit },
+    {
+      // Das Ergebnis des Push-Versands interessiert hier nicht – die Mail an
+      // die Betreiberin geht ohnehin raus.
+      pushAdmins: (stored) => sendPushToAdmins(buildBookingRequestPush(stored)),
+      notifyOperator: sendBookingRequestNotification,
+      confirmToGuest: sendGuestRequestReceived,
+    },
+  );
 
   return NextResponse.json({ id }, { status: 201 });
 }

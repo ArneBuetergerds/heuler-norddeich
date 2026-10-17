@@ -11,19 +11,7 @@ import {
   RANGE_TAKEN_ERROR,
 } from "@/db/adminQueries";
 import { sendGuestDecline } from "@/lib/email";
-
-const createSchema = z
-  .object({
-    startDate: z.coerce.date(),
-    endDate: z.coerce.date(),
-    note: z.string().optional(),
-    // Gesetzt = manuell eingetragener Aufenthalt, sonst reiner Sperrzeitraum.
-    guestName: z.string().min(1).optional(),
-  })
-  .refine((data) => data.startDate < data.endDate, {
-    message: "Startdatum muss vor dem Enddatum liegen",
-    path: ["endDate"],
-  });
+import { blockedPeriodCreateSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
   const denied = await requireAdmin(request);
@@ -39,9 +27,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsed = createSchema.safeParse(body);
+  const parsed = blockedPeriodCreateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    // Die erste Meldung als Text: Das Formular zeigt sie direkt an.
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Bitte prüfen Sie Ihre Eingaben." },
+      { status: 400 },
+    );
   }
 
   const { startDate, endDate, note, guestName } = parsed.data;

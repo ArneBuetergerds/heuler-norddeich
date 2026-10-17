@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bookingRequestSchema } from "./validation";
+import { blockedPeriodCreateSchema, bookingRequestSchema } from "./validation";
 
 const base = {
   name: "Erika Musterfrau",
@@ -188,5 +188,66 @@ describe("bookingRequestSchema", () => {
       expect(issueAt({ phone: "call me at evil.example" }, "phone")).toBeDefined();
       expect(issueAt({ phone: "+49 (0)4931 / 12-34" }, "phone")).toBeUndefined();
     });
+  });
+});
+
+describe("blockedPeriodCreateSchema", () => {
+  it("akzeptiert einen Sperrzeitraum über genau einen Tag (Ende = letzter gesperrter Tag)", () => {
+    const result = blockedPeriodCreateSchema.safeParse({
+      startDate: "2027-03-10",
+      endDate: "2027-03-10",
+      note: "Wartung",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("lehnt einen Sperrzeitraum ab, der vor seinem Beginn endet", () => {
+    const result = blockedPeriodCreateSchema.safeParse({
+      startDate: "2027-03-10",
+      endDate: "2027-03-09",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        "Der letzte gesperrte Tag darf nicht vor dem ersten liegen",
+      );
+    }
+  });
+
+  it("lehnt einen Aufenthalt mit gleichem Anreise- und Abreisetag ab", () => {
+    const result = blockedPeriodCreateSchema.safeParse({
+      startDate: "2027-03-10",
+      endDate: "2027-03-10",
+      guestName: "Familie Janssen",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Die Abreise muss nach der Anreise liegen");
+    }
+  });
+
+  it("akzeptiert einen Aufenthalt über eine Nacht", () => {
+    const result = blockedPeriodCreateSchema.safeParse({
+      startDate: "2027-03-10",
+      endDate: "2027-03-11",
+      guestName: "Familie Janssen",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("liefert eine lesbare Meldung bei ungültigem Datum", () => {
+    const result = blockedPeriodCreateSchema.safeParse({
+      startDate: "kein-datum",
+      endDate: "2027-03-11",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Bitte ein gültiges Startdatum angeben");
+    }
   });
 });

@@ -140,7 +140,42 @@ export function AdminPushSettings({ vapidPublicKey }: Props) {
 
   const sendTest = () =>
     run(async () => {
-      await postJson("/api/admin/push-subscription/test", "POST");
+      const registration = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+      const subscription = await registration?.pushManager.getSubscription();
+
+      const response = await fetch("/api/admin/push-subscription/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: subscription?.endpoint }),
+      });
+      const data = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        currentDeviceActive?: unknown;
+      } | null;
+
+      // Der Schalter liest seinen Zustand aus dem Browser-Abo. Steht das Gerät
+      // auf dem Server nicht (mehr) – etwa weil der Push-Dienst das Abo als
+      // abgelaufen gemeldet hat –, kämen trotz "an" keine Benachrichtigungen.
+      // Dann das lokale Abo verwerfen, damit "Einschalten" ein neues anlegt.
+      if (data?.currentDeviceActive === false) {
+        await subscription?.unsubscribe().catch(() => false);
+        setState("off");
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data?.error === "string"
+            ? data.error
+            : "Die Testbenachrichtigung konnte nicht verschickt werden.",
+        );
+      }
+
+      if (data?.currentDeviceActive === false) {
+        toast.error(
+          "Testbenachrichtigung an andere Geräte verschickt. Dieses Gerät war nicht mehr angemeldet – bitte neu einschalten.",
+        );
+        return;
+      }
       toast.success("Testbenachrichtigung verschickt.");
     });
 

@@ -68,9 +68,15 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
       });
 
       if (!response.ok) {
+        if (response.status === 409) {
+          setError("Der Zeitraum überschneidet sich mit einem bestehenden Eintrag.");
+          return;
+        }
+        // Die API liefert bei 400 eine lesbare Meldung im Feld `error`.
+        const data: unknown = await response.json().catch(() => null);
         setError(
-          response.status === 409
-            ? "Der Zeitraum überschneidet sich mit einem bestehenden Eintrag."
+          data !== null && typeof data === "object" && "error" in data && typeof data.error === "string"
+            ? data.error
             : "Bitte prüfen Sie Ihre Eingaben.",
         );
         return;

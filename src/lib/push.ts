@@ -87,26 +87,44 @@ export function isSubscriptionGone(error: unknown): boolean {
 }
 
 /**
+ * Ergebnis eines Versands. `configured: false`: keine VAPID-Schlüssel, es
+ * wurde nichts versucht. Sonst je Gerät genau einer der Ausgänge:
+ * zugestellt (`sent`), fehlgeschlagen (`failed`, Abo bleibt) oder beim
+ * Push-Dienst nicht mehr vorhanden und deshalb gelöscht (`removedEndpoints`).
+ */
+export type PushResult =
+  | { configured: false }
+  | {
+      configured: true;
+      devices: number;
+      sent: number;
+      failed: number;
+      removedEndpoints: string[];
+    };
+
+type DeviceOutcome = "sent" | "failed" | "removed";
+
+/**
  * Schickt eine Benachrichtigung an alle angemeldeten Admin-Geräte. Geräte
  * werden unabhängig voneinander beliefert – ein totes Abo darf die übrigen
  * nicht aufhalten – und abgelaufene Abos dabei gleich aufgeräumt.
  */
-export async function sendPushToAdmins(payload: PushPayload): Promise<void> {
+export async function sendPushToAdmins(payload: PushPayload): Promise<PushResult> {
   const config = vapidConfig();
   if (!config) {
-    return;
+    return { configured: false };
   }
 
   const subscriptions = await db.select().from(pushSubscription);
   const body = JSON.stringify(payload);
 
-  await Promise.allSettled(
-    subscriptions.map(async (subscription) => {
+  const outcomes = await Promise.all(
+    subscriptions.map(async (subscription): Promise<DeviceOutcome> => {
       // Zweite Linie: Auch ein Abo, das an der API-Prüfung vorbei in die
       // Datenbank gelangt ist, wird nie an einen fremden Host gesendet.
       if (!isAllowedPushEndpoint(subscription.endpoint)) {
         console.error("Push-Abo mit unbekanntem Host übersprungen", subscription.id);
-        return;
+        return "failed";
       }
       try {
         await webpush.sendNotification(
@@ -122,13 +140,98 @@ export async function sendPushToAdmins(payload: PushPayload): Promise<void> {
             TTL: 60 * 60 * 24,
           },
         );
+        return "sent";
       } catch (error) {
         if (isSubscriptionGone(error)) {
-          await db.delete(pushSubscription).where(eq(pushSubscription.id, subscription.id));
-          return;
+          try {
+            await db.delete(pushSubscription).where(eq(pushSubscription.id, subscription.id));
+          } catch (deleteError) {
+            // Das Abo ist trotzdem tot; beim nächsten Versand wird erneut gelöscht.
+            console.error("Abgelaufenes Push-Abo konnte nicht gelöscht werden", deleteError);
+          }
+          return "removed";
         }
         console.error("Push-Benachrichtigung fehlgeschlagen", error);
+        return "failed";
       }
     }),
   );
+
+  return {
+    configured: true,
+    devices: subscriptions.length,
+    sent: outcomes.filter((outcome) => outcome === "sent").length,
+    failed: outcomes.filter((outcome) => outcome === "failed").length,
+    removedEndpoints: subscriptions
+      .filter((_, index) => outcomes[index] === "removed")
+      .map((subscription) => subscription.endpoint),
+  };
+}
+
+export type TestPushResponse = {
+  status: number;
+  body: {
+    ok: boolean;
+    error?: string;
+    /**
+     * Ist das Gerät, das den Test ausgelöst hat, nach dem Versand noch für
+     * Push angemeldet? `null`, wenn es sich nicht zu erkennen gegeben hat.
+     */
+    currentDeviceActive: boolean | null;
+  };
+};
+
+/**
+ * Antwort auf "Test senden". Erfolg nur, wenn mindestens ein Gerät beliefert
+ * wurde – sonst glaubt die Betreiberin, Push funktioniere, und verpasst
+ * später Anfragen. `currentEndpoint` ist das Abo des auslösenden Geräts,
+ * `currentRegistered`, ob es vor dem Versand in der Datenbank stand.
+ */
+export function testPushResponse(
+  result: PushResult,
+  current: { endpoint: string; registered: boolean } | null,
+): TestPushResponse {
+  if (!result.configured) {
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        error: "Push ist auf dem Server nicht eingerichtet (VAPID-Schlüssel fehlen).",
+        currentDeviceActive: null,
+      },
+    };
+  }
+
+  const currentDeviceActive =
+    current === null
+      ? null
+      : current.registered && !result.removedEndpoints.includes(current.endpoint);
+
+  if (result.devices === 0) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        error:
+          "Es ist kein Gerät für Push eingetragen. Bitte Benachrichtigungen auf diesem Gerät neu einschalten.",
+        currentDeviceActive,
+      },
+    };
+  }
+
+  if (result.sent === 0) {
+    const allRemoved = result.removedEndpoints.length === result.devices;
+    return {
+      status: 502,
+      body: {
+        ok: false,
+        error: allRemoved
+          ? "Kein Gerät erreichbar: Die Anmeldungen waren beim Push-Dienst abgelaufen und wurden entfernt. Bitte Benachrichtigungen neu einschalten."
+          : "Der Versand ist fehlgeschlagen, kein Gerät wurde erreicht. Bitte später erneut versuchen.",
+        currentDeviceActive,
+      },
+    };
+  }
+
+  return { status: 200, body: { ok: true, currentDeviceActive } };
 }

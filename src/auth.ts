@@ -1,13 +1,14 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { clientIp, createRateLimiter } from "@/lib/rateLimit";
+import { clientIp } from "@/lib/rateLimit";
+import { createLoginThrottle } from "@/lib/loginThrottle";
 
 // Bremse gegen Passwort-Raten: Gezählt werden nur Fehlversuche. Pro IP 5 in
-// 15 Minuten; das Gesamtlimit greift, wenn ein Angreifer viele IPs nutzt.
-const FAILED_WINDOW_MS = 15 * 60 * 1000;
-const failedPerIp = createRateLimiter({ limit: 5, windowMs: FAILED_WINDOW_MS });
-const failedTotal = createRateLimiter({ limit: 30, windowMs: FAILED_WINDOW_MS });
+// 15 Minuten (danach gesperrt); über dem Gesamtlimit, wenn ein Angreifer viele
+// IPs nutzt, wird jeder Versuch nur verzögert – sonst könnte er die
+// Betreiberin vom Login aussperren.
+const throttle = createLoginThrottle();
 
 /** Eigener Fehlercode, damit das Login-Formular "zu viele Versuche" anzeigen kann. */
 class TooManyAttempts extends CredentialsSignin {
@@ -15,8 +16,10 @@ class TooManyAttempts extends CredentialsSignin {
 }
 
 // Vergleichswert für falsche E-Mail-Adressen: bcrypt läuft dann trotzdem, und
-// die Antwortzeit verrät nicht, ob die Adresse die des Admins ist.
-const DUMMY_HASH = bcrypt.hashSync(crypto.randomUUID(), 10);
+// die Antwortzeit verrät nicht, ob die Adresse die des Admins ist. Cost 12 wie
+// bei den echten Hashes (scripts/hash-password.ts), sonst wäre die Antwort bei
+// falscher Adresse messbar schneller.
+const DUMMY_HASH = bcrypt.hashSync(crypto.randomUUID(), 12);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -32,7 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
         const ip = clientIp(request.headers);
 
-        if (failedPerIp.isLimited(ip) || failedTotal.isLimited("alle")) {
+        if (!(await throttle.admit(ip))) {
           throw new TooManyAttempts();
         }
 
@@ -43,12 +46,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const emailMatches = email === adminEmail;
         const valid = await bcrypt.compare(password, emailMatches ? adminPasswordHash : DUMMY_HASH);
         if (!emailMatches || !valid) {
-          failedPerIp.hit(ip);
-          failedTotal.hit("alle");
+          throttle.recordFailure(ip);
           return null;
         }
 
-        failedPerIp.reset(ip);
+        throttle.recordSuccess(ip);
         return { id: "admin", email: adminEmail };
       },
     }),

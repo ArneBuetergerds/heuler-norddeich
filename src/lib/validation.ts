@@ -122,3 +122,38 @@ export const bookingRequestSchema = z
   });
 
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;
+
+/**
+ * Manueller Eintrag im Admin: mit `guestName` ein telefonisch vereinbarter
+ * Aufenthalt, ohne einen reinen Sperrzeitraum (Wartung, Eigennutzung).
+ *
+ * Die beiden meinen mit `endDate` Verschiedenes: beim Aufenthalt den
+ * Abreisetag (zählt nicht mit, `createManualStay` speichert ihn so), beim
+ * Sperrzeitraum den letzten gesperrten Tag (zählt mit, `createMaintenanceBlock`
+ * rechnet einen Tag dazu). Ein Sperrzeitraum darf deshalb an einem Tag
+ * beginnen und enden, ein Aufenthalt braucht mindestens eine Nacht.
+ */
+export const blockedPeriodCreateSchema = z
+  .object({
+    startDate: z.coerce.date({ error: "Bitte ein gültiges Startdatum angeben" }),
+    endDate: z.coerce.date({ error: "Bitte ein gültiges Enddatum angeben" }),
+    note: z.string().optional(),
+    guestName: z.string().min(1, "Bitte einen Gastnamen angeben").optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.guestName !== undefined) {
+      if (data.startDate >= data.endDate) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["endDate"],
+          message: "Die Abreise muss nach der Anreise liegen",
+        });
+      }
+    } else if (data.startDate > data.endDate) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endDate"],
+        message: "Der letzte gesperrte Tag darf nicht vor dem ersten liegen",
+      });
+    }
+  });
