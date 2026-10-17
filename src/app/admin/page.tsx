@@ -5,12 +5,19 @@ import { isAdmin } from "@/lib/adminAuth";
 import {
   getBookingHistory,
   getBookingRequestsByIds,
-  getOccupancy,
+  getOccupancyInRange,
   getPendingBookingRequests,
 } from "@/db/queries";
 import { getInvoiceSummaries } from "@/db/invoiceQueries";
-import { deriveConflict, conflictMessage } from "@/lib/occupancy";
+import { deriveConflict, conflictMessage, spanOf, type Occupancy } from "@/lib/occupancy";
 import { formatDateRange } from "@/lib/format";
+import {
+  adminMonthLinks,
+  adminOverviewHref,
+  formatMonthLabel,
+  monthWindow,
+  resolveMonth,
+} from "@/lib/month";
 import { EXTRAS, extrasTotal } from "@/lib/pricing";
 import { vapidConfig } from "@/lib/push";
 import { adminDeletionDecision, berlinDay } from "@/lib/retention";
@@ -25,6 +32,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 /** So viele bearbeitete Anfragen zeigt die Übersicht, bis „Ältere anzeigen“ gewählt wird. */
 const HISTORY_LIMIT = 100;
 
+const NO_OCCUPANCY: Occupancy = { stays: [], maintenance: [] };
+
 export default async function AdminPage({
   searchParams,
 }: {
@@ -35,12 +44,20 @@ export default async function AdminPage({
   }
 
   // Ohne Client-State: Die ganze Historie ist ein eigener Link
-  // (`?historie=alle`), sonst nur die neuesten Einträge.
-  const showAllHistory = (await searchParams).historie === "alle";
+  // (`?historie=alle`), sonst nur die neuesten Einträge. Ebenso der Monat der
+  // Belegungsübersicht (`?monat=JJJJ-MM`, sonst der aktuelle, in UTC wie der
+  // Kalender).
+  const params = await searchParams;
+  const showAllHistory = params.historie === "alle";
+  const now = new Date();
+  const month = resolveMonth(params.monat, now);
+  const monthLabel = formatMonthLabel(month);
+  const range = monthWindow(month);
 
-  // Offene Anfragen vollständig, die Historie begrenzt.
+  // Offene Anfragen vollständig, die Historie begrenzt, die Belegung nur für
+  // den angezeigten Monat.
   const [occupancy, pending, history] = await Promise.all([
-    getOccupancy(),
+    getOccupancyInRange(range.start, range.end),
     getPendingBookingRequests(),
     getBookingHistory({ limit: showAllHistory ? null : HISTORY_LIMIT }),
   ]);
@@ -58,9 +75,16 @@ export default async function AdminPage({
   const invoiceRequestIds = [
     ...new Set([...stayRequestIds, ...history.entries.map((entry) => entry.id)]),
   ];
-  const [stayRequests, invoices] = await Promise.all([
+  // Die Konfliktwarnung der offenen Anfragen braucht die Belegung in deren
+  // Zeitraum, nicht im angezeigten Monat – sonst verschwiege sie Konflikte in
+  // anderen Monaten.
+  const pendingSpan = spanOf(pending);
+  const [stayRequests, invoices, pendingOccupancy] = await Promise.all([
     getBookingRequestsByIds(stayRequestIds),
     getInvoiceSummaries(invoiceRequestIds),
+    pendingSpan
+      ? getOccupancyInRange(pendingSpan.startDate, pendingSpan.endDate)
+      : NO_OCCUPANCY,
   ]);
   const invoicedRequestIds = new Set(invoices.map((entry) => entry.bookingRequestId));
   const today = berlinDay(new Date());
@@ -86,7 +110,7 @@ export default async function AdminPage({
       ) : (
         <div className="flex flex-col gap-3.5">
           {pending.map((request) => {
-            const conflict = deriveConflict(request, occupancy, pending);
+            const conflict = deriveConflict(request, pendingOccupancy, pending);
             return (
               <div key={request.id} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -169,13 +193,19 @@ export default async function AdminPage({
         <h2 className="mb-6 text-2xl font-extrabold">Belegungsübersicht</h2>
 
         {/* Ein gemeinsamer Detaildialog für Kalender und Liste: Beide zeigen
-            dieselben Aufenthalte (`occupancy.stays`), nur anders sortiert. */}
+            dieselben Aufenthalte (`occupancy.stays`) des angezeigten Monats,
+            nur anders sortiert – auch den Gast, der am Ersten abreist. */}
         <StayDetailProvider requests={stayRequests} invoices={invoices}>
           <div className="grid items-start gap-6 md:grid-cols-[1.1fr_1fr]">
-            <OccupancyCalendar occupancy={occupancy} />
+            <OccupancyCalendar
+              occupancy={occupancy}
+              monthLinks={adminMonthLinks(month, now, showAllHistory)}
+            />
             <div>
-              <h3 className="mb-2.5 text-[13px] font-bold text-schlick-2">Wer ist wann da</h3>
-              <StayList stays={stays} />
+              <h3 className="mb-2.5 text-[13px] font-bold text-schlick-2">
+                Wer ist im {monthLabel} da
+              </h3>
+              <StayList stays={stays} monthLabel={monthLabel} />
             </div>
           </div>
         </StayDetailProvider>
@@ -213,7 +243,7 @@ export default async function AdminPage({
           </div>
           {(history.hasMore || showAllHistory) && (
             <Link
-              href={showAllHistory ? "/admin" : "/admin?historie=alle"}
+              href={adminOverviewHref({ month, today: now, showAllHistory: !showAllHistory })}
               className="mt-3 inline-flex min-h-11 items-center text-[13px] font-semibold text-schlick-2 underline underline-offset-2 hover:text-schlick"
             >
               {showAllHistory

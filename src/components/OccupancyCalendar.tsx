@@ -1,6 +1,7 @@
 "use client";
 
 import { isDateBlocked, dayOccupancy } from "@/lib/calendar";
+import type { MonthLinks } from "@/lib/month";
 import type { Occupancy } from "@/lib/occupancy";
 import { staysForDay, stayRoleOnDay } from "@/lib/stayForDay";
 import { ChangeDayChoice } from "./ChangeDayChoice";
@@ -30,8 +31,17 @@ const ARRIVAL =
  * Wechseltag sind es zwei – dann fragt erst eine kleine Auswahl am Tag
  * (`ChangeDayChoice`), welcher gemeint ist. Freie und gesperrte Tage sind
  * nicht anklickbar.
+ *
+ * Den Monat bestimmt die Adresse (`monthLinks`): Der Server lädt nur die
+ * Belegung dieses Monats, Blättern ist ein Link auf den Nachbarmonat.
  */
-export function OccupancyCalendar({ occupancy }: { occupancy: Occupancy }) {
+export function OccupancyCalendar({
+  occupancy,
+  monthLinks,
+}: {
+  occupancy: Occupancy;
+  monthLinks: MonthLinks;
+}) {
   const openDetail = useOpenStayDetail();
 
   function appearanceFor(day: Date): DayAppearance {
@@ -87,6 +97,7 @@ export function OccupancyCalendar({ occupancy }: { occupancy: Occupancy }) {
   return (
     <MonthCalendar
       appearanceFor={appearanceFor}
+      monthLinks={monthLinks}
       onDayClick={(day) => {
         // Am Wechseltag öffnet der Klick die Auswahl (siehe wrapDay).
         const stays = staysForDay(day, occupancy);

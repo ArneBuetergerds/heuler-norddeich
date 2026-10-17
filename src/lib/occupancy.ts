@@ -120,3 +120,28 @@ export function deriveConflict(
   }
   return null;
 }
+
+/**
+ * Kleinster Zeitraum, der alle `ranges` umfasst (frühester Start bis spätestes
+ * Ende), oder `null` ohne Zeiträume.
+ *
+ * Die Admin-Übersicht lädt damit die Belegung für die Konfliktwarnung der
+ * offenen Anfragen: Was sich mit einer Anfrage überschneidet, überschneidet
+ * sich auch mit diesem Zeitraum. So bleibt `deriveConflict` vollständig, auch
+ * wenn Kalender und Liste nur einen Monat laden.
+ */
+export function spanOf(ranges: DateRange[]): DateRange | null {
+  if (ranges.length === 0) {
+    return null;
+  }
+  let { startDate, endDate } = ranges[0];
+  for (const range of ranges) {
+    if (range.startDate < startDate) {
+      startDate = range.startDate;
+    }
+    if (range.endDate > endDate) {
+      endDate = range.endDate;
+    }
+  }
+  return { startDate, endDate };
+}
