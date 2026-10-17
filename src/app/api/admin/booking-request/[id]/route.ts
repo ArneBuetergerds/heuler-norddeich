@@ -133,7 +133,9 @@ async function notifyGuest(
   const guest = await db.query.bookingRequest.findFirst({
     where: eq(bookingRequest.id, id),
   });
-  if (!guest) {
+  // Manuelle Buchungen bekommen keine automatischen Mails (siehe
+  // POST /api/admin/manual-booking).
+  if (!guest || guest.source === "manual") {
     return;
   }
 

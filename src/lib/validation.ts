@@ -41,32 +41,59 @@ export function looksLikeAddress(name: string): boolean {
   return ADDRESS_IN_NAME.some((pattern) => pattern.test(name));
 }
 
-export const bookingRequestSchema = z
-  .object({
-    name: z
-      .string()
-      .trim()
-      .min(1, "Name ist erforderlich")
-      .max(100, "Der Name ist zu lang")
-      .regex(NAME_PATTERN, "Bitte nur den Namen angeben (Buchstaben, Leerzeichen, Bindestrich)")
-      .refine(
-        (name) => !looksLikeAddress(name),
-        "Bitte nur den Namen angeben, ohne Web- oder E-Mail-Adresse",
-      ),
-    email: z.string().trim().max(254, "Die E-Mail-Adresse ist zu lang").email("Ungültige E-Mail-Adresse"),
-    phone: z
-      .string()
-      .trim()
-      .max(40, "Die Telefonnummer ist zu lang")
-      .regex(/^[0-9+()/ .-]*$/, "Bitte nur Ziffern und + ( ) / - verwenden")
-      .optional(),
-    startDate: z.coerce.date(),
-    endDate: z.coerce.date(),
-    message: z.string().trim().max(2000, "Die Nachricht ist zu lang (max. 2000 Zeichen)").optional(),
-    guests: z.coerce.number().int().min(1).max(MAX_GUESTS),
-    linens: z.coerce.number().int().min(0).default(0),
-    towels: z.coerce.number().int().min(0).default(0),
-  })
+/**
+ * Felder einer Anfrage ohne die Regeln über ihr Zusammenspiel. Geteilt vom
+ * öffentlichen Formular (`bookingRequestSchema`) und der manuellen Buchung im
+ * Admin (`manualBookingSchema`), damit Namensregel, E-Mail, Telefon und
+ * Personenzahl an beiden Stellen gleich geprüft werden.
+ */
+const bookingRequestFields = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name ist erforderlich")
+    .max(100, "Der Name ist zu lang")
+    .regex(NAME_PATTERN, "Bitte nur den Namen angeben (Buchstaben, Leerzeichen, Bindestrich)")
+    .refine(
+      (name) => !looksLikeAddress(name),
+      "Bitte nur den Namen angeben, ohne Web- oder E-Mail-Adresse",
+    ),
+  email: z.string().trim().max(254, "Die E-Mail-Adresse ist zu lang").email("Ungültige E-Mail-Adresse"),
+  phone: z
+    .string()
+    .trim()
+    .max(40, "Die Telefonnummer ist zu lang")
+    .regex(/^[0-9+()/ .-]*$/, "Bitte nur Ziffern und + ( ) / - verwenden")
+    .optional(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  message: z.string().trim().max(2000, "Die Nachricht ist zu lang (max. 2000 Zeichen)").optional(),
+  guests: z.coerce.number().int().min(1).max(MAX_GUESTS),
+  linens: z.coerce.number().int().min(0).default(0),
+  towels: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * Spiegelt die CHECK-Constraint der Tabelle: mehr Wäschesätze als Gäste
+ * ergeben keinen Sinn. Hier abgefangen, damit eine Meldung erscheint statt
+ * eines Datenbankfehlers.
+ */
+function addExtrasWithinGuestsIssues(
+  data: { guests: number; linens: number; towels: number },
+  ctx: z.RefinementCtx,
+): void {
+  for (const key of ["linens", "towels"] as const) {
+    if (data[key] > data.guests) {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: "Nicht mehr Sätze als Personen",
+      });
+    }
+  }
+}
+
+export const bookingRequestSchema = bookingRequestFields
   .refine((data) => data.startDate < data.endDate, {
     message: "Anreisedatum muss vor dem Abreisedatum liegen",
     path: ["endDate"],
@@ -108,18 +135,7 @@ export const bookingRequestSchema = z
     }
   })
   .superRefine((data, ctx) => {
-    // Spiegelt die CHECK-Constraint der Tabelle: mehr Wäschesätze als Gäste
-    // ergeben keinen Sinn. Hier abgefangen, damit der Gast eine Meldung sieht
-    // statt eines Datenbankfehlers.
-    for (const key of ["linens", "towels"] as const) {
-      if (data[key] > data.guests) {
-        ctx.addIssue({
-          code: "custom",
-          path: [key],
-          message: "Nicht mehr Sätze als Personen",
-        });
-      }
-    }
+    addExtrasWithinGuestsIssues(data, ctx);
 
     // Wäsche braucht eine Woche Vorlauf, gemessen ab der Anreise.
     const now = new Date();
@@ -152,24 +168,64 @@ export const bookingRequestSchema = z
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;
 
 /**
- * Manueller Eintrag im Admin: mit `guestName` ein telefonisch vereinbarter
- * Aufenthalt, ohne einen reinen Sperrzeitraum (Wartung, Eigennutzung).
+ * Manuelle Buchung im Admin (z. B. telefonisch vereinbart): eine volle Buchung
+ * mit denselben Feldern und Feldregeln wie die Online-Anfrage
+ * (`bookingRequestFields`). E-Mail ist Pflicht, weil die Spalte
+ * `booking_request.email` NOT NULL ist.
  *
- * Die beiden meinen mit `endDate` Verschiedenes: beim Aufenthalt den
- * Abreisetag (zählt nicht mit, `createManualStay` speichert ihn so), beim
- * Sperrzeitraum den letzten gesperrten Tag (zählt mit, `createMaintenanceBlock`
- * rechnet einen Tag dazu). Ein Sperrzeitraum darf deshalb an einem Tag
- * beginnen und enden, ein Aufenthalt braucht mindestens eine Nacht.
+ * Bewusst NICHT geprüft, weil die Betreiberin auch nachträglich und
+ * abweichend von den Online-Regeln einträgt: Mindestnächte, höchstens
+ * MAX_MONTHS_AHEAD im Voraus, Wäsche eine Woche vorher, Anreise nicht in der
+ * Vergangenheit. Geprüft bleiben ein gültiger Zeitraum (Anreise vor Abreise),
+ * MAX_NIGHTS als Schutz der Preisberechnung (ein Objekt je Nacht) und
+ * höchstens so viele Wäschesätze wie Personen.
+ */
+export const manualBookingSchema = bookingRequestFields
+  .extend({
+    startDate: z.coerce.date({ error: "Bitte ein gültiges Anreisedatum angeben" }),
+    endDate: z.coerce.date({ error: "Bitte ein gültiges Abreisedatum angeben" }),
+  })
+  .refine((data) => data.startDate < data.endDate, {
+    message: "Die Abreise muss nach der Anreise liegen",
+    path: ["endDate"],
+  })
+  .superRefine((data, ctx) => {
+    if (nightsBetween(data.startDate, data.endDate) > MAX_NIGHTS) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endDate"],
+        message: `Höchstens ${MAX_NIGHTS} Nächte je Buchung – längere Aufenthalte bitte aufteilen`,
+      });
+    }
+    addExtrasWithinGuestsIssues(data, ctx);
+  });
+
+export type ManualBookingInput = z.infer<typeof manualBookingSchema>;
+
+/**
+ * Interne Belegung oder Sperrzeitraum im Admin, jeweils Zeitraum plus
+ * optionaler Notiz, ohne Gastdaten.
+ *
+ * Die beiden meinen mit `endDate` Verschiedenes: Bei der internen Belegung
+ * (`internal`, Eigennutzung, Familie, Freunde) ist es der Abreisetag (zählt
+ * nicht mit, `createInternalStay` speichert ihn so) – wie bei Gästen. Beim
+ * Sperrzeitraum (`block`, z. B. Wartung) ist es der letzte gesperrte Tag
+ * (zählt mit, `createMaintenanceBlock` rechnet einen Tag dazu). Ein
+ * Sperrzeitraum darf deshalb an einem Tag beginnen und enden, eine interne
+ * Belegung braucht mindestens eine Nacht.
+ *
+ * Manuelle Aufenthalte nur mit Gastnamen (früher `guestName`) werden nicht
+ * mehr angelegt: Telefonische Buchungen laufen über `manualBookingSchema`.
  */
 export const blockedPeriodCreateSchema = z
   .object({
+    kind: z.enum(["block", "internal"], { error: "Bitte die Art des Eintrags wählen" }),
     startDate: z.coerce.date({ error: "Bitte ein gültiges Startdatum angeben" }),
     endDate: z.coerce.date({ error: "Bitte ein gültiges Enddatum angeben" }),
-    note: z.string().optional(),
-    guestName: z.string().min(1, "Bitte einen Gastnamen angeben").optional(),
+    note: z.string().trim().max(500, "Die Notiz ist zu lang (max. 500 Zeichen)").optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.guestName !== undefined) {
+    if (data.kind === "internal") {
       if (data.startDate >= data.endDate) {
         ctx.addIssue({
           code: "custom",

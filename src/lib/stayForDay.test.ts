@@ -10,6 +10,7 @@ const stay = (id: number, start: string, end: string, bookingRequestId: number |
   endDate: d(end),
   guestName: `Gast ${id}`,
   bookingRequestId,
+  source: bookingRequestId === null ? null : "online",
 });
 
 const ids = (stays: Stay[]) => stays.map((entry) => entry.id);
@@ -24,7 +25,7 @@ const occupancy: Occupancy = {
     stay(3, "2027-05-25", "2027-05-27", null),
     stay(4, "2027-05-27", "2027-05-29", null),
   ],
-  maintenance: [{ id: 9, startDate: d("2027-05-20"), endDate: d("2027-05-22"), note: "Maler" }],
+  maintenance: [{ id: 9, startDate: d("2027-05-20"), endDate: d("2027-05-22"), kind: "block", note: "Maler" }],
 };
 
 describe("staysForDay", () => {

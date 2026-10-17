@@ -36,6 +36,13 @@
       "when": 1792232605263,
       "tag": "0004_retention_admin_log",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1792264897342,
+      "tag": "0005_manual_internal_kind",
+      "breakpoints": true
     }
   ]
 }

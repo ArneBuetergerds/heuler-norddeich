@@ -24,6 +24,7 @@ import { adminDeletionDecision, berlinDay } from "@/lib/retention";
 import { AdminPushSettings } from "@/components/AdminPushSettings";
 import { AdminRequestActions } from "@/components/AdminRequestActions";
 import { DeleteRequestButton } from "@/components/DeleteRequestButton";
+import { ManualBadge } from "@/components/ManualBadge";
 import { OccupancyCalendar } from "@/components/OccupancyCalendar";
 import { StayDetailProvider } from "@/components/StayDetailProvider";
 import { StayList } from "@/components/StayList";
@@ -228,7 +229,10 @@ export default async function AdminPage({
                   {request.name} · {formatDateRange(request.startDate, request.endDate)}
                 </span>
                 <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                  <StatusBadge status={request.status} />
+                  <span className="flex items-center gap-1.5">
+                    {request.source === "manual" && <ManualBadge />}
+                    <StatusBadge status={request.status} />
+                  </span>
                   <DeleteRequestButton
                     requestId={request.id}
                     decision={adminDeletionDecision(

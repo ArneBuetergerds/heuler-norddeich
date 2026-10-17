@@ -13,10 +13,16 @@ function row(overrides: Partial<OccupancyRow> & { id: number }): OccupancyRow {
   return {
     startDate: new Date("2026-08-01"),
     endDate: new Date("2026-08-08"),
+    kind: overrides.bookingRequestId
+      ? "booking"
+      : overrides.guestName
+        ? "legacy_stay"
+        : "block",
     note: null,
     guestName: null,
     bookingRequestId: null,
     requestName: null,
+    requestSource: overrides.bookingRequestId ? "online" : null,
     ...overrides,
   };
 }
@@ -35,6 +41,7 @@ describe("splitOccupancy", () => {
         endDate: new Date("2026-08-08"),
         guestName: "Erika Muster",
         bookingRequestId: 5,
+        source: "online",
       },
     ]);
   });
@@ -59,9 +66,46 @@ describe("splitOccupancy", () => {
         id: 3,
         startDate: new Date("2026-08-01"),
         endDate: new Date("2026-08-08"),
+        kind: "block",
         note: "Wartung Heizung",
       },
     ]);
+  });
+});
+
+describe("splitOccupancy: manuelle Buchung und interne Belegung", () => {
+  it("führt eine manuelle Buchung als Belegung mit Herkunft manual", () => {
+    const rows = [
+      row({ id: 4, bookingRequestId: 6, requestName: "Hanna Telefon", requestSource: "manual" }),
+    ];
+
+    const { stays, maintenance } = splitOccupancy(rows);
+
+    expect(maintenance).toHaveLength(0);
+    expect(stays[0]).toMatchObject({ id: 4, guestName: "Hanna Telefon", source: "manual" });
+  });
+
+  it("führt eine interne Belegung als Sperrzeitraum der Art internal", () => {
+    const rows = [row({ id: 5, kind: "internal", note: "Familie" })];
+
+    const { stays, maintenance } = splitOccupancy(rows);
+
+    expect(stays).toHaveLength(0);
+    expect(maintenance).toEqual([
+      {
+        id: 5,
+        startDate: new Date("2026-08-01"),
+        endDate: new Date("2026-08-08"),
+        kind: "internal",
+        note: "Familie",
+      },
+    ]);
+  });
+
+  it("führt Altbestand manueller Aufenthalte als Belegung ohne Herkunft", () => {
+    const { stays } = splitOccupancy([row({ id: 6, guestName: "Familie Janssen" })]);
+
+    expect(stays[0]).toMatchObject({ bookingRequestId: null, source: null });
   });
 });
 
@@ -88,6 +132,7 @@ describe("deriveConflict", () => {
           endDate: new Date("2026-08-15"),
           guestName: "Peter Wilkens",
           bookingRequestId: null,
+          source: null,
         },
       ],
       maintenance: [],
@@ -107,10 +152,11 @@ describe("deriveConflict", () => {
           endDate: new Date("2026-08-15"),
           guestName: "Peter Wilkens",
           bookingRequestId: null,
+          source: null,
         },
       ],
       maintenance: [
-        { id: 8, startDate: new Date("2026-08-06"), endDate: new Date("2026-08-07"), note: null },
+        { id: 8, startDate: new Date("2026-08-06"), endDate: new Date("2026-08-07"), kind: "block" as const, note: null },
       ],
     };
 
@@ -146,6 +192,7 @@ describe("deriveConflict", () => {
           endDate: new Date("2026-08-19"),
           guestName: "Peter Wilkens",
           bookingRequestId: null,
+          source: null,
         },
       ],
       maintenance: [],
@@ -192,10 +239,11 @@ describe("Konfliktwarnung bei monatsweiser Belegung", () => {
         endDate: new Date("2027-01-03"),
         guestName: "Peter Wilkens",
         bookingRequestId: null,
+        source: null,
       },
     ],
     maintenance: [
-      { id: 8, startDate: new Date("2026-08-10"), endDate: new Date("2026-08-12"), note: null },
+      { id: 8, startDate: new Date("2026-08-10"), endDate: new Date("2026-08-12"), kind: "block", note: null },
     ],
   };
   const pending = [

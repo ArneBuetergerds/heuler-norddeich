@@ -9,9 +9,13 @@ vi.mock("../db/retentionQueries", async (importOriginal) => ({
   purgeExpiredData,
 }));
 
-const { runRetention, startRetentionSchedule, FIRST_RUN_DELAY_MS, RUN_INTERVAL_MS } = await import(
-  "./retentionSchedule"
-);
+const {
+  runRetention,
+  startRetentionSchedule,
+  purgeRunOverdue,
+  FIRST_RUN_DELAY_MS,
+  RUN_INTERVAL_MS,
+} = await import("./retentionSchedule");
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -27,6 +31,7 @@ describe("runRetention", () => {
       requestsAnonymized: 1,
       invoicesDeleted: 0,
       manualStaysDeleted: 0,
+      internalStaysDeleted: 0,
       logEntriesDeleted: 3,
     });
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
@@ -34,7 +39,7 @@ describe("runRetention", () => {
     await runRetention();
 
     expect(info).toHaveBeenCalledWith(
-      "Automatische Löschung: 2 Anfragen gelöscht, 1 anonymisiert, 0 Rechnungen gelöscht, 0 manuelle Aufenthalte gelöscht, 3 Protokolleinträge gelöscht",
+      "Automatische Löschung: 2 Anfragen gelöscht, 1 anonymisiert, 0 Rechnungen gelöscht, 0 manuelle Aufenthalte gelöscht, 0 interne Belegungen gelöscht, 3 Protokolleinträge gelöscht",
     );
   });
 
@@ -70,6 +75,7 @@ describe("startRetentionSchedule", () => {
       requestsAnonymized: 0,
       invoicesDeleted: 0,
       manualStaysDeleted: 0,
+      internalStaysDeleted: 0,
       logEntriesDeleted: 0,
     });
     vi.spyOn(console, "info").mockImplementation(() => {});
@@ -83,5 +89,18 @@ describe("startRetentionSchedule", () => {
 
     await vi.advanceTimersByTimeAsync(RUN_INTERVAL_MS);
     expect(purgeExpiredData).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("purgeRunOverdue", () => {
+  const now = new Date("2027-03-03T12:00:00Z");
+
+  it("warnt, wenn noch nie ein Lauf protokolliert ist", () => {
+    expect(purgeRunOverdue(null, now)).toBe(true);
+  });
+
+  it("warnt erst nach mehr als 48 Stunden", () => {
+    expect(purgeRunOverdue(new Date("2027-03-01T12:00:00Z"), now)).toBe(false);
+    expect(purgeRunOverdue(new Date("2027-03-01T11:59:59Z"), now)).toBe(true);
   });
 });

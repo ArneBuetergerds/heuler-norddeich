@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { Stay } from "@/lib/occupancy";
 import { formatDateRange } from "@/lib/format";
 import { DecisionDialog } from "./DecisionDialog";
+import { ManualBadge } from "./ManualBadge";
 import { useOpenStayDetail } from "./StayDetailProvider";
 
 /**
@@ -68,8 +69,11 @@ export function StayList({ stays, monthLabel }: { stays: Stay[]; monthLabel: str
               onClick={() => openDetail(stay)}
               className="min-h-11 flex-1 cursor-pointer text-left"
             >
-              <span className="block text-[13px] font-semibold underline-offset-2 hover:underline">
-                {stay.guestName}
+              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <span className="text-[13px] font-semibold underline-offset-2 hover:underline">
+                  {stay.guestName}
+                </span>
+                {stay.source === "manual" && <ManualBadge />}
               </span>
               <span className="block text-xs text-schlick-2">
                 {formatDateRange(stay.startDate, stay.endDate)}
@@ -95,7 +99,9 @@ export function StayList({ stays, monthLabel }: { stays: Stay[]; monthLabel: str
         description={
           target?.bookingRequestId === null
             ? "Der Aufenthalt wurde manuell eingetragen – es wird niemand benachrichtigt."
-            : "Der Gast wird per E-Mail über die Stornierung informiert."
+            : target?.source === "manual"
+              ? "Die Buchung wurde manuell eingetragen – es wird keine E-Mail verschickt. Bitte sagen Sie dem Gast selbst ab."
+              : "Der Gast wird per E-Mail über die Stornierung informiert."
         }
         confirmLabel="Stornieren"
         pending={pending}

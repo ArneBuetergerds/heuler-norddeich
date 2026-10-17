@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { berlinIsoDate, berlinYear, formatDate } from "./format";
+import { berlinIsoDate, berlinYear, formatBerlinDateTime, formatDate } from "./format";
 
 describe("berlinIsoDate", () => {
   it("rechnet im Winter mit UTC+1: 31.12., 23:30 UTC ist der 1.1. in Deutschland", () => {
@@ -25,5 +25,12 @@ describe("berlinIsoDate", () => {
 describe("formatDate", () => {
   it("bleibt für date-Spalten (UTC-Mitternacht) in UTC", () => {
     expect(formatDate(new Date("2027-08-01"))).toBe("01.08.2027");
+  });
+});
+
+describe("formatBerlinDateTime", () => {
+  it("zeigt den Zeitpunkt in deutscher Zeit, Winter wie Sommer", () => {
+    expect(formatBerlinDateTime(new Date("2027-03-01T09:01:00Z"))).toBe("01.03.2027, 10:01 Uhr");
+    expect(formatBerlinDateTime(new Date("2027-07-31T22:30:00Z"))).toBe("01.08.2027, 00:30 Uhr");
   });
 });

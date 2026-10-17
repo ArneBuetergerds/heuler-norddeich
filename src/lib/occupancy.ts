@@ -1,17 +1,21 @@
 import { rangesOverlap } from "./dateRange";
+import type { BlockedPeriodKind, BookingRequestSource } from "../db/schema";
 
 /**
- * Ein `blocked_period`-Datensatz samt Gastname der verknüpften Anfrage (Join).
- * `requestName` ist nur gesetzt, wenn `bookingRequestId` auf eine Anfrage zeigt.
+ * Ein `blocked_period`-Datensatz samt Gastname und Herkunft der verknüpften
+ * Anfrage (Join). `requestName` und `requestSource` sind nur gesetzt, wenn
+ * `bookingRequestId` auf eine Anfrage zeigt.
  */
 export type OccupancyRow = {
   id: number;
   startDate: Date;
   endDate: Date;
+  kind: BlockedPeriodKind;
   note: string | null;
   guestName: string | null;
   bookingRequestId: number | null;
   requestName: string | null;
+  requestSource: BookingRequestSource | null;
 };
 
 /** Belegter Zeitraum mit Gast – aus bestätigter Anfrage oder manuell eingetragen. */
@@ -20,15 +24,26 @@ export type Stay = {
   startDate: Date;
   endDate: Date;
   guestName: string;
-  /** null = manuell eingetragener Aufenthalt ohne zugrundeliegende Anfrage. */
+  /** null = Altbestand: manuell eingetragener Aufenthalt ohne Anfrage. */
   bookingRequestId: number | null;
+  /**
+   * Herkunft der Anfrage: `online` oder `manual` (von der Betreiberin
+   * eingetragen, ohne automatische Mails). null = Altbestand ohne Anfrage.
+   */
+  source: BookingRequestSource | null;
 };
 
-/** Gesperrter Zeitraum ohne Gast: Wartung, Eigennutzung, … */
+/**
+ * Gesperrter Zeitraum ohne Gast: Sperrzeitraum (`block`, z. B. Wartung) oder
+ * interne Belegung (`internal`, Eigennutzung, Familie, Freunde). Beide
+ * erscheinen im Kalender gleich, unterscheiden sich in Beschriftung und
+ * Löschfrist.
+ */
 export type Maintenance = {
   id: number;
   startDate: Date;
   endDate: Date;
+  kind: "block" | "internal";
   note: string | null;
 };
 
@@ -48,6 +63,7 @@ function toStay(row: OccupancyRow): Stay | null {
     endDate: row.endDate,
     guestName,
     bookingRequestId: row.bookingRequestId,
+    source: row.requestSource,
   };
 }
 
@@ -70,6 +86,7 @@ export function splitOccupancy(rows: OccupancyRow[]): Occupancy {
         id: row.id,
         startDate: row.startDate,
         endDate: row.endDate,
+        kind: row.kind === "internal" ? "internal" : "block",
         note: row.note,
       });
     }
