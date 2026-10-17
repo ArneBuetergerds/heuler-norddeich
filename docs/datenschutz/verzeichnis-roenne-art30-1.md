@@ -92,6 +92,7 @@ Buchungen und Rechnungen sind in der Anwendung umgesetzt (zentral in
 | Anfragen ohne Reaktion | 6 Monate nach Eingang | dito |
 | Zustande gekommene Buchungen | bis zum Ablauf des dritten Kalenderjahres nach dem Aufenthalt | regelmäßige Verjährung, §§ 195, 199 BGB |
 | Rechnungen und Zahlungsbelege | 10 Jahre | `[prüfen: steuerliche Aufbewahrungspflicht hängt von der Einkunftsart ab — § 147 AO gilt für Buchführungspflichtige, § 147a AO erst ab 750.000 € Überschusseinkünften. Für Privatvermietung ist eine kürzere Frist vertretbar; bitte mit der Steuerberatung klären.]` |
+| Protokoll administrativer Aktionen | 3 Jahre nach Erstellung, automatische Löschung | Nachvollziehbarkeit der Bearbeitung und Sicherheit der Verarbeitung, Art. 5 Abs. 2 und Art. 32 DSGVO |
 | Serverprotokolle | 7 Tage | Störungsanalyse und Missbrauchserkennung |
 | Meldescheine | exakt 1 Jahr, Vernichtung binnen 3 Monaten danach | § 30 Abs. 4 BMG, zwingend |
 | Sicherungskopien | `[nach Einrichtung der Backups festlegen, Vorschlag 30 Tage]` | Wiederherstellbarkeit nach Art. 32 Abs. 1 lit. c |

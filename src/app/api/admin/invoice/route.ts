@@ -9,6 +9,7 @@ import {
   TAX_NUMBER_MISSING_ERROR,
 } from "@/db/invoiceQueries";
 import { parseAddress } from "@/lib/invoice";
+import { withRouteErrors } from "@/lib/routeErrors";
 
 const createSchema = z.object({
   bookingRequestId: z.coerce.number().int().positive(),
@@ -29,7 +30,9 @@ const FEHLER: Record<string, number> = {
   [TAX_NUMBER_MISSING_ERROR]: 503,
 };
 
-export async function POST(request: Request) {
+export const POST = withRouteErrors("POST /api/admin/invoice", postInvoice);
+
+async function postInvoice(request: Request) {
   const authorized = await authorizeAdmin(request);
   if ("denied" in authorized) return authorized.denied;
 

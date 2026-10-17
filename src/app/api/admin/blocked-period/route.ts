@@ -13,8 +13,11 @@ import {
 import { sendGuestDecline } from "@/lib/email";
 import { safeError } from "@/lib/safeError";
 import { blockedPeriodCreateSchema } from "@/lib/validation";
+import { withRouteErrors } from "@/lib/routeErrors";
 
-export async function POST(request: Request) {
+export const POST = withRouteErrors("POST /api/admin/blocked-period", postBlockedPeriod);
+
+async function postBlockedPeriod(request: Request) {
   const authorized = await authorizeAdmin(request);
   if ("denied" in authorized) return authorized.denied;
 
@@ -67,7 +70,9 @@ async function readReason(request: Request): Promise<string | undefined> {
   }
 }
 
-export async function DELETE(request: Request) {
+export const DELETE = withRouteErrors("DELETE /api/admin/blocked-period", deleteBlockedPeriod);
+
+async function deleteBlockedPeriod(request: Request) {
   const authorized = await authorizeAdmin(request);
   if ("denied" in authorized) return authorized.denied;
 

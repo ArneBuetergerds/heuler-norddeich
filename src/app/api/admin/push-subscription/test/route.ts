@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { db } from "@/db/client";
 import { pushSubscription } from "@/db/schema";
 import { sendPushToAdmins, TEST_PUSH, testPushResponse, vapidConfig } from "@/lib/push";
+import { withRouteErrors } from "@/lib/routeErrors";
 
 // Optional: das Abo des auslösenden Geräts, damit die Antwort sagen kann, ob
 // genau dieses Gerät noch angemeldet ist.
@@ -22,7 +23,9 @@ async function readJson(request: Request): Promise<unknown> {
  * Schickt eine Testbenachrichtigung an alle angemeldeten Admin-Geräte und
  * meldet nur dann Erfolg, wenn mindestens eines beliefert wurde.
  */
-export async function POST(request: Request) {
+export const POST = withRouteErrors("POST /api/admin/push-subscription/test", postTestPush);
+
+async function postTestPush(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
 

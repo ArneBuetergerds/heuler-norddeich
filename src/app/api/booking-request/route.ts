@@ -22,6 +22,7 @@ import {
   createOperatorDigest,
   notifyAboutBookingRequest,
 } from "@/lib/bookingNotifications";
+import { withRouteErrors } from "@/lib/routeErrors";
 
 // Je Besucher genügen ein paar Versuche (Tippfehler, zweiter Zeitraum); das
 // Limit je IP ist die einzige harte Ablehnung. Das Gesamtlimit fängt verteilte
@@ -55,6 +56,9 @@ const MIN_FORM_MS = 3000;
 const TOO_MANY =
   "Zu viele Anfragen in kurzer Zeit. Bitte versuchen Sie es später erneut oder schreiben Sie an kontakt@norddeich-heuler.de.";
 
+const UNEXPECTED_ERROR_GUEST =
+  "Ihre Anfrage konnte gerade nicht gespeichert werden. Bitte versuchen Sie es später erneut oder schreiben Sie an kontakt@norddeich-heuler.de.";
+
 /**
  * Bot-Merkmale: das unsichtbare Feld `website` ist ausgefüllt, oder das
  * Formular wurde schneller abgeschickt, als ein Mensch es ausfüllen kann bzw.
@@ -67,7 +71,11 @@ function looksLikeBot(body: unknown): boolean {
   return typeof formMs !== "number" || formMs < MIN_FORM_MS;
 }
 
-export async function POST(request: Request) {
+export const POST = withRouteErrors("POST /api/booking-request", postBookingRequest, {
+  message: UNEXPECTED_ERROR_GUEST,
+});
+
+async function postBookingRequest(request: Request) {
   let body: unknown;
   try {
     body = await request.json();

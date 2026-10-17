@@ -14,6 +14,13 @@
 /** Längste geloggte Meldung; der Rest wird abgeschnitten. */
 export const SAFE_ERROR_MAX_MESSAGE_LENGTH = 200;
 
+/**
+ * So viel der ersten Zeile wird überhaupt maskiert. Die Muster können auf
+ * sehr langen Zeilen ohne Treffer quadratisch laufen; gekappt wird deshalb vor
+ * dem Maskieren, gekürzt auf SAFE_ERROR_MAX_MESSAGE_LENGTH danach.
+ */
+export const SAFE_ERROR_MAX_SCAN_LENGTH = 2000;
+
 /** Felder, die nur Art und Ort des Fehlers beschreiben, keine Daten. */
 const SAFE_FIELDS = ["code", "errno", "responseCode", "command", "statusCode"] as const;
 
@@ -32,7 +39,7 @@ const SINGLE_QUOTED = /(^|[^A-Za-z0-9À-ɏ])'[^'\n]*'/g;
  * „Invalid recipient "…"“). Nur die erste Zeile, gekürzt.
  */
 export function maskSensitive(text: string): string {
-  const firstLine = text.split(/\r?\n/, 1)[0].trim();
+  const firstLine = text.split(/\r?\n/, 1)[0].trim().slice(0, SAFE_ERROR_MAX_SCAN_LENGTH);
   const masked = firstLine
     .replace(URL_PATTERN, "<url>")
     .replace(EMAIL_PATTERN, "<adresse>")

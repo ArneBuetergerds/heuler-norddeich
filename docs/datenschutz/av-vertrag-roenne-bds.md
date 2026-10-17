@@ -259,11 +259,22 @@ Mandanten des Auftragnehmers genutzt wird]`.
 - Die Datenbank ist nur aus dem internen Docker-Netz erreichbar `[offen:
   bestätigen, dass der MySQL-Port nicht nach außen veröffentlicht ist]`.
 
-**Eingabekontrolle.** **Lücke.** Administrative Aktionen (Bestätigung, Absage,
-Storno, Anlegen und Löschen von Sperrzeiträumen) werden derzeit nicht
-protokolliert. Es lässt sich nachträglich nicht feststellen, wann welche
-Entscheidung getroffen wurde. Bei einem Einzelnutzerbetrieb ist das Risiko
-begrenzt, sollte aber bewertet werden. `[Maßnahme und Frist vereinbaren.]`
+**Eingabekontrolle.**
+- Administrative Aktionen werden in der Datenbank protokolliert (Tabelle
+  `admin_action_log`): Bestätigung, Absage und Storno einer Anfrage, Eintragen
+  eines Aufenthalts von Hand, Anlegen und Löschen von Sperrzeiträumen, Erstellen
+  einer Rechnung, Löschen und Anonymisieren einer Anfrage sowie die automatische
+  Löschung abgelaufener Daten.
+- Je Eintrag gespeichert werden Art der Aktion, Zeitpunkt, die E-Mail-Adresse
+  des angemeldeten Kontos (bei der automatischen Löschung „system“) und die
+  interne Nummer der betroffenen Anfrage oder Sperrzeit, gegebenenfalls mit
+  Zeitraum, Status, Rechnungsnummer oder Anzahl gelöschter Einträge. Namen,
+  Kontaktdaten, Nachrichten von Gästen und Begründungstexte enthält das
+  Protokoll nicht.
+- Der Eintrag wird in derselben Datenbanktransaktion geschrieben wie die
+  Aktion selbst: Scheitert die Aktion, entsteht kein Eintrag, und umgekehrt.
+- Die Einträge werden 3 Jahre nach ihrer Erstellung automatisch gelöscht
+  (tägliche Löschroutine der Anwendung).
 
 ## 3. Verfügbarkeit und Belastbarkeit (Art. 32 Abs. 1 lit. b und c DSGVO)
 

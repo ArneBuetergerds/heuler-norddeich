@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { WebPushError } from "web-push";
-import { maskSensitive, safeError, SAFE_ERROR_MAX_MESSAGE_LENGTH } from "./safeError";
+import {
+  maskSensitive,
+  safeError,
+  SAFE_ERROR_MAX_MESSAGE_LENGTH,
+  SAFE_ERROR_MAX_SCAN_LENGTH,
+} from "./safeError";
 
 /** Fehler, wie nodemailer ihn in `_formatError` zusammensetzt. */
 function nodemailerError(message: string, fields: Record<string, unknown>): Error {
@@ -124,6 +129,28 @@ describe("maskSensitive", () => {
 
     expect(masked).toHaveLength(SAFE_ERROR_MAX_MESSAGE_LENGTH + 1);
     expect(masked.endsWith("…")).toBe(true);
+  });
+
+  it("maskiert nur den Anfang sehr langer Zeilen", () => {
+    // Was hinter der Kappung steht, wird weder durchsucht noch ausgegeben.
+    const masked = maskSensitive(`'${"x".repeat(SAFE_ERROR_MAX_SCAN_LENGTH)}' gast@example.org`);
+
+    expect(masked).not.toContain("gast");
+    expect(masked).toHaveLength(SAFE_ERROR_MAX_MESSAGE_LENGTH + 1);
+  });
+
+  it("maskiert innerhalb der Kappung wie bisher", () => {
+    const masked = maskSensitive(`'${"x".repeat(SAFE_ERROR_MAX_SCAN_LENGTH - 10)}' a@b.de`);
+
+    expect(masked).toBe("'<wert>' <adresse>");
+  });
+
+  it("bleibt auf langen Zeilen ohne Treffer schnell", () => {
+    const started = performance.now();
+    // Ohne Kappung liefe EMAIL_PATTERN hier quadratisch (Sekunden).
+    maskSensitive(`'${"a".repeat(50_000)}`);
+
+    expect(performance.now() - started).toBeLessThan(1000);
   });
 
   it("lässt Apostrophe stehen", () => {

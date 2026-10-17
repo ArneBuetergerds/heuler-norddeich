@@ -19,13 +19,16 @@ import {
 import { berlinDay } from "@/lib/retention";
 import { sendGuestConfirmation, sendGuestDecline } from "@/lib/email";
 import { safeError } from "@/lib/safeError";
+import { withRouteErrors } from "@/lib/routeErrors";
 
 const patchSchema = z.object({
   action: z.enum(["confirm", "decline"]),
   reason: z.string().optional(),
 });
 
-export async function PATCH(
+export const PATCH = withRouteErrors("PATCH /api/admin/booking-request/[id]", patchBookingRequest);
+
+async function patchBookingRequest(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -85,7 +88,9 @@ export async function PATCH(
  * 404: unbekannt · 409: (noch) nicht löschbar, z. B. bestätigte Buchung mit
  * Abreise in der Zukunft.
  */
-export async function DELETE(
+export const DELETE = withRouteErrors("DELETE /api/admin/booking-request/[id]", deleteBookingRequestRoute);
+
+async function deleteBookingRequestRoute(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {

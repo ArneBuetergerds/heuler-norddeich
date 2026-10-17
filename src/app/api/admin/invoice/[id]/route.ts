@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { getInvoice } from "@/db/invoiceQueries";
 import { renderInvoicePdf } from "@/lib/invoicePdf";
+import { withRouteErrors } from "@/lib/routeErrors";
 
 /**
  * Liefert das PDF zu einer Rechnung – immer aus dem gespeicherten Stand
  * erzeugt, nie aus aktuellen Preisen. Dieselbe Rechnung ergibt so bei jedem
  * Abruf dasselbe Dokument.
  */
-export async function GET(request: Request,
+export const GET = withRouteErrors("GET /api/admin/invoice/[id]", getInvoicePdf);
+
+async function getInvoicePdf(request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const denied = await requireAdmin(request);

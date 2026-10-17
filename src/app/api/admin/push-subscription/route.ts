@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { db } from "@/db/client";
 import { pushSubscription } from "@/db/schema";
 import { isAllowedPushEndpoint } from "@/lib/push";
+import { withRouteErrors } from "@/lib/routeErrors";
 
 // Entspricht PushSubscription.toJSON() im Browser.
 const subscribeSchema = z.object({
@@ -29,7 +30,9 @@ async function readJson(request: Request): Promise<unknown> {
 }
 
 /** Meldet das aufrufende Gerät für Push an (erneutes Anmelden aktualisiert die Schlüssel). */
-export async function POST(request: Request) {
+export const POST = withRouteErrors("POST /api/admin/push-subscription", postPushSubscription);
+
+async function postPushSubscription(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
 
@@ -48,7 +51,9 @@ export async function POST(request: Request) {
 }
 
 /** Meldet das aufrufende Gerät ab. */
-export async function DELETE(request: Request) {
+export const DELETE = withRouteErrors("DELETE /api/admin/push-subscription", deletePushSubscription);
+
+async function deletePushSubscription(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
 
