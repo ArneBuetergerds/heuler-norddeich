@@ -25,6 +25,11 @@ export function AdminLoginForm() {
         redirect: false,
       });
 
+      if (result?.code === "rate_limited") {
+        setError("Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.");
+        return;
+      }
+
       if (result?.error) {
         // Bewusst ohne Unterscheidung, ob E-Mail oder Passwort falsch war:
         // sonst ließe sich die gültige Admin-Adresse abfragen.
@@ -43,12 +48,12 @@ export function AdminLoginForm() {
     <section className="mx-auto max-w-[400px] px-6 py-20">
       <div className="rounded-xl border bg-card p-8 shadow-sm">
         <h1 className="mb-1 text-xl font-extrabold">Admin-Login</h1>
-        <p className="mb-6 text-[13px] text-zinc-500">
+        <p className="mb-6 text-[13px] text-schlick-2">
           Nur für den Betreiber der Ferienwohnung.
         </p>
 
         {error && (
-          <p className="mb-3.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[13px] text-red-700">
+          <p className="mb-3.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-[13px] text-destructive">
             {error}
           </p>
         )}
@@ -62,7 +67,6 @@ export function AdminLoginForm() {
               type="email"
               required
               autoComplete="username"
-              placeholder="admin@heuler-norddeich.de"
             />
           </div>
           <div className="grid gap-1.5">
@@ -73,7 +77,6 @@ export function AdminLoginForm() {
               type="password"
               required
               autoComplete="current-password"
-              placeholder="••••••••"
             />
           </div>
           <Button type="submit" disabled={pending} className="mt-1.5">

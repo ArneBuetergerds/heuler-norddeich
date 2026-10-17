@@ -3,6 +3,7 @@ import { bookingRequest, blockedPeriod } from "./schema";
 import { isRangeAvailable } from "../lib/booking";
 
 export const RANGE_TAKEN_ERROR = "Zeitraum ist inzwischen belegt";
+export const NOT_PENDING_ERROR = "Die Anfrage ist nicht mehr offen";
 
 type Db = typeof import("./client").db;
 
@@ -10,7 +11,7 @@ type DbLike = {
   query: {
     bookingRequest: {
       findFirst: (args: { where: SQL<unknown> }) => Promise<
-        { id: number; startDate: Date; endDate: Date } | undefined
+        { id: number; startDate: Date; endDate: Date; status: string } | undefined
       >;
     };
     blockedPeriod: {
@@ -29,8 +30,17 @@ type DbLike = {
 
 type TxLike = { select: Db["select"] };
 
+/**
+ * Prüft innerhalb der Transaktion, ob der Zeitraum frei ist.
+ *
+ * `FOR UPDATE` ist entscheidend: Eine normale Abfrage sähe unter InnoDB nur
+ * den Stand bei Transaktionsbeginn, und zwei gleichzeitige Bestätigungen
+ * (Doppelklick, Handy und Rechner) kämen beide durch – eine Doppelbuchung.
+ * Die sperrende Abfrage liest den aktuellen Stand und blockiert die Tabelle
+ * bis zum Ende der Transaktion; die zweite wartet und sieht dann die erste.
+ */
 async function assertRangeFree(tx: TxLike, start: Date, end: Date): Promise<void> {
-  const existing = await tx.select().from(blockedPeriod);
+  const existing = await tx.select().from(blockedPeriod).for("update");
   if (!isRangeAvailable(existing, start, end)) {
     throw new Error(RANGE_TAKEN_ERROR);
   }
@@ -42,6 +52,11 @@ export async function confirmBookingRequest(db: DbLike, id: number): Promise<voi
   });
   if (!request) {
     throw new Error(`Buchungsanfrage ${id} nicht gefunden`);
+  }
+  // Eine abgelehnte oder bereits bestätigte Anfrage darf nicht (erneut)
+  // bestätigt werden – sonst ginge dem Gast nach einer Absage eine Zusage zu.
+  if (request.status !== "pending") {
+    throw new Error(NOT_PENDING_ERROR);
   }
 
   // Insert + update müssen atomar sein: schlägt das Update fehl, nachdem der

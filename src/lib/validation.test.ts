@@ -4,7 +4,11 @@ import { bookingRequestSchema } from "./validation";
 const base = {
   name: "Erika Musterfrau",
   email: "erika@example.invalid",
+  guests: 2,
 };
+
+/** Weit genug in der Zukunft, dass die Wäsche-Vorlauffrist nie greift. */
+const WEIT_VORAUS = { startDate: "2027-07-10", endDate: "2027-07-17" };
 
 describe("bookingRequestSchema", () => {
   it("akzeptiert eine Anfrage, die den Mindestaufenthalt der Saison erreicht", () => {
@@ -72,5 +76,117 @@ describe("bookingRequestSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("verlangt eine Personenzahl", () => {
+    const result = bookingRequestSchema.safeParse({
+      name: base.name,
+      email: base.email,
+      ...WEIT_VORAUS,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("lehnt mehr Personen ab, als die Wohnung fasst", () => {
+    const result = bookingRequestSchema.safeParse({
+      ...base,
+      ...WEIT_VORAUS,
+      guests: 5,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("akzeptiert Wäsche bis zur Personenzahl", () => {
+    const result = bookingRequestSchema.safeParse({
+      ...base,
+      ...WEIT_VORAUS,
+      linens: 2,
+      towels: 1,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("lehnt mehr Wäschesätze als Personen ab", () => {
+    const result = bookingRequestSchema.safeParse({
+      ...base,
+      ...WEIT_VORAUS,
+      linens: 3,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path.join(".") === "linens")).toBe(true);
+    }
+  });
+
+  // Die Frist bemisst sich an der Anreise, nicht am Zeitpunkt der Anfrage.
+  it("lehnt Wäsche bei weniger als einer Woche Vorlauf ab", () => {
+    const uebermorgen = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+    const spaeter = new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10);
+
+    const result = bookingRequestSchema.safeParse({
+      ...base,
+      startDate: uebermorgen,
+      endDate: spaeter,
+      linens: 1,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((i) => i.message.includes("eine Woche vor Anreise")),
+      ).toBe(true);
+    }
+  });
+
+  it("lässt denselben kurzfristigen Zeitraum ohne Wäsche zu", () => {
+    const uebermorgen = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+    const spaeter = new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10);
+
+    const result = bookingRequestSchema.safeParse({
+      ...base,
+      startDate: uebermorgen,
+      endDate: spaeter,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  describe("Missbrauchsgrenzen", () => {
+    function issueAt(input: Record<string, unknown>, path: string): string | undefined {
+      const result = bookingRequestSchema.safeParse({ ...base, ...WEIT_VORAUS, ...input });
+      return result.success
+        ? undefined
+        : result.error.issues.find((i) => i.path.join(".") === path)?.message;
+    }
+
+    it("lehnt Aufenthalte über 60 Nächte ab (Schutz vor Rechen-DoS)", () => {
+      expect(issueAt({ endDate: "9999-12-31" }, "endDate")).toContain("60 Nächte");
+    });
+
+    it("lehnt Anreisen weiter als 24 Monate in der Zukunft ab", () => {
+      expect(issueAt({ startDate: "2099-07-10", endDate: "2099-07-17" }, "startDate")).toContain(
+        "24 Monate",
+      );
+    });
+
+    it("lehnt Links und Werbetext im Namen ab", () => {
+      expect(issueAt({ name: "Gewinn! https://evil.example" }, "name")).toBeDefined();
+      expect(issueAt({ name: "Erika\nZweite Zeile" }, "name")).toBeDefined();
+    });
+
+    it("akzeptiert Namen mit Umlauten, Akzenten, Bindestrich und Apostroph", () => {
+      expect(issueAt({ name: "Jürgen O'Neill-Bütergerds" }, "name")).toBeUndefined();
+      expect(issueAt({ name: "Zoë Müller" }, "name")).toBeUndefined();
+    });
+
+    it("begrenzt Nachricht und Telefonnummer", () => {
+      expect(issueAt({ message: "x".repeat(2001) }, "message")).toBeDefined();
+      expect(issueAt({ phone: "call me at evil.example" }, "phone")).toBeDefined();
+      expect(issueAt({ phone: "+49 (0)4931 / 12-34" }, "phone")).toBeUndefined();
+    });
   });
 });

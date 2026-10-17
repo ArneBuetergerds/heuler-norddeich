@@ -39,7 +39,7 @@ export function DeleteBlockedPeriodButton({ id }: { id: number }) {
       variant="outline"
       disabled={pending}
       onClick={handleDelete}
-      className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700"
+      className="border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive"
     >
       Entfernen
     </Button>

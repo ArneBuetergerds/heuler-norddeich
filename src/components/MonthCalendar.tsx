@@ -15,6 +15,18 @@ export type DayAppearance = {
 type Props = {
   appearanceFor: (day: Date) => DayAppearance;
   legend: ReactNode;
+  /**
+   * Frühester Monat relativ zu heute. Gäste brauchen keine vergangenen Monate
+   * (0), der Admin darf zurückblättern (undefined = unbegrenzt).
+   */
+  minMonthOffset?: number;
+  /**
+   * Macht Tage anklickbar (öffentlicher Kalender: Zeitraum direkt wählen).
+   * Ohne diesen Callback bleibt der Kalender reine Anzeige wie im Admin.
+   */
+  onDayClick?: (day: Date) => void;
+  /** Welche Tage im aktuellen Auswahlschritt anklickbar sind. */
+  isDayClickable?: (day: Date) => boolean;
 };
 
 /**
@@ -22,7 +34,13 @@ type Props = {
  * navigation, Wochentagskopf und Raster sind identisch, nur die Einfärbung der
  * Tage unterscheidet sich – die liefert der Aufrufer über `appearanceFor`.
  */
-export function MonthCalendar({ appearanceFor, legend }: Props) {
+export function MonthCalendar({
+  appearanceFor,
+  legend,
+  minMonthOffset,
+  onDayClick,
+  isDayClickable,
+}: Props) {
   const [monthOffset, setMonthOffset] = useState(0);
 
   // Durchgehend in UTC rechnen, damit die Tage zu den aus der DB geladenen
@@ -39,13 +57,14 @@ export function MonthCalendar({ appearanceFor, legend }: Props) {
         <Button
           variant="outline"
           size="icon"
-          className="size-8"
+          className="size-11"
           onClick={() => setMonthOffset((offset) => offset - 1)}
+          disabled={minMonthOffset !== undefined && monthOffset <= minMonthOffset}
           aria-label="Vorheriger Monat"
         >
           <ChevronLeft className="size-4" />
         </Button>
-        <span className="text-sm font-bold">
+        <span className="text-sm font-bold" aria-live="polite">
           {view.toLocaleDateString("de-DE", {
             month: "long",
             year: "numeric",
@@ -55,7 +74,7 @@ export function MonthCalendar({ appearanceFor, legend }: Props) {
         <Button
           variant="outline"
           size="icon"
-          className="size-8"
+          className="size-11"
           onClick={() => setMonthOffset((offset) => offset + 1)}
           aria-label="Nächster Monat"
         >
@@ -67,7 +86,7 @@ export function MonthCalendar({ appearanceFor, legend }: Props) {
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="py-1 text-center text-[11px] font-semibold text-zinc-400"
+            className="py-1 text-center text-[11px] font-semibold text-schlick-2"
           >
             {label}
           </div>
@@ -80,16 +99,45 @@ export function MonthCalendar({ appearanceFor, legend }: Props) {
             return <div key={`leer-${cell}`} className="h-9" />;
           }
           const { className, title } = appearanceFor(day);
+          const label = (
+            <>
+              <span aria-hidden="true">{day.getUTCDate()}</span>
+              {/* Der Zustand steckt sonst nur in Farbe und Tooltip – beides
+                  erreicht weder Screenreader noch Touch-Geräte. */}
+              <span className="sr-only">
+                {day.toLocaleDateString("de-DE", {
+                  day: "numeric",
+                  month: "long",
+                  timeZone: "UTC",
+                })}
+                {title ? `: ${title}` : ""}
+              </span>
+            </>
+          );
+          const cellClass = cn(
+            "flex h-9 items-center justify-center rounded-md border text-xs font-semibold",
+            className,
+          );
+
+          if (onDayClick) {
+            const clickable = isDayClickable?.(day) ?? true;
+            return (
+              <button
+                key={day.toISOString()}
+                type="button"
+                title={title}
+                disabled={!clickable}
+                onClick={() => onDayClick(day)}
+                className={cn(cellClass, "h-11 sm:h-10", clickable && "cursor-pointer hover:ring-2 hover:ring-priel/40")}
+              >
+                {label}
+              </button>
+            );
+          }
+
           return (
-            <div
-              key={day.toISOString()}
-              title={title}
-              className={cn(
-                "flex h-9 items-center justify-center rounded-md border text-xs font-semibold",
-                className,
-              )}
-            >
-              {day.getUTCDate()}
+            <div key={day.toISOString()} title={title} className={cellClass}>
+              {label}
             </div>
           );
         })}

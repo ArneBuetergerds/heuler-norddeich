@@ -6,6 +6,7 @@ import {
   createManualStay,
   createMaintenanceBlock,
   RANGE_TAKEN_ERROR,
+  NOT_PENDING_ERROR,
 } from "./adminQueries";
 
 // Schmale, testlokale Fake-DB-Form: erfüllt nur die von adminQueries.ts
@@ -27,12 +28,14 @@ type FakeDb = {
   };
   update: () => { set: (values: unknown) => { where: () => Promise<void> } };
   delete: () => { where: () => Promise<void> };
-  select: () => { from: (table: unknown) => Promise<{ startDate: Date; endDate: Date }[]> };
+  select: () => {
+    from: (table: unknown) => { for: (mode: string) => Promise<{ startDate: Date; endDate: Date }[]> };
+  };
   transaction: (callback: (tx: FakeDb) => Promise<void>) => Promise<void>;
 };
 
 type FakeDbOptions = {
-  request?: { id: number; startDate: Date; endDate: Date };
+  request?: { id: number; startDate: Date; endDate: Date; status: string };
   stay?: { id: number; bookingRequestId: number | null };
   existingBlockedPeriods?: { startDate: Date; endDate: Date }[];
 };
@@ -70,7 +73,7 @@ function createFakeDb({
         fakeDb.deleted += 1;
       },
     }),
-    select: () => ({ from: async () => existingBlockedPeriods }),
+    select: () => ({ from: () => ({ for: async () => existingBlockedPeriods }) }),
     transaction: async (callback: (tx: FakeDb) => Promise<void>) => {
       await callback(fakeDb);
     },
@@ -82,9 +85,18 @@ const request = {
   id: 1,
   startDate: new Date("2026-08-01"),
   endDate: new Date("2026-08-05"),
+  status: "pending",
 };
 
 describe("confirmBookingRequest", () => {
+  it("bestätigt keine Anfrage, die nicht mehr offen ist", async () => {
+    const fakeDb = createFakeDb({ request: { ...request, status: "declined" } });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await expect(confirmBookingRequest(fakeDb, request.id)).rejects.toThrow(NOT_PENDING_ERROR);
+    expect(fakeDb.inserted).toEqual([]);
+  });
+
   it("verknüpft den Sperrzeitraum mit der Anfrage und setzt den Status auf confirmed", async () => {
     const fakeDb = createFakeDb({ request });
 

@@ -16,18 +16,18 @@ FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+# Als unprivilegierter Nutzer "node" laufen lassen. Die Dateien gehören ihm,
+# weil next/image zur Laufzeit nach .next/cache/images schreibt – ohne das
+# würde die Bildoptimierung still scheitern.
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/package.json ./package.json
+COPY --from=builder --chown=node:node /app/next.config.ts ./next.config.ts
+COPY --from=builder --chown=node:node /app/drizzle ./drizzle
+COPY --from=builder --chown=node:node /app/drizzle.config.ts ./drizzle.config.ts
 
-# TODO (Hardening vor Public-Cutover): Container läuft aktuell als root.
-# Beim Umstieg auf USER node: next/image schreibt zur Laufzeit nach
-# .next/cache/images - ohne COPY --chown=node:node bzw. chown auf /app
-# bricht die Bildoptimierung still.
+USER node
 
 EXPOSE 3000
 CMD ["sh", "-c", "node_modules/.bin/drizzle-kit migrate && exec node_modules/.bin/next start"]

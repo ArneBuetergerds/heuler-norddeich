@@ -32,6 +32,9 @@ const request: BookingRequest = {
   startDate: new Date("2027-05-01"),
   endDate: new Date("2027-05-08"),
   message: null,
+  guests: 2,
+  linens: 0,
+  towels: 0,
   status: "pending",
   reasonNote: null,
   createdAt: new Date("2027-01-01"),
@@ -84,6 +87,21 @@ describe("email", () => {
     );
   });
 
+  // Absender ist der noreply-Alias. Die Gast-Mails fordern aber ausdrücklich
+  // zum Antworten auf, deshalb muss das Antwortziel auf dem gelesenen Postfach
+  // liegen - sonst sieht der Gast im Client "noreply@" und antwortet nicht.
+  it.each([
+    ["Eingangsbestätigung", sendGuestRequestReceived],
+    ["Zusage", sendGuestConfirmation],
+    ["Absage", sendGuestDecline],
+  ])("lenkt Antworten auf die %s an das gelesene Postfach", async (_label, sendMailFn) => {
+    await sendMailFn(request);
+
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ replyTo: "kontakt@norddeich-heuler.de" }),
+    );
+  });
+
   it("wirft, wenn OWNER_NOTIFICATION_EMAIL fehlt", async () => {
     delete process.env.OWNER_NOTIFICATION_EMAIL;
 
@@ -96,5 +114,92 @@ describe("email", () => {
     sendMail.mockRejectedValue(new Error("Verbindung abgelehnt"));
 
     await expect(sendGuestDecline(request)).rejects.toThrow("Verbindung abgelehnt");
+  });
+
+  it("listet bestellte Wäsche mit Summe auf", async () => {
+    await sendBookingRequestNotification({ ...request, linens: 2, towels: 1 });
+
+    const text = sendMail.mock.calls[0]?.[0] as { text: string };
+    expect(text.text).toContain("Bettwäsche: 2 × 10 €");
+    expect(text.text).toContain("Handtücher: 1 × 5 €");
+    expect(text.text).toContain("Summe: 25 €");
+  });
+
+  it("erwähnt Wäsche gar nicht, wenn keine bestellt wurde", async () => {
+    await sendBookingRequestNotification(request);
+
+    const text = sendMail.mock.calls[0]?.[0] as { text: string };
+    expect(text.text).not.toContain("Bettwäsche");
+    expect(text.text).toContain("Personen: 2");
+  });
+
+  // Die Mails hatten lange eine eigene, schlechtere Datumsformatierung:
+  // ohne führende Null und ohne Zeitzone. Letzteres hätte auf einem Server
+  // westlich von UTC den Vortag gezeigt.
+  it("schreibt Daten zweistellig und in UTC", async () => {
+    await sendGuestConfirmation(request);
+
+    const mail = sendMail.mock.calls[0]?.[0] as { text: string };
+    expect(mail.text).toContain("01.05.2027 bis 08.05.2027");
+  });
+
+  it("weist in der Zusage Mietpreis, Anzahlung und Restbetrag aus", async () => {
+    // 01.05.–08.05.2027: sieben Nächte in der Saison 01.04.–30.06. zu 74 €.
+    await sendGuestConfirmation(request);
+
+    const mail = sendMail.mock.calls[0]?.[0] as { text: string };
+    // Intl.NumberFormat setzt vor das €-Zeichen ein geschütztes Leerzeichen
+    // (U+00A0). Für den Vergleich hier auf ein normales normalisieren.
+    const text = mail.text.replaceAll("\u00a0", " ");
+
+    expect(text).toContain("7 Nächte × 74 €");
+    expect(text).toContain("Summe: 518,00 €");
+    expect(text).toContain("Anzahlung 30 %: 155,40 €");
+    expect(text).toContain("Restbetrag: 362,60 €");
+  });
+
+  it("erfindet keine Bankverbindung, wenn keine hinterlegt ist", async () => {
+    delete process.env.BANK_TRANSFER_DETAILS;
+    await sendGuestConfirmation(request);
+
+    const mail = sendMail.mock.calls[0]?.[0] as { text: string };
+    expect(mail.text).toContain("senden wir Ihnen gesondert zu");
+    expect(mail.text).not.toContain("IBAN");
+  });
+
+  it("nimmt eine hinterlegte Bankverbindung in die Zusage auf", async () => {
+    process.env.BANK_TRANSFER_DETAILS = "Sabrina Rönne\nIBAN DE00 0000";
+    try {
+      await sendGuestConfirmation(request);
+
+      const mail = sendMail.mock.calls[0]?.[0] as { text: string };
+      expect(mail.text).toContain("IBAN DE00 0000");
+    } finally {
+      delete process.env.BANK_TRANSFER_DETAILS;
+    }
+  });
+
+  it("nennt den Preis in der Eingangsbestätigung als unverbindlich", async () => {
+    await sendGuestRequestReceived(request);
+
+    const mail = sendMail.mock.calls[0]?.[0] as { text: string };
+    expect(mail.text).toContain("unverbindliche Vorschau");
+    expect(mail.text).not.toContain("Anzahlung");
+  });
+});
+
+describe("Mietbedingungen in den Gast-Mails", () => {
+  it("nennen Anzahlungsfrist, Parken und Stornobedingungen in der Bestätigung", async () => {
+    const { buildGuestConfirmation } = await import("./email");
+    const { text } = buildGuestConfirmation(request);
+    expect(text).toContain("innerhalb von 7 Tagen überweisen");
+    expect(text).toContain("Eigener Stellplatz");
+    expect(text).toContain("Stornobedingungen:");
+    expect(text).toContain("bis 42 Tage vor Anreise: kostenfrei");
+  });
+
+  it("sagen in der Eingangsbestätigung eine Antwort binnen 48 Stunden zu", async () => {
+    const { buildGuestRequestReceived } = await import("./email");
+    expect(buildGuestRequestReceived(request).text).toContain("innerhalb von 48 Stunden");
   });
 });

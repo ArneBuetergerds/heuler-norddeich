@@ -17,3 +17,11 @@ export function formatDate(date: Date): string {
 export function formatDateRange(start: Date, end: Date): string {
   return `${formatDate(start)} – ${formatDate(end)}`;
 }
+
+/** Geldbetrag in deutscher Schreibweise, z. B. "1.234,50 €". */
+export function formatEuro(amount: number): string {
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+  }).format(amount);
+}

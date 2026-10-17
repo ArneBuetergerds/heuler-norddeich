@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { auth } from "@/auth";
+import { requireAdmin } from "@/lib/adminAuth";
 import { db } from "@/db/client";
 import { blockedPeriod, bookingRequest } from "@/db/schema";
 import {
@@ -26,10 +26,8 @@ const createSchema = z
   });
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
-  }
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
 
   let body: unknown;
   try {
@@ -77,10 +75,8 @@ async function readReason(request: Request): Promise<string | undefined> {
 }
 
 export async function DELETE(request: Request) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
-  }
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
 
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) {

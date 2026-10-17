@@ -1,11 +1,13 @@
 node_modules
 .next
 .git
-.env
-.env.local
-.env.*.local
+# Alle Env-Dateien: Secrets kommen zur Laufzeit aus Coolify, nie ins Image.
+.env*
+!.env.example
 docs
 .superpowers
 .claude
 .closedloop-ai
 *.md
+fotos-eingang
+design

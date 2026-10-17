@@ -6,6 +6,6 @@ if (!password) {
   process.exit(1);
 }
 
-bcrypt.hash(password, 10).then((hash) => {
+bcrypt.hash(password, 12).then((hash) => {
   console.log(hash);
 });

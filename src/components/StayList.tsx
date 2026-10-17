@@ -4,14 +4,30 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import type { BookingRequest, Invoice } from "@/db/schema";
 import type { Stay } from "@/lib/occupancy";
 import { formatDateRange } from "@/lib/format";
 import { DecisionDialog } from "./DecisionDialog";
+import { StayDetailDialog } from "./StayDetailDialog";
 
-export function StayList({ stays }: { stays: Stay[] }) {
+export function StayList({
+  stays,
+  requests,
+  invoices,
+}: {
+  stays: Stay[];
+  invoices: Invoice[];
+  /**
+   * Alle Anfragen, die der Server ohnehin schon geladen hat. Daraus wird für
+   * die Detailansicht die passende herausgesucht – eine eigene Abfrage
+   * bräuchte es dafür nicht.
+   */
+  requests: BookingRequest[];
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [target, setTarget] = useState<Stay | null>(null);
+  const [detail, setDetail] = useState<Stay | null>(null);
 
   async function cancelStay(stay: Stay, reason: string): Promise<void> {
     setPending(true);
@@ -37,7 +53,7 @@ export function StayList({ stays }: { stays: Stay[] }) {
 
   if (stays.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed bg-card p-5 text-center text-[13px] text-zinc-400">
+      <div className="rounded-xl border border-dashed bg-card p-5 text-center text-[13px] text-schlick-3">
         Keine bestätigten Aufenthalte.
       </div>
     );
@@ -51,24 +67,42 @@ export function StayList({ stays }: { stays: Stay[] }) {
             key={stay.id}
             className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3.5 py-3"
           >
-            <div>
-              <div className="text-[13px] font-semibold">{stay.guestName}</div>
-              <div className="text-xs text-zinc-500">
+            {/* Eigener Knopf statt klickbarer Zeile: Die Zeile enthält bereits
+                den Storno-Knopf, verschachtelte Schaltflächen wären ungültiges
+                Markup und für die Tastatur eine Falle. */}
+            <button
+              type="button"
+              onClick={() => setDetail(stay)}
+              className="min-h-11 flex-1 cursor-pointer text-left"
+            >
+              <span className="block text-[13px] font-semibold underline-offset-2 hover:underline">
+                {stay.guestName}
+              </span>
+              <span className="block text-xs text-schlick-2">
                 {formatDateRange(stay.startDate, stay.endDate)}
-              </div>
-            </div>
+              </span>
+            </button>
             <Button
               size="sm"
               variant="outline"
               disabled={pending}
               onClick={() => setTarget(stay)}
-              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700"
+              className="h-11 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive sm:h-8"
             >
               Stornieren
             </Button>
           </div>
         ))}
       </div>
+
+      <StayDetailDialog
+        stay={detail}
+        request={requests.find((entry) => entry.id === detail?.bookingRequestId)}
+        invoice={invoices.find(
+          (entry) => entry.bookingRequestId === detail?.bookingRequestId,
+        )}
+        onOpenChange={(open) => !open && setDetail(null)}
+      />
 
       <DecisionDialog
         open={target !== null}

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { auth } from "@/auth";
+import { requireAdmin } from "@/lib/adminAuth";
 import { db } from "@/db/client";
 import { bookingRequest } from "@/db/schema";
 import {
   confirmBookingRequest,
   declineBookingRequest,
   RANGE_TAKEN_ERROR,
+  NOT_PENDING_ERROR,
 } from "@/db/adminQueries";
 import { sendGuestConfirmation, sendGuestDecline } from "@/lib/email";
 
@@ -20,10 +21,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
-  }
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
 
   let body: unknown;
   try {
@@ -55,7 +54,10 @@ export async function PATCH(
       await declineBookingRequest(db, id, reason);
     }
   } catch (error) {
-    if (error instanceof Error && error.message === RANGE_TAKEN_ERROR) {
+    if (
+      error instanceof Error &&
+      (error.message === RANGE_TAKEN_ERROR || error.message === NOT_PENDING_ERROR)
+    ) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     throw error;
