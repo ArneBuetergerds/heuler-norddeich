@@ -1,16 +1,13 @@
 import type { ReactNode } from "react";
-import Image from "next/image";
+import { GALLERY } from "@/lib/gallery";
+import { GalleryGrid } from "@/components/GalleryGrid";
+import { pageMetadata } from "@/lib/site";
 
 type Feature = {
   readonly title: string;
   readonly text: string;
   readonly icon: ReactNode;
   readonly wide?: boolean;
-};
-
-type GalleryImage = {
-  readonly src: string;
-  readonly alt: string;
 };
 
 const ICON_PROPS = {
@@ -26,7 +23,7 @@ const ICON_PROPS = {
 const FEATURES: readonly Feature[] = [
   {
     title: "Wohn- und Essbereich",
-    text: "Leder-Ecksofa mit Schlaffunktion, Couchtisch und Sideboard sowie Esstisch mit 4 Stühlen. Flachbildfernseher mit SAT-TV und Radio (CD/MP3/Kassette).",
+    text: "Ecksofa mit Schlaffunktion, Couchtisch und Sideboard sowie Esstisch mit 4 Stühlen. Flachbildfernseher mit SAT-TV und Radio (CD/MP3/Kassette).",
     icon: (
       <svg {...ICON_PROPS}>
         <path d="M3 12v6a1 1 0 001 1h16a1 1 0 001-1v-6" />
@@ -92,6 +89,18 @@ const FEATURES: readonly Feature[] = [
     ),
   },
   {
+    title: "Schuppen & Bollerwagen",
+    text: "Im Schuppen ist Platz für 2 Fahrräder. Außerdem gehört ein Bollerwagen zur Wohnung – praktisch für Einkäufe und den Weg zum Strand.",
+    wide: true,
+    icon: (
+      <svg {...ICON_PROPS}>
+        <circle cx="6" cy="17" r="3" />
+        <circle cx="18" cy="17" r="3" />
+        <path d="M6 17l4-8h5l3 8M10 9l-1-3H7M15 9l-3 8" />
+      </svg>
+    ),
+  },
+  {
     title: "Sonstiges",
     text: "Staubsauger und Reinigungsmaterial, Gesellschaftsspiele und Bücher sowie ein Kinderhochstuhl.",
     wide: true,
@@ -112,96 +121,79 @@ type Policy = {
 const POLICIES: readonly Policy[] = [
   { label: "Rauchen", value: "Nichtraucherwohnung" },
   { label: "Haustiere", value: "Nicht erlaubt" },
-  { label: "WLAN", value: "Nicht vorhanden" },
+  { label: "WLAN", value: "Vorhanden, kostenlos" },
+  { label: "Parken", value: "Eigener Stellplatz am Haus, kostenlos" },
   { label: "Waschmaschine", value: "Nicht vorhanden" },
 ];
 
-const GALLERY: readonly GalleryImage[] = [
-  {
-    src: "/images/wohnen-essen/wohnen-essen-03.jpg",
-    alt: "Wohnbereich mit Ecksofa und Couchtisch",
-  },
-  {
-    src: "/images/wohnen-essen/wohnen-essen-10.jpg",
-    alt: "Küche mit Herd, Backofen und Geschirrspüler",
-  },
-  {
-    src: "/images/schlafzimmer-gross/schlafzimmer-gross-01.jpg",
-    alt: "Großes Schlafzimmer mit Doppelbett",
-  },
-  {
-    src: "/images/schlafzimmer-klein/schlafzimmer-klein-01.jpg",
-    alt: "Kleines Schlafzimmer mit zwei Betten",
-  },
-  {
-    src: "/images/bad/bad-01.jpg",
-    alt: "Bad mit Dusche und beleuchtetem Spiegelschrank",
-  },
-];
+
+
+export const metadata = pageMetadata({
+  title: "Ausstattung",
+  description:
+    "Was die Ferienwohnung Heuler in Norddeich bietet: Wohn- und Essbereich, voll ausgestattete Küche, zwei Schlafzimmer, Duschbad, Südwest-Balkon, kostenloses WLAN, eigener Stellplatz, Fahrradschuppen und Bollerwagen.",
+  path: "/ausstattung",
+});
 
 export default function AusstattungPage() {
   return (
-    <section className="mx-auto max-w-[1120px] px-6 pt-14 pb-20">
-      <p className="mb-2 text-xs font-bold tracking-wider text-muted-foreground uppercase">
-        Ausstattung
-      </p>
-      <h1 className="mb-3 text-[32px] font-extrabold tracking-tight">
-        Alles für einen entspannten Aufenthalt
-      </h1>
-      <p className="mb-10 max-w-[640px] text-[15px] text-zinc-600">
-        Die Wohnung ist komplett eingerichtet und bietet Platz für bis zu vier
-        Gäste – inklusive Südwest-Balkon für sonnige Abende.
-      </p>
+    <>
+      <section className="mx-auto max-w-4xl px-5 py-sektion-m md:py-sektion-l">
+        <p className="text-label font-semibold uppercase text-priel">Ausstattung</p>
+        <h1 className="mt-4 text-h1 text-schlick">
+          Alles für einen entspannten Aufenthalt
+        </h1>
+        <p className="mt-4 text-body text-schlick-2">
+          Die Wohnung ist komplett eingerichtet und bietet Platz für bis zu vier
+          Gäste – inklusive Südwest-Balkon für sonnige Abende.
+        </p>
+      </section>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        {FEATURES.map((feature) => (
-          <div
-            key={feature.title}
-            className={`flex gap-4 rounded-xl border bg-card p-6 ${
-              feature.wide ? "sm:col-span-2" : ""
-            }`}
-          >
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-zinc-100 text-zinc-700">
-              {feature.icon}
-            </div>
-            <div>
-              <h3 className="mb-1.5 text-base font-bold">{feature.title}</h3>
-              <p className="text-sm text-zinc-600">{feature.text}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-6 rounded-xl border bg-card p-6 shadow-sm">
-        <h2 className="mb-3 text-[17px] font-bold">Gut zu wissen</h2>
-        <div className="flex flex-wrap gap-x-8 gap-y-3">
-          {POLICIES.map((policy) => (
-            <div key={policy.label}>
-              <p className="text-[11px] font-bold tracking-[0.06em] text-zinc-400 uppercase">
-                {policy.label}
-              </p>
-              <p className="text-sm font-semibold">{policy.value}</p>
+      <section className="border-y border-linie bg-muschel px-5 py-sektion-m md:py-sektion-l">
+        <h2 className="sr-only">Räume und Ausstattung</h2>
+        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2">
+          {FEATURES.map((feature) => (
+            <div
+              key={feature.title}
+              className={`flex gap-4 rounded-card border border-linie bg-sand p-5 ${
+                feature.wide ? "sm:col-span-2" : ""
+              }`}
+            >
+              <div className="grid size-11 shrink-0 place-items-center rounded-sm bg-priel-hell text-priel-tief">
+                {feature.icon}
+              </div>
+              <div>
+                <h3 className="font-display text-2xl text-schlick">{feature.title}</h3>
+                <p className="mt-1.5 text-klein text-schlick-2">{feature.text}</p>
+              </div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {GALLERY.map((image) => (
-          <div
-            key={image.src}
-            className="relative h-40 overflow-hidden rounded-xl"
-          >
-            <Image
-              src={image.src}
-              alt={image.alt}
-              fill
-              sizes="(max-width: 640px) 100vw, 360px"
-              className="object-cover"
-            />
-          </div>
-        ))}
-      </div>
-    </section>
+      <section className="mx-auto max-w-4xl px-5 py-sektion-m md:py-sektion-l">
+        <h2 className="text-h2 text-schlick">Gut zu wissen</h2>
+        <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+          {POLICIES.map((policy) => (
+            <div
+              key={policy.label}
+              className="flex items-baseline justify-between gap-4 border-b border-linie pb-3"
+            >
+              <dt className="text-label font-semibold uppercase text-schlick-2">
+                {policy.label}
+              </dt>
+              <dd className="text-klein font-medium text-schlick">{policy.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* Hochformat-Kacheln: Elf der dreizehn Aufnahmen sind hochkant, ein
+          Querformat-Raster würde ihnen oben und unten den Inhalt nehmen. */}
+      <section className="mx-auto max-w-4xl px-5 pb-sektion-l">
+        <h2 className="sr-only">Bilder der Wohnung</h2>
+        <GalleryGrid images={GALLERY} />
+      </section>
+    </>
   );
 }

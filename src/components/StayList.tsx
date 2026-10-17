@@ -7,9 +7,19 @@ import { Button } from "@/components/ui/button";
 import type { Stay } from "@/lib/occupancy";
 import { formatDateRange } from "@/lib/format";
 import { DecisionDialog } from "./DecisionDialog";
+import { ManualBadge } from "./ManualBadge";
+import { useOpenStayDetail } from "./StayDetailProvider";
 
-export function StayList({ stays }: { stays: Stay[] }) {
+/**
+ * Die Detailansicht gehört nicht der Liste, sondern dem umgebenden
+ * `StayDetailProvider` – den öffnet auch der Belegungskalender.
+ *
+ * `stays` sind die Aufenthalte des angezeigten Monats, `monthLabel` sein Name
+ * („Oktober 2026“) für den Hinweis, wenn der Monat leer ist.
+ */
+export function StayList({ stays, monthLabel }: { stays: Stay[]; monthLabel: string }) {
   const router = useRouter();
+  const openDetail = useOpenStayDetail();
   const [pending, setPending] = useState(false);
   const [target, setTarget] = useState<Stay | null>(null);
 
@@ -37,8 +47,8 @@ export function StayList({ stays }: { stays: Stay[] }) {
 
   if (stays.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed bg-card p-5 text-center text-[13px] text-zinc-400">
-        Keine bestätigten Aufenthalte.
+      <div className="rounded-xl border border-dashed bg-card p-5 text-center text-[13px] text-schlick-3">
+        Keine bestätigten Aufenthalte im {monthLabel}.
       </div>
     );
   }
@@ -51,18 +61,30 @@ export function StayList({ stays }: { stays: Stay[] }) {
             key={stay.id}
             className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3.5 py-3"
           >
-            <div>
-              <div className="text-[13px] font-semibold">{stay.guestName}</div>
-              <div className="text-xs text-zinc-500">
+            {/* Eigener Knopf statt klickbarer Zeile: Die Zeile enthält bereits
+                den Storno-Knopf, verschachtelte Schaltflächen wären ungültiges
+                Markup und für die Tastatur eine Falle. */}
+            <button
+              type="button"
+              onClick={() => openDetail(stay)}
+              className="min-h-11 flex-1 cursor-pointer text-left"
+            >
+              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <span className="text-[13px] font-semibold underline-offset-2 hover:underline">
+                  {stay.guestName}
+                </span>
+                {stay.source === "manual" && <ManualBadge />}
+              </span>
+              <span className="block text-xs text-schlick-2">
                 {formatDateRange(stay.startDate, stay.endDate)}
-              </div>
-            </div>
+              </span>
+            </button>
             <Button
               size="sm"
               variant="outline"
               disabled={pending}
               onClick={() => setTarget(stay)}
-              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700"
+              className="h-11 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive sm:h-8"
             >
               Stornieren
             </Button>
@@ -77,7 +99,9 @@ export function StayList({ stays }: { stays: Stay[] }) {
         description={
           target?.bookingRequestId === null
             ? "Der Aufenthalt wurde manuell eingetragen – es wird niemand benachrichtigt."
-            : "Der Gast wird per E-Mail über die Stornierung informiert."
+            : target?.source === "manual"
+              ? "Die Buchung wurde manuell eingetragen – es wird keine E-Mail verschickt. Bitte sagen Sie dem Gast selbst ab."
+              : "Der Gast wird per E-Mail über die Stornierung informiert."
         }
         confirmLabel="Stornieren"
         pending={pending}

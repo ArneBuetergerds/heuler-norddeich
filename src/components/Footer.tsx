@@ -1,58 +1,57 @@
 import Link from "next/link";
+import { RENTAL_TERMS_PATH } from "@/lib/rentalTerms";
 
-const PAGE_LINKS = [
+const LINKS = [
   { href: "/ausstattung", label: "Ausstattung" },
   { href: "/lage", label: "Lage" },
-  { href: "/verfuegbarkeit", label: "Verfügbarkeit" },
+  { href: "/faq", label: "FAQ" },
   { href: "/kontakt", label: "Kontakt" },
-] as const;
-
-const LEGAL_LINKS = [
+  // Rechtliches am Ende: erst Anbieterangaben und Datenschutz, dann die
+  // Mietbedingungen, die erst mit einer Buchung gelten.
   { href: "/impressum", label: "Impressum" },
   { href: "/datenschutz", label: "Datenschutz" },
+  { href: RENTAL_TERMS_PATH, label: "Mietbedingungen" },
 ] as const;
-
-const HEADING_CLASS =
-  "mb-2.5 text-xs font-bold tracking-wide text-zinc-400 uppercase";
-const LINK_CLASS = "text-[13px] hover:underline";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-white">
-      <div className="mx-auto grid max-w-[1120px] grid-cols-1 gap-8 px-6 py-10 sm:grid-cols-[2fr_1fr_1fr]">
-        <div>
-          <p className="mb-2 text-base font-extrabold">Heuler</p>
-          <p className="max-w-[280px] text-[13px] text-muted-foreground">
-            Ferienwohnung in Norddeich, nahe der Seehundstation.
-          </p>
+    <footer className="border-t border-linie px-5 py-sektion-s">
+      <div className="mx-auto flex max-w-4xl flex-col gap-5">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-display text-[22px] leading-none text-schlick">
+            Heuler
+          </span>
+          <span className="whitespace-nowrap text-[10px] font-semibold tracking-[0.14em] text-schlick-2 uppercase">
+            Ferienwohnung · Norddeich
+          </span>
         </div>
 
-        <div>
-          <p className={HEADING_CLASS}>Seiten</p>
-          <div className="flex flex-col gap-2">
-            {PAGE_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className={LINK_CLASS}>
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        </div>
+        {/* Anschrift der Wohnung, nicht die der Anbieterin: Letztere steht im
+            Impressum und ist dort auch die rechtlich maßgebliche. */}
+        <address className="text-klein text-schlick-2 not-italic">
+          Ankerweg 6
+          <br />
+          26506 Norden-Norddeich
+        </address>
 
-        <div>
-          <p className={HEADING_CLASS}>Rechtliches</p>
-          <div className="flex flex-col gap-2">
-            {LEGAL_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className={LINK_CLASS}>
-                {link.label}
-              </Link>
-            ))}
+        <nav aria-label="Weitere Seiten" className="flex flex-wrap gap-x-6 gap-y-2">
+          {LINKS.map((link) => (
             <Link
-              href="/admin/login"
-              className="text-[13px] text-zinc-400 hover:underline"
+              key={link.href}
+              href={link.href}
+              className="text-klein text-priel underline-offset-2 hover:underline"
             >
-              Admin-Login
+              {link.label}
             </Link>
-          </div>
+          ))}
+        </nav>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Die Karte auf "Lage" lädt Google Maps – aber nur auf Klick. Der
+              frühere Satz "keine externen Dienste" stimmte deshalb nicht ganz. */}
+          <p className="text-mikro text-schlick-2">
+            Keine Cookies, kein Tracking. Die Karte lädt erst auf Klick.
+          </p>
         </div>
       </div>
     </footer>

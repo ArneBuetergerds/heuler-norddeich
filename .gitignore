@@ -44,3 +44,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Rohmaterial der Fotolieferungen, gehoert nicht ins Repo
+/fotos-eingang/

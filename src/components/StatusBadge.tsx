@@ -10,19 +10,19 @@ export type BadgeStatus = "pending" | "confirmed" | "declined" | "conflict";
 const BADGES: Record<BadgeStatus, { label: string; className: string }> = {
   confirmed: {
     label: "Bestätigt",
-    className: "bg-green-50 text-green-800 border-green-200",
+    className: "bg-priel-hell text-priel-tief border-priel/30",
   },
   declined: {
     label: "Abgelehnt",
-    className: "bg-zinc-100 text-zinc-600 border-zinc-200",
+    className: "bg-track text-schlick-2 border-linie",
   },
   conflict: {
     label: "Konflikt",
-    className: "bg-red-50 text-red-700 border-red-200",
+    className: "bg-destructive/5 text-destructive border-destructive/30",
   },
   pending: {
     label: "Ausstehend",
-    className: "bg-amber-50 text-amber-700 border-amber-200",
+    className: "bg-duenengras/20 text-schlick border-duenengras",
   },
 };
 

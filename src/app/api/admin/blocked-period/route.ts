@@ -1,35 +1,29 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { auth } from "@/auth";
+import { authorizeAdmin } from "@/lib/adminAuth";
 import { db } from "@/db/client";
 import { blockedPeriod, bookingRequest } from "@/db/schema";
 import {
   cancelStay,
-  createManualStay,
+  createInternalStay,
   createMaintenanceBlock,
   RANGE_TAKEN_ERROR,
 } from "@/db/adminQueries";
 import { sendGuestDecline } from "@/lib/email";
+import { safeError } from "@/lib/safeError";
+import { blockedPeriodCreateSchema } from "@/lib/validation";
+import { withRouteErrors } from "@/lib/routeErrors";
 
-const createSchema = z
-  .object({
-    startDate: z.coerce.date(),
-    endDate: z.coerce.date(),
-    note: z.string().optional(),
-    // Gesetzt = manuell eingetragener Aufenthalt, sonst reiner Sperrzeitraum.
-    guestName: z.string().min(1).optional(),
-  })
-  .refine((data) => data.startDate < data.endDate, {
-    message: "Startdatum muss vor dem Enddatum liegen",
-    path: ["endDate"],
-  });
+/**
+ * Interne Belegung (`kind: "internal"`) oder Sperrzeitraum (`kind: "block"`).
+ * Manuelle Buchungen mit Gastdaten laufen über POST /api/admin/manual-booking.
+ */
+export const POST = withRouteErrors("POST /api/admin/blocked-period", postBlockedPeriod);
 
-export async function POST(request: Request) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
-  }
+async function postBlockedPeriod(request: Request) {
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
 
   let body: unknown;
   try {
@@ -41,18 +35,22 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsed = createSchema.safeParse(body);
+  const parsed = blockedPeriodCreateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    // Die erste Meldung als Text: Das Formular zeigt sie direkt an.
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Bitte prüfen Sie Ihre Eingaben." },
+      { status: 400 },
+    );
   }
 
-  const { startDate, endDate, note, guestName } = parsed.data;
+  const { kind, startDate, endDate, note } = parsed.data;
 
   try {
-    if (guestName) {
-      await createManualStay(db, { guestName, startDate, endDate });
+    if (kind === "internal") {
+      await createInternalStay(db, { startDate, endDate, note }, authorized.actor);
     } else {
-      await createMaintenanceBlock(db, { startDate, endDate, note });
+      await createMaintenanceBlock(db, { startDate, endDate, note }, authorized.actor);
     }
   } catch (error) {
     if (error instanceof Error && error.message === RANGE_TAKEN_ERROR) {
@@ -76,11 +74,11 @@ async function readReason(request: Request): Promise<string | undefined> {
   }
 }
 
-export async function DELETE(request: Request) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
-  }
+export const DELETE = withRouteErrors("DELETE /api/admin/blocked-period", deleteBlockedPeriod);
+
+async function deleteBlockedPeriod(request: Request) {
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
 
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) {
@@ -98,6 +96,9 @@ export async function DELETE(request: Request) {
 
   // Den Gast vor dem Storno laden: danach ist die Verknüpfung zur Anfrage
   // gelöscht und der Empfänger der Absage-Mail nicht mehr ermittelbar.
+  // Manuelle Buchungen bekommen keine automatische Mail – die Betreiberin
+  // hat sie selbst eingetragen und sagt dem Gast auch selbst ab (Hinweis im
+  // Storno-Dialog, StayList).
   const guest =
     stay.bookingRequestId === null
       ? undefined
@@ -105,14 +106,14 @@ export async function DELETE(request: Request) {
           where: eq(bookingRequest.id, stay.bookingRequestId),
         });
 
-  await cancelStay(db, id, reason);
+  await cancelStay(db, id, authorized.actor, reason);
 
-  if (guest) {
+  if (guest && guest.source !== "manual") {
     try {
       await sendGuestDecline(guest, reason);
     } catch (error) {
       // Der Storno selbst ist erfolgt – ein Mailfehler darf ihn nicht zurückdrehen.
-      console.error("Storno-E-Mail an den Gast konnte nicht gesendet werden", error);
+      console.error("Storno-E-Mail an den Gast konnte nicht gesendet werden", safeError(error));
     }
   }
 

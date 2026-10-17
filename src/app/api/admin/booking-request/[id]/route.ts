@@ -1,29 +1,106 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { auth } from "@/auth";
+import { authorizeAdmin } from "@/lib/adminAuth";
 import { db } from "@/db/client";
-import { bookingRequest } from "@/db/schema";
+import { bookingRequest, type BookingRequest, type Invoice } from "@/db/schema";
 import {
   confirmBookingRequest,
   declineBookingRequest,
   RANGE_TAKEN_ERROR,
+  NOT_PENDING_ERROR,
 } from "@/db/adminQueries";
-import { sendGuestConfirmation, sendGuestDecline } from "@/lib/email";
+import {
+  createInvoice,
+  getInvoiceForBookingRequest,
+  INVOICE_EXISTS_ERROR,
+} from "@/db/invoiceQueries";
+import {
+  deleteBookingRequest,
+  REQUEST_ALREADY_ANONYMIZED_ERROR,
+  REQUEST_NOT_FOUND_ERROR,
+  STAY_AHEAD_ERROR,
+} from "@/db/retentionQueries";
+import { berlinDay } from "@/lib/retention";
+import {
+  ADDRESS_REQUIRED_CODE,
+  CONFIRM_WARNING,
+  type ConfirmWarningCode,
+  hasPostalAddress,
+  postalAddressLines,
+} from "@/lib/invoice";
+import { renderInvoicePdf } from "@/lib/invoicePdf";
+import { renderRentalTermsPdf } from "@/lib/rentalTermsPdf";
+import { RENTAL_TERMS_PDF_URL } from "@/lib/rentalTerms";
+import { sendGuestConfirmation, sendGuestDecline, type InvoiceForMail } from "@/lib/email";
+import { postalAddressSchema } from "@/lib/validation";
+import { safeError } from "@/lib/safeError";
+import { withRouteErrors } from "@/lib/routeErrors";
 
 const patchSchema = z.object({
   action: z.enum(["confirm", "decline"]),
   reason: z.string().optional(),
+  // Nur beim Bestätigen einer Anfrage ohne Anschrift (vor dem Pflichtfeld
+  // eingegangen): Der Dialog im Admin fragt sie ab, sie wird an der Anfrage
+  // gespeichert und ist Empfänger der Rechnung.
+  address: postalAddressSchema.optional(),
 });
 
-export async function PATCH(
+const ADDRESS_REQUIRED_MESSAGE =
+  "Für die Rechnung fehlt die Anschrift des Gasts. Bitte Straße, PLZ und Ort angeben – erst dann wird bestätigt.";
+
+const INVOICE_FAILED_WARNING =
+  "Die Buchung ist bestätigt, die Rechnung konnte aber nicht erstellt werden. Die Bestätigungsmail ging ohne Rechnung raus. Bitte die Rechnung im Detaildialog der Buchung erstellen und dem Gast schicken.";
+
+function attachmentFailedWarning(number: string): string {
+  return `Die Buchung ist bestätigt und die Rechnung ${number} erstellt, sie konnte aber nicht an die Bestätigungsmail angehängt werden. Bitte das PDF im Detaildialog der Buchung herunterladen und dem Gast schicken.`;
+}
+
+function mailFailedWarning(number: string): string {
+  return `Die Buchung ist bestätigt und die Rechnung ${number} erstellt, aber die E-Mail an den Gast konnte nicht verschickt werden. Bitte die Rechnung im Detaildialog der Buchung herunterladen und dem Gast selbst mit der Bestätigung senden.`;
+}
+
+const INVOICE_AND_MAIL_FAILED_WARNING =
+  "Die Buchung ist bestätigt, aber die Rechnung konnte nicht erstellt und die E-Mail an den Gast nicht verschickt werden. Bitte die Rechnung im Detaildialog der Buchung erstellen und dem Gast selbst mit der Bestätigung senden.";
+
+/** Woher der Admin die Mietbedingungen holt, wenn sie nicht angehängt sind. */
+const RENTAL_TERMS_DOWNLOAD = RENTAL_TERMS_PDF_URL;
+
+const TERMS_ATTACHMENT_FAILED_WARNING = `Die Buchung ist bestätigt und die Bestätigungsmail mit Rechnung ist raus, die Mietbedingungen konnten aber nicht als PDF angehängt werden. Bitte das PDF unter ${RENTAL_TERMS_DOWNLOAD} herunterladen und dem Gast schicken.`;
+
+/** Zusatz zu einer anderen Warnung, wenn auch die Mietbedingungen fehlen. */
+const TERMS_ALSO_MISSING = `Auch die Mietbedingungen fehlen im Anhang – bitte das PDF unter ${RENTAL_TERMS_DOWNLOAD} mitschicken.`;
+
+/** Zusatz, wenn der Gast gar keine Mail bekommen hat: Er braucht beide PDFs. */
+const TERMS_TO_SEND = `Die Mietbedingungen dazu als PDF: ${RENTAL_TERMS_DOWNLOAD}.`;
+
+type ConfirmWarning = { code: ConfirmWarningCode; message: string };
+
+export const PATCH = withRouteErrors("PATCH /api/admin/booking-request/[id]", patchBookingRequest);
+
+/**
+ * Bestätigt oder lehnt eine Anfrage ab.
+ *
+ * Beim Bestätigen einer Online-Anfrage entsteht danach automatisch die
+ * Rechnung (Empfänger: Name und Anschrift der Anfrage) und geht als PDF mit
+ * der Bestätigungsmail an den Gast. Fehlt die Anschrift an der Anfrage und im
+ * Body, wird nichts bestätigt: 400 mit `code: "address_required"`.
+ *
+ * Antwort beim Bestätigen:
+ * `{ ok, invoice: { id, number } | null, warning?, warningCode?, rentalTermsMissing? }`.
+ * `warning` sagt dem Admin, was von Hand nachzuholen ist (Rechnung nicht
+ * erstellt oder nicht angehängt, Mietbedingungen nicht angehängt, Mail nicht
+ * verschickt); `warningCode` (CONFIRM_WARNING in src/lib/invoice.ts)
+ * unterscheidet die Fälle für die Oberfläche. `rentalTermsMissing: true`
+ * steht nur da, wenn das Mietbedingungen-PDF fehlt. Die Bestätigung bleibt in
+ * jedem Fall.
+ */
+async function patchBookingRequest(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
-  }
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
 
   let body: unknown;
   try {
@@ -37,6 +114,18 @@ export async function PATCH(
 
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
+    // Anschriftsfehler mit Meldung und Feld, damit der Dialog sie am Feld
+    // zeigt; alles andere ist ein Fehler der Oberfläche, nicht der Eingabe.
+    const issue = parsed.error.issues[0];
+    if (issue?.path[0] === "address") {
+      return NextResponse.json(
+        {
+          error: issue.message,
+          field: typeof issue.path[1] === "string" ? issue.path[1] : null,
+        },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({ error: "Ungültige Aktion" }, { status: 400 });
   }
 
@@ -46,24 +135,105 @@ export async function PATCH(
     return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
   }
 
-  const { action, reason } = parsed.data;
+  const { action, reason, address } = parsed.data;
+
+  if (action === "confirm" && !address) {
+    // Vor der Bestätigung prüfen: Ohne Anschrift gäbe es keine Rechnung, und
+    // der Gast bekäme die Zusage ohne sie. Nur offene Anfragen – für alle
+    // anderen meldet confirmBookingRequest den passenden Fehler.
+    const current = await db.query.bookingRequest.findFirst({
+      where: eq(bookingRequest.id, id),
+    });
+    if (current?.status === "pending" && !hasPostalAddress(current)) {
+      return NextResponse.json(
+        { error: ADDRESS_REQUIRED_MESSAGE, code: ADDRESS_REQUIRED_CODE },
+        { status: 400 },
+      );
+    }
+  }
 
   try {
     if (action === "confirm") {
-      await confirmBookingRequest(db, id);
+      await confirmBookingRequest(db, id, authorized.actor, address);
     } else {
-      await declineBookingRequest(db, id, reason);
+      await declineBookingRequest(db, id, authorized.actor, reason);
     }
   } catch (error) {
-    if (error instanceof Error && error.message === RANGE_TAKEN_ERROR) {
+    if (
+      error instanceof Error &&
+      (error.message === RANGE_TAKEN_ERROR || error.message === NOT_PENDING_ERROR)
+    ) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     throw error;
   }
 
-  await notifyGuest(id, action, reason);
+  if (action === "decline") {
+    await notifyGuestOfDecline(id, reason);
+    return NextResponse.json({ ok: true });
+  }
 
-  return NextResponse.json({ ok: true });
+  const { invoice, warning, rentalTermsMissing } = await invoiceAndConfirmGuest(
+    id,
+    authorized.actor,
+  );
+  return NextResponse.json({
+    ok: true,
+    invoice: invoice ? { id: invoice.id, number: invoice.number } : null,
+    ...(warning ? { warning: warning.message, warningCode: warning.code } : {}),
+    ...(rentalTermsMissing ? { rentalTermsMissing: true } : {}),
+  });
+}
+
+/**
+ * Löscht eine Anfrage von Hand – oder anonymisiert sie, wenn eine Rechnung
+ * aufbewahrt werden muss. Die Regeln stehen in `adminDeletionDecision`
+ * (src/lib/retention.ts); geprüft wird hier auf dem Server, egal was die
+ * Oberfläche anbietet.
+ *
+ * 404: unbekannt · 409: (noch) nicht löschbar, z. B. bestätigte Buchung mit
+ * Abreise in der Zukunft.
+ */
+export const DELETE = withRouteErrors("DELETE /api/admin/booking-request/[id]", deleteBookingRequestRoute);
+
+async function deleteBookingRequestRoute(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const authorized = await authorizeAdmin(request);
+  if ("denied" in authorized) return authorized.denied;
+
+  const { id: idParam } = await params;
+  const id = Number(idParam);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "Ungültige ID" }, { status: 400 });
+  }
+
+  try {
+    const result = await deleteBookingRequest(db, id, authorized.actor, berlinDay(new Date()));
+    return NextResponse.json({ result });
+  } catch (error) {
+    if (error instanceof Error && error.message === REQUEST_NOT_FOUND_ERROR) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    if (
+      error instanceof Error &&
+      (error.message === STAY_AHEAD_ERROR || error.message === REQUEST_ALREADY_ANONYMIZED_ERROR)
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
+}
+
+/** Die Anfrage für die Mail an den Gast – `undefined` bei manuellen Buchungen. */
+async function loadGuest(id: number): Promise<BookingRequest | undefined> {
+  const guest = await db.query.bookingRequest.findFirst({
+    where: eq(bookingRequest.id, id),
+  });
+  // Manuelle Buchungen bekommen keine automatischen Mails (siehe
+  // POST /api/admin/manual-booking).
+  return guest && guest.source !== "manual" ? guest : undefined;
 }
 
 /**
@@ -71,25 +241,119 @@ export async function PATCH(
  * darf sie nicht zurückdrehen, sonst stünde der Admin vor einer Anfrage, deren
  * Bestätigung scheinbar nicht funktioniert.
  */
-async function notifyGuest(
-  id: number,
-  action: "confirm" | "decline",
-  reason?: string,
-): Promise<void> {
-  const guest = await db.query.bookingRequest.findFirst({
-    where: eq(bookingRequest.id, id),
-  });
+async function notifyGuestOfDecline(id: number, reason?: string): Promise<void> {
+  const guest = await loadGuest(id);
   if (!guest) {
     return;
   }
+  try {
+    await sendGuestDecline(guest, reason);
+  } catch (error) {
+    console.error("Benachrichtigung des Gasts konnte nicht gesendet werden", safeError(error));
+  }
+}
+
+/**
+ * Nach der Bestätigung: Rechnung erstellen, als PDF zusammen mit den
+ * Mietbedingungen (PDF) an die Bestätigungsmail hängen und diese verschicken.
+ * Jeder Schritt darf scheitern, ohne die Bestätigung zurückzudrehen:
+ *
+ * - Rechnung scheitert → Mail ohne Rechnung (sie kündigt die Rechnung an),
+ *   Warnung an den Admin.
+ * - Rechnungs-PDF scheitert → Rechnung bleibt, Mail ohne Rechnung, Warnung.
+ * - Mietbedingungen-PDF scheitert → Mail ohne dieses PDF (sie verlinkt die
+ *   Seite), Warnung `terms_attachment_failed` bzw. Zusatz zur
+ *   Rechnungswarnung und `rentalTermsMissing`.
+ * - Mail scheitert → Rechnung bleibt, Warnung (mit oder ohne Rechnung), damit
+ *   die Oberfläche den Versand nicht behauptet.
+ *
+ * Die Rechnung entsteht in einer eigenen Transaktion nach der Bestätigung,
+ * weil `createInvoice` eine bestätigte Buchung verlangt. Gibt es schon eine
+ * (Doppelklick, zweites Gerät), wird diese angehängt.
+ */
+async function invoiceAndConfirmGuest(
+  id: number,
+  actor: string,
+): Promise<{ invoice: Invoice | null; warning?: ConfirmWarning; rentalTermsMissing?: boolean }> {
+  const guest = await loadGuest(id);
+  if (!guest) {
+    return { invoice: null };
+  }
+
+  // Unabhängig von der Rechnung, deshalb schon jetzt angestoßen. Ein Fehler
+  // wird hier abgefangen, damit die Mail trotzdem rausgeht.
+  const rentalTermsPdf = renderRentalTermsPdf().catch((error: unknown) => {
+    console.error("Mietbedingungen-PDF zur Bestätigung konnte nicht erzeugt werden", id, safeError(error));
+    return undefined;
+  });
+
+  let invoice: Invoice | null = null;
+  let warning: ConfirmWarning | undefined;
+  try {
+    invoice = await invoiceFor(guest, actor);
+  } catch (error) {
+    console.error("Rechnung zur Bestätigung konnte nicht erstellt werden", id, safeError(error));
+    warning = { code: CONFIRM_WARNING.invoiceFailed, message: INVOICE_FAILED_WARNING };
+  }
+
+  let forMail: InvoiceForMail | undefined;
+  if (invoice) {
+    try {
+      forMail = { number: invoice.number, pdf: await renderInvoicePdf(invoice.snapshot) };
+    } catch (error) {
+      console.error("Rechnungs-PDF zur Bestätigung konnte nicht erzeugt werden", id, safeError(error));
+      warning = {
+        code: CONFIRM_WARNING.attachmentFailed,
+        message: attachmentFailedWarning(invoice.number),
+      };
+    }
+  }
+
+  const rentalTerms = await rentalTermsPdf;
+  if (!rentalTerms) {
+    warning = warning
+      ? { ...warning, message: `${warning.message} ${TERMS_ALSO_MISSING}` }
+      : { code: CONFIRM_WARNING.termsAttachmentFailed, message: TERMS_ATTACHMENT_FAILED_WARNING };
+  }
 
   try {
-    if (action === "confirm") {
-      await sendGuestConfirmation(guest);
-    } else {
-      await sendGuestDecline(guest, reason);
-    }
+    await sendGuestConfirmation(guest, forMail, rentalTerms);
   } catch (error) {
-    console.error("Benachrichtigung des Gasts konnte nicht gesendet werden", error);
+    console.error("Benachrichtigung des Gasts konnte nicht gesendet werden", safeError(error));
+    // Ersetzt eine frühere Warnung: Ohne Mail ist egal, ob die Rechnung
+    // angehängt gewesen wäre – der Gast hat nichts bekommen, braucht also
+    // auch die Mietbedingungen von Hand.
+    warning = invoice
+      ? { code: CONFIRM_WARNING.mailFailed, message: `${mailFailedWarning(invoice.number)} ${TERMS_TO_SEND}` }
+      : {
+          code: CONFIRM_WARNING.invoiceAndMailFailed,
+          message: `${INVOICE_AND_MAIL_FAILED_WARNING} ${TERMS_TO_SEND}`,
+        };
+  }
+
+  return { invoice, warning, rentalTermsMissing: !rentalTerms };
+}
+
+async function invoiceFor(guest: BookingRequest, actor: string): Promise<Invoice> {
+  if (!hasPostalAddress(guest)) {
+    // Nach der Prüfung vor der Bestätigung nicht zu erwarten – höchstens,
+    // wenn die Anschrift dazwischen verschwunden ist.
+    throw new Error("Anfrage ohne Rechnungsanschrift");
+  }
+  try {
+    return await createInvoice({
+      bookingRequestId: guest.id,
+      recipientName: guest.name,
+      recipientAddress: postalAddressLines(guest),
+      actor,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === INVOICE_EXISTS_ERROR) {
+      const existing = await getInvoiceForBookingRequest(guest.id);
+      if (existing) {
+        return existing;
+      }
+    }
+    throw error;
   }
 }

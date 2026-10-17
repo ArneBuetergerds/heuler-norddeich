@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { pageMetadata } from "@/lib/site";
 
 type ContactEntry = {
   readonly label: string;
@@ -10,31 +11,48 @@ const CONTACT_ENTRIES: readonly ContactEntry[] = [
   { label: "E-Mail", value: "kontakt@norddeich-heuler.de" },
 ];
 
+export const metadata = pageMetadata({
+  title: "Kontakt",
+  description:
+    "Fragen zur Ferienwohnung Heuler in Norddeich? So erreichen Sie uns direkt – ohne Agentur.",
+  path: "/kontakt",
+});
+
 export default function KontaktPage() {
   return (
-    <section className="mx-auto max-w-[640px] px-6 pt-14 pb-20">
-      <p className="mb-2 text-xs font-bold tracking-wider text-muted-foreground uppercase">
-        Kontakt
-      </p>
-      <h1 className="mb-6 text-[32px] font-extrabold tracking-tight">
-        Sprechen Sie uns an
-      </h1>
+    <section className="mx-auto max-w-2xl px-5 py-sektion-m md:py-sektion-l">
+      <p className="text-label font-semibold uppercase text-priel">Kontakt</p>
+      <h1 className="mt-4 text-h1 text-schlick">Sprechen Sie uns an</h1>
 
-      <div className="flex flex-col gap-4 rounded-2xl border bg-card p-7">
+      <dl className="mt-8 flex flex-col gap-5 rounded-card border border-linie bg-muschel p-6">
         {CONTACT_ENTRIES.map((entry) => (
           <div key={entry.label}>
-            <p className="mb-[3px] text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+            <dt className="text-label font-semibold uppercase text-schlick-2">
               {entry.label}
-            </p>
-            <p className="text-[15px]">{entry.value}</p>
+            </dt>
+            <dd className="mt-1 text-body text-schlick">
+              {entry.value.includes("@") ? (
+                <a
+                  href={`mailto:${entry.value}`}
+                  className="underline underline-offset-2 hover:no-underline"
+                >
+                  {entry.value}
+                </a>
+              ) : (
+                entry.value
+              )}
+            </dd>
           </div>
         ))}
-      </div>
+      </dl>
 
-      <p className="mt-5 text-[13px] text-muted-foreground">
+      <p className="mt-6 text-klein text-schlick-2">
         Für eine konkrete Terminanfrage nutzen Sie bitte direkt das
         Anfrageformular unter{" "}
-        <Link href="/verfuegbarkeit" className="font-semibold hover:underline">
+        <Link
+          href="/#anfrage"
+          className="font-medium text-priel underline-offset-2 hover:underline"
+        >
           Verfügbarkeit &amp; Anfrage
         </Link>
         .

@@ -8,6 +8,55 @@
       "when": 1785873995825,
       "tag": "0000_short_umar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1789935465706,
+      "tag": "0001_broken_aqueduct",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1790026296914,
+      "tag": "0002_long_sunset_bain",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1790526885443,
+      "tag": "0003_push_subscription",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1792232605263,
+      "tag": "0004_retention_admin_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1792264897342,
+      "tag": "0005_manual_internal_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1792271111845,
+      "tag": "0006_booking_address",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1792274623021,
+      "tag": "0007_rental_terms_acceptance",
+      "breakpoints": true
     }
   ]
 }

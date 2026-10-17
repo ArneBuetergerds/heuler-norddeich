@@ -1,0 +1,1457 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Heuler — Startseite (Vorschau)</title>
+<style>
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme, base, components, utilities;
+@layer theme {
+  :root, :host {
+    --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    --spacing: 0.25rem;
+    --container-2xl: 42rem;
+    --container-4xl: 56rem;
+    --container-6xl: 72rem;
+    --text-sm: 0.875rem;
+    --text-sm--line-height: calc(1.25 / 0.875);
+    --text-base: 1rem;
+    --text-base--line-height: calc(1.5 / 1);
+    --text-2xl: 1.5rem;
+    --text-2xl--line-height: calc(2 / 1.5);
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --tracking-wider: 0.05em;
+    --radius-xs: 0.25rem;
+    --radius-sm: 0.75rem;
+    --default-font-family: var(--font-sans);
+    --default-mono-font-family: var(--font-mono);
+    --color-sand: var(--heuler-sand);
+    --color-muschel: var(--heuler-muschel);
+    --color-linie: var(--heuler-linie);
+    --color-track: var(--heuler-track);
+    --color-track-alt: var(--heuler-track-alt);
+    --color-schlick: var(--heuler-schlick);
+    --color-schlick-2: var(--heuler-schlick-2);
+    --color-schlick-3: var(--heuler-schlick-3);
+    --color-priel: var(--heuler-priel);
+    --color-priel-tief: var(--heuler-priel-tief);
+    --color-priel-hell: var(--heuler-priel-hell);
+    --color-duenengras: var(--heuler-duenengras);
+    --font-display: Georgia, "Times New Roman", serif;
+    --text-display: 3.5rem;
+    --text-display--line-height: 1.05;
+    --text-display--letter-spacing: -0.02em;
+    --text-h1: 2.375rem;
+    --text-h1--line-height: 1.10;
+    --text-h1--letter-spacing: -0.015em;
+    --text-h2: 1.875rem;
+    --text-h2--line-height: 1.15;
+    --text-h2--letter-spacing: -0.015em;
+    --text-h3: 1.625rem;
+    --text-h3--line-height: 1.20;
+    --text-body: 1.0625rem;
+    --text-body--line-height: 1.65;
+    --text-klein: 0.9375rem;
+    --text-klein--line-height: 1.55;
+    --text-mikro: 0.8125rem;
+    --text-mikro--line-height: 1.50;
+    --text-label: 0.6875rem;
+    --text-label--line-height: 1.20;
+    --text-label--letter-spacing: 0.18em;
+    --spacing-sektion-s: 2.5rem;
+    --spacing-sektion-m: 3rem;
+    --spacing-sektion-l: 4.5rem;
+    --spacing-sektion-xl: 6rem;
+    --radius-card: 1.25rem;
+    --radius-pille: 9999px;
+    --radius-band: 0.3125rem;
+  }
+}
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  html, :host {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--default-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-feature-settings: var(--default-font-feature-settings, normal);
+    font-variation-settings: var(--default-font-variation-settings, normal);
+    -webkit-tap-highlight-color: transparent;
+  }
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+  abbr:where([title]) {
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  a {
+    color: inherit;
+    -webkit-text-decoration: inherit;
+    text-decoration: inherit;
+  }
+  b, strong {
+    font-weight: bolder;
+  }
+  code, kbd, samp, pre {
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-feature-settings: var(--default-mono-font-feature-settings, normal);
+    font-variation-settings: var(--default-mono-font-variation-settings, normal);
+    font-size: 1em;
+  }
+  small {
+    font-size: 80%;
+  }
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  sub {
+    bottom: -0.25em;
+  }
+  sup {
+    top: -0.5em;
+  }
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+  :-moz-focusring:where(:not(iframe)) {
+    outline: auto;
+  }
+  progress {
+    vertical-align: baseline;
+  }
+  summary {
+    display: list-item;
+  }
+  ol, ul, menu {
+    list-style: none;
+  }
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(select:is([multiple], [size])) optgroup {
+    font-weight: bolder;
+  }
+  :where(select:is([multiple], [size])) optgroup option {
+    padding-inline-start: 20px;
+  }
+  ::file-selector-button {
+    margin-inline-end: 4px;
+  }
+  ::placeholder {
+    opacity: 1;
+  }
+  @supports (not (-webkit-appearance: -apple-pay-button))  or (contain-intrinsic-size: 1px) {
+    ::placeholder {
+      color: currentcolor;
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, currentcolor 50%, transparent);
+      }
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: 1lh;
+    text-align: inherit;
+  }
+  ::-webkit-datetime-edit {
+    display: inline-flex;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  ::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field {
+    padding-block: 0;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: 1;
+  }
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+    appearance: button;
+  }
+  ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
+    height: auto;
+  }
+  [hidden]:where(:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}
+@layer utilities {
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .absolute {
+    position: absolute;
+  }
+  .relative {
+    position: relative;
+  }
+  .sticky {
+    position: sticky;
+  }
+  .inset-0 {
+    inset: 0px;
+  }
+  .inset-y-0 {
+    inset-block: 0px;
+  }
+  .top-0 {
+    top: 0px;
+  }
+  .top-1\/2 {
+    top: calc(1 / 2 * 100%);
+  }
+  .right-0 {
+    right: 0px;
+  }
+  .right-3 {
+    right: calc(var(--spacing) * 3);
+  }
+  .right-5 {
+    right: calc(var(--spacing) * 5);
+  }
+  .bottom-4 {
+    bottom: calc(var(--spacing) * 4);
+  }
+  .left-0 {
+    left: 0px;
+  }
+  .left-3 {
+    left: calc(var(--spacing) * 3);
+  }
+  .z-50 {
+    z-index: 50;
+  }
+  .mx-auto {
+    margin-inline: auto;
+  }
+  .my-6 {
+    margin-block: calc(var(--spacing) * 6);
+  }
+  .mt-0\.5 {
+    margin-top: calc(var(--spacing) * 0.5);
+  }
+  .mt-1 {
+    margin-top: var(--spacing);
+  }
+  .mt-1\.5 {
+    margin-top: calc(var(--spacing) * 1.5);
+  }
+  .mt-2 {
+    margin-top: calc(var(--spacing) * 2);
+  }
+  .mt-3 {
+    margin-top: calc(var(--spacing) * 3);
+  }
+  .mt-4 {
+    margin-top: calc(var(--spacing) * 4);
+  }
+  .mt-5 {
+    margin-top: calc(var(--spacing) * 5);
+  }
+  .mt-6 {
+    margin-top: calc(var(--spacing) * 6);
+  }
+  .mt-8 {
+    margin-top: calc(var(--spacing) * 8);
+  }
+  .mb-6 {
+    margin-bottom: calc(var(--spacing) * 6);
+  }
+  .block {
+    display: block;
+  }
+  .flex {
+    display: flex;
+  }
+  .grid {
+    display: grid;
+  }
+  .hidden {
+    display: none;
+  }
+  .aspect-\[4\/5\] {
+    aspect-ratio: 4/5;
+  }
+  .size-11 {
+    width: calc(var(--spacing) * 11);
+    height: calc(var(--spacing) * 11);
+  }
+  .size-\[22px\] {
+    width: 22px;
+    height: 22px;
+  }
+  .h-2\.5 {
+    height: calc(var(--spacing) * 2.5);
+  }
+  .h-11 {
+    height: calc(var(--spacing) * 11);
+  }
+  .h-13 {
+    height: calc(var(--spacing) * 13);
+  }
+  .h-14 {
+    height: calc(var(--spacing) * 14);
+  }
+  .h-16 {
+    height: calc(var(--spacing) * 16);
+  }
+  .h-40 {
+    height: calc(var(--spacing) * 40);
+  }
+  .h-\[54px\] {
+    height: 54px;
+  }
+  .h-\[75px\] {
+    height: 75px;
+  }
+  .h-auto {
+    height: auto;
+  }
+  .w-14 {
+    width: calc(var(--spacing) * 14);
+  }
+  .w-30 {
+    width: calc(var(--spacing) * 30);
+  }
+  .w-\[60px\] {
+    width: 60px;
+  }
+  .w-\[calc\(50\%-2px\)\] {
+    width: calc(50% - 2px);
+  }
+  .w-full {
+    width: 100%;
+  }
+  .max-w-2xl {
+    max-width: var(--container-2xl);
+  }
+  .max-w-4xl {
+    max-width: var(--container-4xl);
+  }
+  .max-w-6xl {
+    max-width: var(--container-6xl);
+  }
+  .max-w-\[42rem\] {
+    max-width: 42rem;
+  }
+  .flex-1 {
+    flex: 1;
+  }
+  .shrink-0 {
+    flex-shrink: 0;
+  }
+  .border-collapse {
+    border-collapse: collapse;
+  }
+  .-translate-y-1\/2 {
+    --tw-translate-y: calc(calc(1 / 2 * 100%) * -1);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+  }
+  .resize-none {
+    resize: none;
+  }
+  .grid-cols-7 {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .flex-wrap {
+    flex-wrap: wrap;
+  }
+  .place-items-center {
+    place-items: center;
+  }
+  .items-baseline {
+    align-items: baseline;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .items-start {
+    align-items: flex-start;
+  }
+  .justify-between {
+    justify-content: space-between;
+  }
+  .justify-center {
+    justify-content: center;
+  }
+  .gap-0\.5 {
+    gap: calc(var(--spacing) * 0.5);
+  }
+  .gap-1\.5 {
+    gap: calc(var(--spacing) * 1.5);
+  }
+  .gap-2 {
+    gap: calc(var(--spacing) * 2);
+  }
+  .gap-2\.5 {
+    gap: calc(var(--spacing) * 2.5);
+  }
+  .gap-3 {
+    gap: calc(var(--spacing) * 3);
+  }
+  .gap-4 {
+    gap: calc(var(--spacing) * 4);
+  }
+  .gap-5 {
+    gap: calc(var(--spacing) * 5);
+  }
+  .gap-8 {
+    gap: calc(var(--spacing) * 8);
+  }
+  .gap-10 {
+    gap: calc(var(--spacing) * 10);
+  }
+  .gap-x-6 {
+    column-gap: calc(var(--spacing) * 6);
+  }
+  .gap-y-2 {
+    row-gap: calc(var(--spacing) * 2);
+  }
+  .overflow-x-auto {
+    overflow-x: auto;
+  }
+  .rounded-band {
+    border-radius: var(--radius-band);
+  }
+  .rounded-card {
+    border-radius: var(--radius-card);
+  }
+  .rounded-pille {
+    border-radius: var(--radius-pille);
+  }
+  .rounded-sm {
+    border-radius: var(--radius-sm);
+  }
+  .rounded-xs {
+    border-radius: var(--radius-xs);
+  }
+  .rounded-l-band {
+    border-top-left-radius: var(--radius-band);
+    border-bottom-left-radius: var(--radius-band);
+  }
+  .rounded-r-band {
+    border-top-right-radius: var(--radius-band);
+    border-bottom-right-radius: var(--radius-band);
+  }
+  .border {
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+  }
+  .border-y {
+    border-block-style: var(--tw-border-style);
+    border-block-width: 1px;
+  }
+  .border-t {
+    border-top-style: var(--tw-border-style);
+    border-top-width: 1px;
+  }
+  .border-b {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 1px;
+  }
+  .border-linie {
+    border-color: var(--color-linie);
+  }
+  .bg-duenengras {
+    background-color: var(--color-duenengras);
+  }
+  .bg-muschel {
+    background-color: var(--color-muschel);
+  }
+  .bg-priel {
+    background-color: var(--color-priel);
+  }
+  .bg-priel-hell {
+    background-color: var(--color-priel-hell);
+  }
+  .bg-sand {
+    background-color: var(--color-sand);
+  }
+  .bg-schlick {
+    background-color: var(--color-schlick);
+  }
+  .bg-track {
+    background-color: var(--color-track);
+  }
+  .bg-track-alt {
+    background-color: var(--color-track-alt);
+  }
+  .p-4 {
+    padding: calc(var(--spacing) * 4);
+  }
+  .p-5 {
+    padding: calc(var(--spacing) * 5);
+  }
+  .px-2 {
+    padding-inline: calc(var(--spacing) * 2);
+  }
+  .px-4 {
+    padding-inline: calc(var(--spacing) * 4);
+  }
+  .px-5 {
+    padding-inline: calc(var(--spacing) * 5);
+  }
+  .px-8 {
+    padding-inline: calc(var(--spacing) * 8);
+  }
+  .py-3 {
+    padding-block: calc(var(--spacing) * 3);
+  }
+  .py-3\.5 {
+    padding-block: calc(var(--spacing) * 3.5);
+  }
+  .py-4 {
+    padding-block: calc(var(--spacing) * 4);
+  }
+  .py-sektion-m {
+    padding-block: var(--spacing-sektion-m);
+  }
+  .py-sektion-s {
+    padding-block: var(--spacing-sektion-s);
+  }
+  .pb-2 {
+    padding-bottom: calc(var(--spacing) * 2);
+  }
+  .pb-3 {
+    padding-bottom: calc(var(--spacing) * 3);
+  }
+  .text-center {
+    text-align: center;
+  }
+  .text-left {
+    text-align: left;
+  }
+  .text-right {
+    text-align: right;
+  }
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .text-h1 {
+    font-size: var(--text-h1);
+    line-height: var(--tw-leading, var(--text-h1--line-height));
+    letter-spacing: var(--tw-tracking, var(--text-h1--letter-spacing));
+  }
+  .text-h2 {
+    font-size: var(--text-h2);
+    line-height: var(--tw-leading, var(--text-h2--line-height));
+    letter-spacing: var(--tw-tracking, var(--text-h2--letter-spacing));
+  }
+  .text-label {
+    font-size: var(--text-label);
+    line-height: var(--tw-leading, var(--text-label--line-height));
+    letter-spacing: var(--tw-tracking, var(--text-label--letter-spacing));
+  }
+  .text-2xl {
+    font-size: var(--text-2xl);
+    line-height: var(--tw-leading, var(--text-2xl--line-height));
+  }
+  .text-base {
+    font-size: var(--text-base);
+    line-height: var(--tw-leading, var(--text-base--line-height));
+  }
+  .text-body {
+    font-size: var(--text-body);
+    line-height: var(--tw-leading, var(--text-body--line-height));
+  }
+  .text-h3 {
+    font-size: var(--text-h3);
+    line-height: var(--tw-leading, var(--text-h3--line-height));
+  }
+  .text-klein {
+    font-size: var(--text-klein);
+    line-height: var(--tw-leading, var(--text-klein--line-height));
+  }
+  .text-mikro {
+    font-size: var(--text-mikro);
+    line-height: var(--tw-leading, var(--text-mikro--line-height));
+  }
+  .text-sm {
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+  }
+  .text-\[9px\] {
+    font-size: 9px;
+  }
+  .text-\[10px\] {
+    font-size: 10px;
+  }
+  .text-\[11px\] {
+    font-size: 11px;
+  }
+  .text-\[15px\] {
+    font-size: 15px;
+  }
+  .text-\[22px\] {
+    font-size: 22px;
+  }
+  .text-\[23px\] {
+    font-size: 23px;
+  }
+  .text-\[34px\] {
+    font-size: 34px;
+  }
+  .leading-none {
+    --tw-leading: 1;
+    line-height: 1;
+  }
+  .font-medium {
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+  }
+  .font-normal {
+    --tw-font-weight: var(--font-weight-normal);
+    font-weight: var(--font-weight-normal);
+  }
+  .font-semibold {
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+  }
+  .tracking-\[0\.2em\] {
+    --tw-tracking: 0.2em;
+    letter-spacing: 0.2em;
+  }
+  .tracking-wider {
+    --tw-tracking: var(--tracking-wider);
+    letter-spacing: var(--tracking-wider);
+  }
+  .whitespace-nowrap {
+    white-space: nowrap;
+  }
+  .text-duenengras {
+    color: var(--color-duenengras);
+  }
+  .text-muschel {
+    color: var(--color-muschel);
+  }
+  .text-priel {
+    color: var(--color-priel);
+  }
+  .text-priel-hell {
+    color: var(--color-priel-hell);
+  }
+  .text-priel-tief {
+    color: var(--color-priel-tief);
+  }
+  .text-schlick {
+    color: var(--color-schlick);
+  }
+  .text-schlick-2 {
+    color: var(--color-schlick-2);
+  }
+  .text-schlick-3 {
+    color: var(--color-schlick-3);
+  }
+  .uppercase {
+    text-transform: uppercase;
+  }
+  .not-italic {
+    font-style: normal;
+  }
+  .tabular-nums {
+    --tw-numeric-spacing: tabular-nums;
+    font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,) var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+  }
+  .no-underline {
+    text-decoration-line: none;
+  }
+  .accent-priel {
+    accent-color: var(--color-priel);
+  }
+  .ring-2 {
+    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .ring-priel {
+    --tw-ring-color: var(--color-priel);
+  }
+  .placeholder\:text-schlick-3::placeholder {
+    color: var(--color-schlick-3);
+  }
+  @media (hover: hover) {
+    .hover\:bg-priel-tief:hover {
+      background-color: var(--color-priel-tief);
+    }
+    .hover\:text-priel:hover {
+      color: var(--color-priel);
+    }
+  }
+  @media (width >= 40rem) {
+    .sm\:w-auto {
+      width: auto;
+    }
+    .sm\:grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .sm\:flex-row {
+      flex-direction: row;
+    }
+    .sm\:items-center {
+      align-items: center;
+    }
+    .sm\:gap-x-8 {
+      column-gap: calc(var(--spacing) * 8);
+    }
+    .sm\:gap-x-10 {
+      column-gap: calc(var(--spacing) * 10);
+    }
+    .sm\:p-7 {
+      padding: calc(var(--spacing) * 7);
+    }
+  }
+  @media (width >= 48rem) {
+    .md\:block {
+      display: block;
+    }
+    .md\:flex {
+      display: flex;
+    }
+    .md\:hidden {
+      display: none;
+    }
+    .md\:inline {
+      display: inline;
+    }
+    .md\:table-cell {
+      display: table-cell;
+    }
+    .md\:table-header-group {
+      display: table-header-group;
+    }
+    .md\:table-row {
+      display: table-row;
+    }
+    .md\:aspect-\[3\/2\] {
+      aspect-ratio: 3/2;
+    }
+    .md\:grid-cols-\[1\.15fr_1fr\] {
+      grid-template-columns: 1.15fr 1fr;
+    }
+    .md\:gap-14 {
+      gap: calc(var(--spacing) * 14);
+    }
+    .md\:border-t {
+      border-top-style: var(--tw-border-style);
+      border-top-width: 1px;
+    }
+    .md\:border-linie {
+      border-color: var(--color-linie);
+    }
+    .md\:py-0 {
+      padding-block: 0px;
+    }
+    .md\:py-4 {
+      padding-block: calc(var(--spacing) * 4);
+    }
+    .md\:py-sektion-l {
+      padding-block: var(--spacing-sektion-l);
+    }
+    .md\:py-sektion-xl {
+      padding-block: var(--spacing-sektion-xl);
+    }
+    .md\:align-baseline {
+      vertical-align: baseline;
+    }
+    .md\:text-display {
+      font-size: var(--text-display);
+      line-height: var(--tw-leading, var(--text-display--line-height));
+      letter-spacing: var(--tw-tracking, var(--text-display--letter-spacing));
+    }
+    .md\:text-body {
+      font-size: var(--text-body);
+      line-height: var(--tw-leading, var(--text-body--line-height));
+    }
+  }
+}
+:root {
+  --heuler-sand: oklch(0.962 0.012 82);
+  --heuler-muschel: oklch(0.990 0.005 85);
+  --heuler-linie: oklch(0.885 0.014 82);
+  --heuler-track: oklch(0.925 0.012 82);
+  --heuler-track-alt: oklch(0.945 0.008 82);
+  --heuler-schlick: oklch(0.270 0.018 70);
+  --heuler-schlick-2: oklch(0.500 0.016 70);
+  --heuler-schlick-3: oklch(0.550 0.014 82);
+  --heuler-priel: oklch(0.470 0.072 207);
+  --heuler-priel-tief: oklch(0.360 0.060 210);
+  --heuler-priel-hell: oklch(0.905 0.028 200);
+  --heuler-duenengras: oklch(0.755 0.105 82);
+  --heuler-fehler: oklch(0.520 0.150 28);
+}
+@layer base {
+  body {
+    background-color: var(--heuler-sand);
+    color: var(--heuler-schlick);
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-wrap: pretty;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    text-wrap: balance;
+  }
+  time, .tabellenzahl {
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--heuler-priel);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+.foto {
+  background-color: var(--heuler-track);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--heuler-schlick-3);
+}
+@property --tw-translate-x {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-translate-y {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-translate-z {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ordinal {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-slashed-zero {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-figure {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-spacing {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-fraction {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-inset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-ring-inset {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-offset-width {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --tw-ring-offset-color {
+  syntax: "*";
+  inherits: false;
+  initial-value: #fff;
+}
+@property --tw-ring-offset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-translate-x: 0;
+      --tw-translate-y: 0;
+      --tw-translate-z: 0;
+      --tw-border-style: solid;
+      --tw-leading: initial;
+      --tw-font-weight: initial;
+      --tw-tracking: initial;
+      --tw-ordinal: initial;
+      --tw-slashed-zero: initial;
+      --tw-numeric-figure: initial;
+      --tw-numeric-spacing: initial;
+      --tw-numeric-fraction: initial;
+      --tw-shadow: 0 0 #0000;
+      --tw-shadow-color: initial;
+      --tw-shadow-alpha: 100%;
+      --tw-inset-shadow: 0 0 #0000;
+      --tw-inset-shadow-color: initial;
+      --tw-inset-shadow-alpha: 100%;
+      --tw-ring-color: initial;
+      --tw-ring-shadow: 0 0 #0000;
+      --tw-inset-ring-color: initial;
+      --tw-inset-ring-shadow: 0 0 #0000;
+      --tw-ring-inset: initial;
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-color: #fff;
+      --tw-ring-offset-shadow: 0 0 #0000;
+    }
+  }
+}
+
+</style>
+</head>
+<body>
+
+<header class="sticky top-0 z-50 border-b border-linie bg-muschel">
+  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
+    <a href="#" class="flex flex-col gap-0.5 no-underline">
+      <span class="font-display text-[23px] leading-none text-schlick">Heuler</span>
+      <span class="text-[9px] font-semibold uppercase tracking-[0.2em] text-schlick-2">Ferienwohnung · Norddeich</span>
+    </a>
+    <nav aria-label="Hauptnavigation" class="hidden items-center gap-8 md:flex">
+      <a href="#" class="text-klein text-schlick no-underline hover:text-priel">Start</a>
+      <a href="#" class="text-klein text-schlick no-underline hover:text-priel">Ausstattung</a>
+      <a href="#" class="text-klein text-schlick no-underline hover:text-priel">Lage</a>
+      <a href="#" class="text-klein text-schlick no-underline hover:text-priel">Kontakt</a>
+    </nav>
+    <div class="flex items-center gap-2">
+      <button type="button" aria-label="Menü öffnen" class="grid size-11 place-items-center md:hidden">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <a href="#anfrage" class="flex h-11 items-center rounded-pille bg-priel px-5 text-sm font-semibold text-muschel no-underline hover:bg-priel-tief">Anfragen</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section aria-label="Bildergalerie">
+    <div class="relative aspect-[4/5] w-full md:aspect-[3/2]">
+      <div class="foto absolute inset-0 bg-priel-hell text-priel-tief">Foto · Hochformat 4:5<br>Wohn- und Essbereich</div>
+      <button type="button" aria-label="Vorheriges Bild" class="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-pille bg-muschel text-priel-tief"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></button>
+      <button type="button" aria-label="Nächstes Bild" class="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-pille bg-muschel text-priel-tief"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+      <p class="absolute bottom-4 right-5 text-[11px] font-semibold tracking-wider text-priel-tief">1 / 13</p>
+    </div>
+    <div class="flex gap-2 overflow-x-auto border-b border-linie bg-muschel px-5 py-3">
+      <button type="button" aria-label="Bild 1: Wohnen" class="h-[75px] w-[60px] shrink-0 rounded-xs bg-track ring-2 ring-priel"></button>
+      <button type="button" aria-label="Bild 2: Küche" class="h-[75px] w-[60px] shrink-0 rounded-xs bg-track"></button>
+      <button type="button" aria-label="Bild 3: Schlafen I" class="h-[75px] w-[60px] shrink-0 rounded-xs bg-track"></button>
+      <button type="button" aria-label="Bild 4: Schlafen II" class="h-[75px] w-[60px] shrink-0 rounded-xs bg-track"></button>
+      <button type="button" aria-label="Bild 5: Bad" class="h-[75px] w-[60px] shrink-0 rounded-xs bg-track"></button>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-2xl px-5 py-sektion-m md:py-sektion-l">
+    <p class="text-label font-semibold uppercase text-priel">Norddeich · Ostfriesland</p>
+    <h1 class="mt-4 text-h1 text-schlick md:text-display">Willkommen in der Ferienwohnung Heuler</h1>
+    <p class="mt-4 text-body text-schlick-2">Zwei Schlafzimmer, Küche, Bad und Diele — privat vermietet, ohne Agentur. Sie fragen unverbindlich an, ich melde mich persönlich zurück.</p>
+    <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <a href="#anfrage" class="flex h-14 items-center justify-center rounded-pille bg-priel px-8 text-base font-semibold text-muschel no-underline hover:bg-priel-tief">Zeitraum anfragen</a>
+      <a href="#preise" class="flex h-11 items-center justify-center px-2 text-klein font-medium text-priel no-underline">Preise &amp; Nebenkosten ansehen</a>
+    </div>
+  </section>
+
+  <section id="anfrage" class="border-y border-linie bg-muschel px-5 py-sektion-m md:py-sektion-xl">
+    <div class="mx-auto max-w-6xl">
+      <p class="text-label font-semibold uppercase text-priel">Verfügbarkeit</p>
+      <h2 class="mt-3 text-h2 text-schlick">Ist Ihr Termin frei?</h2>
+
+      <div class="mt-8 grid gap-10 md:grid-cols-[1.15fr_1fr] md:gap-14">
+        <section aria-label="Belegungskalender" class="rounded-card border border-linie bg-muschel p-5 sm:p-7">
+          <div class="mb-6 flex items-center justify-between">
+            <button type="button" aria-label="Vorheriger Monat" class="grid size-11 place-items-center rounded-pille border border-linie text-priel-tief"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></button>
+            <div class="flex gap-10">
+              <span class="font-display text-h3">September 2026</span>
+              <span class="hidden font-display text-h3 md:inline">Oktober 2026</span>
+            </div>
+            <button type="button" aria-label="Nächster Monat" class="grid size-11 place-items-center rounded-pille border border-linie text-priel-tief"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+          <div class="flex gap-10">
+            <div class="flex-1"><div class="grid grid-cols-7"><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Mo</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Di</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Mi</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Do</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Fr</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Sa</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">So</span><div aria-hidden="true" class="h-[54px]"></div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="1. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">1</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="2. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">2</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="3. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">3</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="4. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">4</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="5. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">5</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="6. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">6</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="7. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">7</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="8. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">8</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="9. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">9</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="10. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">10</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="11. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">11</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="12. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">12</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="13. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">13</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="14. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">14</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="15. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">15</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="16. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">16</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="17. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">17</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="18. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">18</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="19. — vergangen" class="text-[15px] tabular-nums font-normal text-schlick-3">19</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track-alt"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="20. — frei" class="text-[15px] tabular-nums font-semibold text-priel-tief">20</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="21. — frei" class="text-[15px] tabular-nums font-normal text-schlick">21</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="22. — Anreisetag, bis 10 Uhr noch frei" class="text-[15px] tabular-nums font-normal text-schlick">22</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-y-0 right-0 w-[calc(50%-2px)] rounded-r-band bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="23. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">23</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="24. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">24</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="25. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">25</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="26. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">26</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="27. — Wechseltag, Abreise bis 10 Uhr, Anreise ab 14 Uhr" class="text-[15px] tabular-nums font-normal text-schlick">27</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-y-0 left-0 w-[calc(50%-2px)] rounded-l-band bg-priel"></span><span class="absolute inset-y-0 right-0 w-[calc(50%-2px)] rounded-r-band bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="28. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">28</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="29. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">29</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="30. — Abreisetag, ab 14 Uhr wieder frei" class="text-[15px] tabular-nums font-normal text-schlick">30</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-y-0 left-0 w-[calc(50%-2px)] rounded-l-band bg-priel"></span></div>
+</div><div aria-hidden="true" class="h-[54px]"></div><div aria-hidden="true" class="h-[54px]"></div><div aria-hidden="true" class="h-[54px]"></div><div aria-hidden="true" class="h-[54px]"></div></div></div>
+            <div class="hidden flex-1 md:block"><div class="grid grid-cols-7"><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Mo</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Di</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Mi</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Do</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Fr</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">Sa</span><span class="pb-2 text-center text-label font-semibold uppercase text-schlick-2">So</span><div aria-hidden="true" class="h-[54px]"></div><div aria-hidden="true" class="h-[54px]"></div><div aria-hidden="true" class="h-[54px]"></div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="1. — frei" class="text-[15px] tabular-nums font-normal text-schlick">1</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="2. — frei" class="text-[15px] tabular-nums font-normal text-schlick">2</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="3. — Anreisetag, bis 10 Uhr noch frei" class="text-[15px] tabular-nums font-normal text-schlick">3</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-y-0 right-0 w-[calc(50%-2px)] rounded-r-band bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="4. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">4</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="5. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">5</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="6. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">6</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="7. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">7</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="8. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">8</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="9. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">9</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="10. — Abreisetag, ab 14 Uhr wieder frei" class="text-[15px] tabular-nums font-normal text-schlick">10</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-y-0 left-0 w-[calc(50%-2px)] rounded-l-band bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="11. — frei" class="text-[15px] tabular-nums font-normal text-schlick">11</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="12. — frei" class="text-[15px] tabular-nums font-normal text-schlick">12</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="13. — frei" class="text-[15px] tabular-nums font-normal text-schlick">13</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="14. — frei" class="text-[15px] tabular-nums font-normal text-schlick">14</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="15. — frei" class="text-[15px] tabular-nums font-normal text-schlick">15</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="16. — frei" class="text-[15px] tabular-nums font-normal text-schlick">16</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="17. — Anreisetag, bis 10 Uhr noch frei" class="text-[15px] tabular-nums font-normal text-schlick">17</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-y-0 right-0 w-[calc(50%-2px)] rounded-r-band bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="18. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">18</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="19. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">19</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="20. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">20</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="21. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">21</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="22. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">22</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="23. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">23</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="24. — Wechseltag, Abreise bis 10 Uhr, Anreise ab 14 Uhr" class="text-[15px] tabular-nums font-normal text-schlick">24</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-y-0 left-0 w-[calc(50%-2px)] rounded-l-band bg-priel"></span><span class="absolute inset-y-0 right-0 w-[calc(50%-2px)] rounded-r-band bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="25. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">25</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="26. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">26</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="27. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">27</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="28. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">28</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="29. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">29</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="30. — belegt" class="text-[15px] tabular-nums font-normal text-schlick">30</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-0 bg-priel"></span></div>
+</div><div class="flex h-[54px] flex-col items-center justify-center gap-2">
+  <span aria-label="31. — Abreisetag, ab 14 Uhr wieder frei" class="text-[15px] tabular-nums font-normal text-schlick">31</span>
+  <div class="relative h-2.5 w-full rounded-band bg-track"><span class="absolute inset-y-0 left-0 w-[calc(50%-2px)] rounded-l-band bg-priel"></span></div>
+</div><div aria-hidden="true" class="h-[54px]"></div></div></div>
+          </div>
+          <hr class="my-6 border-linie">
+          <div class="flex flex-col gap-4">
+            <p class="max-w-[42rem] text-klein text-priel-tief">Das Band zeigt den belegten Zeitraum. Es beginnt am Anreisetag mittags und endet am Abreisetag mittags — die offene Tageshälfte bleibt buchbar.</p>
+            <ul class="grid gap-3 sm:grid-cols-2 sm:gap-x-10">
+              <li class="flex items-center gap-3"><span class="h-2.5 w-14 shrink-0 rounded-band bg-track"></span><span class="text-mikro">frei — An- und Abreise möglich</span></li>
+              <li class="flex items-center gap-3"><span class="h-2.5 w-14 shrink-0 rounded-band bg-priel"></span><span class="text-mikro">belegt oder gesperrt</span></li>
+              <li class="flex items-center gap-3"><span class="relative h-2.5 w-14 shrink-0 rounded-band bg-track"><span class="absolute inset-y-0 left-0 w-[calc(50%-2px)] rounded-l-band bg-priel"></span></span><span class="text-mikro">Wechseltag — Abreise bis 10 Uhr, Anreise ab 14 Uhr</span></li>
+              <li class="flex items-center gap-3"><span class="h-2.5 w-14 shrink-0 rounded-band bg-track-alt"></span><span class="text-mikro text-schlick-2">vergangen</span></li>
+            </ul>
+          </div>
+        </section>
+
+        <form class="flex flex-col gap-5">
+          <h3 class="font-display text-h3 text-schlick">Unverbindlich anfragen</h3>
+          <div class="flex flex-col gap-1.5"><label for="zeitraum" class="text-mikro font-medium text-schlick-2">Zeitraum</label><input id="zeitraum" type="text" readonly value="12.09.2026 – 19.09.2026" class="h-13 w-full rounded-sm border border-linie bg-sand px-4 text-base text-schlick placeholder:text-schlick-3"></div>
+          <div class="flex flex-col gap-1.5"><label for="name" class="text-mikro font-medium text-schlick-2">Name</label><input id="name" type="text" placeholder="Vor- und Nachname" class="h-13 w-full rounded-sm border border-linie bg-sand px-4 text-base text-schlick placeholder:text-schlick-3"></div>
+          <div class="flex flex-col gap-1.5"><label for="mail" class="text-mikro font-medium text-schlick-2">E-Mail</label><input id="mail" type="email" placeholder="name@beispiel.de" class="h-13 w-full rounded-sm border border-linie bg-sand px-4 text-base text-schlick placeholder:text-schlick-3"></div>
+          <div class="flex flex-col gap-1.5"><label for="tel" class="text-mikro font-medium text-schlick-2">Telefon <span class="text-schlick-3">— optional</span></label><input id="tel" type="tel" class="h-13 w-full rounded-sm border border-linie bg-sand px-4 text-base text-schlick placeholder:text-schlick-3"></div>
+          <div class="flex flex-col gap-1.5"><label for="nachricht" class="text-mikro font-medium text-schlick-2">Nachricht <span class="text-schlick-3">— optional</span></label><textarea id="nachricht" rows="4" placeholder="Anzahl Personen, Fragen zur Wohnung …" class="h-13 w-full rounded-sm border border-linie bg-sand px-4 text-base text-schlick placeholder:text-schlick-3 h-auto resize-none py-3.5"></textarea></div>
+          <div class="flex items-start gap-3">
+            <input id="dsgvo" type="checkbox" class="mt-0.5 size-[22px] shrink-0 accent-priel">
+            <label for="dsgvo" class="text-mikro text-schlick-2">Ich habe die <a href="#" class="text-priel">Datenschutzerklärung</a> gelesen und bin mit der Verarbeitung meiner Angaben zur Bearbeitung der Anfrage einverstanden.</label>
+          </div>
+          <button type="button" class="h-14 rounded-pille bg-priel text-base font-semibold text-muschel hover:bg-priel-tief">Anfrage senden</button>
+          <p class="text-center text-mikro text-schlick-2">Unverbindlich — keine Onlinebuchung, keine Zahlung. Sie erhalten eine persönliche Antwort, in der Regel innerhalb von [X] Stunden.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-4xl px-5 py-sektion-m md:py-sektion-l">
+    <h2 class="text-h2 text-schlick">An- und Abreise</h2>
+    <div class="mt-5 grid gap-3 sm:grid-cols-2">
+      <div class="rounded-card border border-linie bg-muschel p-5"><p class="text-label font-semibold uppercase text-schlick-2">Anreise</p><p class="mt-1.5 font-display text-[34px] leading-none text-schlick">ab 14 Uhr</p></div>
+      <div class="rounded-card border border-linie bg-muschel p-5"><p class="text-label font-semibold uppercase text-schlick-2">Abreise</p><p class="mt-1.5 font-display text-[34px] leading-none text-schlick">bis 10 Uhr</p></div>
+    </div>
+    <p class="mt-5 text-klein text-schlick-2">Schlüsselübergabe persönlich. Spätere Anreise nach Absprache — schreiben Sie es einfach in die Anfrage.</p>
+  </section>
+
+  <section id="preise" class="border-y border-linie bg-muschel px-5 py-sektion-m md:py-sektion-xl">
+    <div class="mx-auto max-w-4xl">
+      <h2 class="text-h2 text-schlick">Preise</h2>
+      <p class="mt-2 text-klein text-schlick-2">pro Nacht, bis [ANZAHL] Personen · Mindestaufenthalt [X] Nächte</p>
+      <table class="mt-6 w-full border-collapse">
+        <caption class="sr-only">Übernachtungspreise nach Saison</caption>
+        <thead class="hidden md:table-header-group">
+          <tr>
+            <th class="pb-3 text-left text-label font-semibold uppercase text-schlick-2">Saison</th>
+            <th class="pb-3 text-left text-label font-semibold uppercase text-schlick-2">Zeitraum</th>
+            <th class="pb-3 text-right text-label font-semibold uppercase text-schlick-2">pro Nacht</th>
+          </tr>
+        </thead>
+        <tbody><tr class="flex items-baseline justify-between gap-4 border-t border-linie py-4 md:table-row md:py-0">
+  <th scope="row" class="text-left text-klein font-medium text-schlick md:border-t md:border-linie md:py-4 md:align-baseline md:text-body">Hauptsaison
+    <span class="mt-1 block text-mikro font-normal text-schlick-2 md:hidden">01.07. – 31.08.</span>
+  </th>
+  <td class="hidden text-klein text-schlick-2 md:table-cell md:border-t md:border-linie md:py-4 md:align-baseline">01.07. – 31.08.</td>
+  <td class="text-right md:border-t md:border-linie md:py-4 md:align-baseline">
+    <span class="whitespace-nowrap font-display text-2xl tabular-nums text-schlick">[XX] €</span>
+    <span class="mt-0.5 block text-[10px] text-schlick-2 md:hidden">pro Nacht</span>
+  </td>
+</tr><tr class="flex items-baseline justify-between gap-4 border-t border-linie py-4 md:table-row md:py-0">
+  <th scope="row" class="text-left text-klein font-medium text-schlick md:border-t md:border-linie md:py-4 md:align-baseline md:text-body">Sommer-Zwischensaison
+    <span class="mt-1 block text-mikro font-normal text-schlick-2 md:hidden">01.06. – 30.06. · 01.09. – 30.09.</span>
+  </th>
+  <td class="hidden text-klein text-schlick-2 md:table-cell md:border-t md:border-linie md:py-4 md:align-baseline">01.06. – 30.06. · 01.09. – 30.09.</td>
+  <td class="text-right md:border-t md:border-linie md:py-4 md:align-baseline">
+    <span class="whitespace-nowrap font-display text-2xl tabular-nums text-schlick">[XX] €</span>
+    <span class="mt-0.5 block text-[10px] text-schlick-2 md:hidden">pro Nacht</span>
+  </td>
+</tr><tr class="flex items-baseline justify-between gap-4 border-t border-linie py-4 md:table-row md:py-0">
+  <th scope="row" class="text-left text-klein font-medium text-schlick md:border-t md:border-linie md:py-4 md:align-baseline md:text-body">Ostern &amp; Pfingsten
+    <span class="mt-1 block text-mikro font-normal text-schlick-2 md:hidden">Feiertagszeiträume</span>
+  </th>
+  <td class="hidden text-klein text-schlick-2 md:table-cell md:border-t md:border-linie md:py-4 md:align-baseline">Feiertagszeiträume</td>
+  <td class="text-right md:border-t md:border-linie md:py-4 md:align-baseline">
+    <span class="whitespace-nowrap font-display text-2xl tabular-nums text-schlick">[XX] €</span>
+    <span class="mt-0.5 block text-[10px] text-schlick-2 md:hidden">pro Nacht</span>
+  </td>
+</tr><tr class="flex items-baseline justify-between gap-4 border-t border-linie py-4 md:table-row md:py-0">
+  <th scope="row" class="text-left text-klein font-medium text-schlick md:border-t md:border-linie md:py-4 md:align-baseline md:text-body">Nebensaison
+    <span class="mt-1 block text-mikro font-normal text-schlick-2 md:hidden">01.04. – 31.05. · 01.10. – 31.10.</span>
+  </th>
+  <td class="hidden text-klein text-schlick-2 md:table-cell md:border-t md:border-linie md:py-4 md:align-baseline">01.04. – 31.05. · 01.10. – 31.10.</td>
+  <td class="text-right md:border-t md:border-linie md:py-4 md:align-baseline">
+    <span class="whitespace-nowrap font-display text-2xl tabular-nums text-schlick">[XX] €</span>
+    <span class="mt-0.5 block text-[10px] text-schlick-2 md:hidden">pro Nacht</span>
+  </td>
+</tr><tr class="flex items-baseline justify-between gap-4 border-t border-linie py-4 md:table-row md:py-0">
+  <th scope="row" class="text-left text-klein font-medium text-schlick md:border-t md:border-linie md:py-4 md:align-baseline md:text-body">Winter
+    <span class="mt-1 block text-mikro font-normal text-schlick-2 md:hidden">01.11. – 20.12. · 06.01. – 31.03.</span>
+  </th>
+  <td class="hidden text-klein text-schlick-2 md:table-cell md:border-t md:border-linie md:py-4 md:align-baseline">01.11. – 20.12. · 06.01. – 31.03.</td>
+  <td class="text-right md:border-t md:border-linie md:py-4 md:align-baseline">
+    <span class="whitespace-nowrap font-display text-2xl tabular-nums text-schlick">[XX] €</span>
+    <span class="mt-0.5 block text-[10px] text-schlick-2 md:hidden">pro Nacht</span>
+  </td>
+</tr><tr class="flex items-baseline justify-between gap-4 border-t border-linie py-4 md:table-row md:py-0">
+  <th scope="row" class="text-left text-klein font-medium text-schlick md:border-t md:border-linie md:py-4 md:align-baseline md:text-body">Weihnachten &amp; Silvester
+    <span class="mt-1 block text-mikro font-normal text-schlick-2 md:hidden">21.12. – 05.01.</span>
+  </th>
+  <td class="hidden text-klein text-schlick-2 md:table-cell md:border-t md:border-linie md:py-4 md:align-baseline">21.12. – 05.01.</td>
+  <td class="text-right md:border-t md:border-linie md:py-4 md:align-baseline">
+    <span class="whitespace-nowrap font-display text-2xl tabular-nums text-schlick">[XX] €</span>
+    <span class="mt-0.5 block text-[10px] text-schlick-2 md:hidden">pro Nacht</span>
+  </td>
+</tr></tbody>
+      </table>
+      <div class="mt-6 rounded-card bg-priel-hell p-5">
+        <p class="text-label font-semibold uppercase text-priel-tief">Einmalig dazu</p>
+        <dl class="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-x-8"><div class="flex justify-between gap-4 text-klein text-schlick"><dt>Endreinigung</dt><dd class="font-medium">[XX] €</dd></div><div class="flex justify-between gap-4 text-klein text-schlick"><dt>Bettwäsche &amp; Handtücher</dt><dd class="font-medium">[XX] € p. P.</dd></div><div class="flex justify-between gap-4 text-klein text-schlick"><dt>Strom, Wasser, Heizung</dt><dd class="font-medium">inklusive</dd></div><div class="flex justify-between gap-4 text-klein text-schlick"><dt>Kurtaxe Norddeich</dt><dd class="font-medium">nach Satzung</dd></div></dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-priel-hell px-5 py-sektion-m md:py-sektion-l">
+    <div class="mx-auto max-w-4xl">
+      <h2 class="text-h2 text-schlick">Die Kurkarte</h2>
+      <p class="mt-4 text-body text-priel-tief">Mit der Kurtaxe erhalten Sie die Kurkarte für Norddeich. Sie bekommen sie bei der Anreise von mir.</p>
+      <ul class="mt-5 flex flex-col gap-3">
+        <li class="flex items-start gap-3"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-priel-tief" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="text-body text-schlick">Freier Zugang zu den Stränden</span></li>
+        <li class="flex items-start gap-3"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-priel-tief" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="text-body text-schlick">Ermäßigungen bei [EINRICHTUNG]</span></li>
+        <li class="flex items-start gap-3"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-priel-tief" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="text-body text-schlick">[WEITERER VORTEIL]</span></li>
+      </ul>
+      <div class="mt-6 rounded-card bg-muschel p-5">
+        <p class="text-label font-semibold uppercase text-schlick-2">Zuständig</p>
+        <p class="mt-2 text-body font-medium text-schlick">[BEHÖRDE / KURVERWALTUNG]</p>
+        <p class="mt-1 text-klein text-schlick-2">[STRASSE], 26506 Norden-Norddeich<br>[TELEFON]</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-4xl px-5 py-sektion-m md:py-sektion-l">
+    <div class="grid gap-4 sm:grid-cols-2">
+      <a href="#" class="flex items-center gap-4 rounded-card border border-linie bg-muschel p-4 no-underline">
+        <span class="foto h-40 w-30 shrink-0 rounded-sm">Hochformat<br>3:4</span>
+        <span class="flex flex-col gap-2">
+          <span class="font-display text-2xl text-schlick">Ausstattung</span>
+          <span class="text-mikro text-schlick-2">Was da ist, und was nicht — ehrlich aufgelistet.</span>
+          <span class="text-mikro font-semibold text-priel">Ansehen</span>
+        </span>
+      </a>
+      <a href="#" class="flex items-center gap-4 rounded-card border border-linie bg-muschel p-4 no-underline">
+        <span class="foto h-40 w-30 shrink-0 rounded-sm">Hochformat<br>3:4</span>
+        <span class="flex flex-col gap-2">
+          <span class="font-display text-2xl text-schlick">Lage</span>
+          <span class="text-mikro text-schlick-2">Entfernungen zu Strand, Deich, Hafen und Einkauf.</span>
+          <span class="text-mikro font-semibold text-priel">Ansehen</span>
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <section class="bg-schlick px-5 py-sektion-m md:py-sektion-l">
+    <div class="mx-auto flex max-w-2xl flex-col items-start">
+      <p class="text-label font-semibold uppercase text-duenengras">Ihre Vermieterin</p>
+      <h2 class="mt-4 text-h2 text-muschel">[VORNAME NACHNAME]</h2>
+      <p class="mt-4 text-body text-priel-hell">Die Wohnung gehört mir, ich vermiete sie selbst. Keine Agentur, keine Provision, keine automatische Bestätigung — jede Anfrage beantworte ich persönlich.</p>
+      <a href="#" class="mt-8 flex h-13 w-full items-center justify-center rounded-pille bg-duenengras px-8 text-base font-semibold text-schlick no-underline sm:w-auto">Kontakt aufnehmen</a>
+    </div>
+  </section>
+</main>
+
+<footer class="border-t border-linie px-5 py-sektion-s">
+  <div class="mx-auto flex max-w-4xl flex-col gap-5">
+    <div class="flex flex-col gap-0.5">
+      <span class="font-display text-[22px] leading-none text-schlick">Heuler</span>
+      <span class="text-[9px] font-semibold uppercase tracking-[0.2em] text-schlick-2">Ferienwohnung · Norddeich</span>
+    </div>
+    <address class="not-italic text-klein text-schlick-2">[STRASSE HAUSNUMMER]<br>26506 Norden-Norddeich</address>
+    <nav aria-label="Rechtliches" class="flex flex-wrap gap-x-6 gap-y-2">
+      <a href="#" class="text-klein text-priel no-underline">Kontakt</a>
+      <a href="#" class="text-klein text-priel no-underline">Impressum</a>
+      <a href="#" class="text-klein text-priel no-underline">Datenschutz</a>
+    </nav>
+    <p class="text-mikro text-schlick-3">Keine Cookies, kein Tracking, keine externen Dienste.</p>
+  </div>
+</footer>
+
+</body>
+</html>
