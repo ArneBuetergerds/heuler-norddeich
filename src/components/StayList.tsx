@@ -12,8 +12,11 @@ import { useOpenStayDetail } from "./StayDetailProvider";
 /**
  * Die Detailansicht gehört nicht der Liste, sondern dem umgebenden
  * `StayDetailProvider` – den öffnet auch der Belegungskalender.
+ *
+ * `stays` sind die Aufenthalte des angezeigten Monats, `monthLabel` sein Name
+ * („Oktober 2026“) für den Hinweis, wenn der Monat leer ist.
  */
-export function StayList({ stays }: { stays: Stay[] }) {
+export function StayList({ stays, monthLabel }: { stays: Stay[]; monthLabel: string }) {
   const router = useRouter();
   const openDetail = useOpenStayDetail();
   const [pending, setPending] = useState(false);
@@ -44,7 +47,7 @@ export function StayList({ stays }: { stays: Stay[] }) {
   if (stays.length === 0) {
     return (
       <div className="rounded-xl border border-dashed bg-card p-5 text-center text-[13px] text-schlick-3">
-        Keine bestätigten Aufenthalte.
+        Keine bestätigten Aufenthalte im {monthLabel}.
       </div>
     );
   }

@@ -7,25 +7,51 @@ import type { Period } from "../lib/booking";
 
 type Db = typeof defaultDb;
 
+/** Spalten für `getOccupancy`/`getOccupancyInRange`, Form von `OccupancyRow`. */
+const occupancyColumns = {
+  id: blockedPeriod.id,
+  startDate: blockedPeriod.startDate,
+  endDate: blockedPeriod.endDate,
+  note: blockedPeriod.note,
+  guestName: blockedPeriod.guestName,
+  bookingRequestId: blockedPeriod.bookingRequestId,
+  requestName: bookingRequest.name,
+};
+
 /**
  * Belegte und gesperrte Zeiträume, getrennt nach Herkunft – für den
  * Admin-Kalender, der Belegungen mit Gastnamen anders darstellt als
  * Sperrzeiträume. Der Gastname stammt bei bestätigten Anfragen aus der Anfrage
  * selbst, damit er nicht doppelt gepflegt werden muss.
+ *
+ * Ungefiltert, für die Sperrzeiträume-Seite (Liste aller Sperrzeiträume,
+ * Datumswahl über alle Monate). Die Belegungsübersicht lädt monatsweise mit
+ * `getOccupancyInRange`.
  */
 export async function getOccupancy(): Promise<Occupancy> {
   const rows = await defaultDb
-    .select({
-      id: blockedPeriod.id,
-      startDate: blockedPeriod.startDate,
-      endDate: blockedPeriod.endDate,
-      note: blockedPeriod.note,
-      guestName: blockedPeriod.guestName,
-      bookingRequestId: blockedPeriod.bookingRequestId,
-      requestName: bookingRequest.name,
-    })
+    .select(occupancyColumns)
     .from(blockedPeriod)
     .leftJoin(bookingRequest, eq(blockedPeriod.bookingRequestId, bookingRequest.id));
+
+  return splitOccupancy(rows);
+}
+
+/**
+ * Wie `getOccupancy`, aber nur Zeiträume, die sich mit [start, end)
+ * überschneiden (halboffen, siehe `overlapsRange`). Für den Monat der
+ * Belegungsübersicht beginnt `start` einen Tag vor dem Ersten (`monthWindow`).
+ */
+export async function getOccupancyInRange(
+  start: Date,
+  end: Date,
+  db: Db = defaultDb,
+): Promise<Occupancy> {
+  const rows = await db
+    .select(occupancyColumns)
+    .from(blockedPeriod)
+    .leftJoin(bookingRequest, eq(blockedPeriod.bookingRequestId, bookingRequest.id))
+    .where(overlapsRange(start, end));
 
   return splitOccupancy(rows);
 }

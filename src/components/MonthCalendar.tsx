@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment, useState, type ReactElement, type ReactNode } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buildCalendarGrid, WEEKDAY_LABELS } from "@/lib/calendar";
+import type { MonthLinks } from "@/lib/month";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +27,12 @@ type Props = {
    * (0), der Admin darf zurückblättern (undefined = unbegrenzt).
    */
   minMonthOffset?: number;
+  /**
+   * Monat und Blätter-Links vom Server, wenn der Monat in der Adresse steht
+   * (Admin: `?monat=`). Dann sind die Pfeile Links und `minMonthOffset` gilt
+   * nicht. Ohne: Blättern im Client, ab dem aktuellen Monat (öffentlich).
+   */
+  monthLinks?: MonthLinks;
   /**
    * Macht Tage anklickbar (öffentlicher Kalender: Zeitraum direkt wählen;
    * Admin: Aufenthalt öffnen). Ohne diesen Callback bleibt er reine Anzeige.
@@ -49,6 +57,7 @@ export function MonthCalendar({
   appearanceFor,
   legend,
   minMonthOffset,
+  monthLinks,
   onDayClick,
   isDayClickable,
   wrapDay,
@@ -58,24 +67,30 @@ export function MonthCalendar({
   // Durchgehend in UTC rechnen, damit die Tage zu den aus der DB geladenen
   // Sperrzeiträumen passen (siehe lib/calendar.ts).
   const today = new Date();
-  const view = new Date(
-    Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + monthOffset, 1),
-  );
+  const view =
+    monthLinks?.month ??
+    new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + monthOffset, 1));
   const grid = buildCalendarGrid(view.getUTCFullYear(), view.getUTCMonth());
 
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-11"
-          onClick={() => setMonthOffset((offset) => offset - 1)}
-          disabled={minMonthOffset !== undefined && monthOffset <= minMonthOffset}
-          aria-label="Vorheriger Monat"
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
+        {monthLinks ? (
+          <MonthLink href={monthLinks.previousHref} label="Vorheriger Monat">
+            <ChevronLeft className="size-4" />
+          </MonthLink>
+        ) : (
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-11"
+            onClick={() => setMonthOffset((offset) => offset - 1)}
+            disabled={minMonthOffset !== undefined && monthOffset <= minMonthOffset}
+            aria-label="Vorheriger Monat"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+        )}
         <span className="text-sm font-bold" aria-live="polite">
           {view.toLocaleDateString("de-DE", {
             month: "long",
@@ -83,16 +98,34 @@ export function MonthCalendar({
             timeZone: "UTC",
           })}
         </span>
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-11"
-          onClick={() => setMonthOffset((offset) => offset + 1)}
-          aria-label="Nächster Monat"
-        >
-          <ChevronRight className="size-4" />
-        </Button>
+        {monthLinks ? (
+          <MonthLink href={monthLinks.nextHref} label="Nächster Monat">
+            <ChevronRight className="size-4" />
+          </MonthLink>
+        ) : (
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-11"
+            onClick={() => setMonthOffset((offset) => offset + 1)}
+            aria-label="Nächster Monat"
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        )}
       </div>
+
+      {monthLinks?.currentHref && (
+        <div className="-mt-3 mb-2 flex justify-center">
+          <Link
+            href={monthLinks.currentHref}
+            scroll={false}
+            className="inline-flex min-h-11 items-center text-xs font-semibold text-schlick-2 underline underline-offset-2 hover:text-schlick"
+          >
+            Zum aktuellen Monat
+          </Link>
+        </div>
+      )}
 
       <div className="mb-1.5 grid grid-cols-7 gap-1">
         {WEEKDAY_LABELS.map((label) => (
@@ -166,6 +199,36 @@ export function MonthCalendar({
 
       <div className="mt-4 flex flex-wrap gap-4 border-t pt-4">{legend}</div>
     </div>
+  );
+}
+
+/**
+ * Pfeil als Link auf einen anderen Monat. Ohne `href` (Grenze erreicht) ein
+ * deaktivierter Knopf, damit der Kopf nicht springt.
+ */
+function MonthLink({
+  href,
+  label,
+  children,
+}: {
+  href: string | null;
+  label: string;
+  children: ReactNode;
+}) {
+  if (href === null) {
+    return (
+      <Button variant="outline" size="icon" className="size-11" disabled aria-label={label}>
+        {children}
+      </Button>
+    );
+  }
+  return (
+    <Button asChild variant="outline" size="icon" className="size-11">
+      {/* Ohne Sprung nach oben: Wer blättert, will im Kalender bleiben. */}
+      <Link href={href} scroll={false} aria-label={label}>
+        {children}
+      </Link>
+    </Button>
   );
 }
 
