@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { blockedPeriod, bookingRequest } from "@/db/schema";
 import {
   cancelStay,
-  createManualStay,
+  createInternalStay,
   createMaintenanceBlock,
   RANGE_TAKEN_ERROR,
 } from "@/db/adminQueries";
@@ -15,6 +15,10 @@ import { safeError } from "@/lib/safeError";
 import { blockedPeriodCreateSchema } from "@/lib/validation";
 import { withRouteErrors } from "@/lib/routeErrors";
 
+/**
+ * Interne Belegung (`kind: "internal"`) oder Sperrzeitraum (`kind: "block"`).
+ * Manuelle Buchungen mit Gastdaten laufen über POST /api/admin/manual-booking.
+ */
 export const POST = withRouteErrors("POST /api/admin/blocked-period", postBlockedPeriod);
 
 async function postBlockedPeriod(request: Request) {
@@ -40,11 +44,11 @@ async function postBlockedPeriod(request: Request) {
     );
   }
 
-  const { startDate, endDate, note, guestName } = parsed.data;
+  const { kind, startDate, endDate, note } = parsed.data;
 
   try {
-    if (guestName) {
-      await createManualStay(db, { guestName, startDate, endDate }, authorized.actor);
+    if (kind === "internal") {
+      await createInternalStay(db, { startDate, endDate, note }, authorized.actor);
     } else {
       await createMaintenanceBlock(db, { startDate, endDate, note }, authorized.actor);
     }
@@ -92,6 +96,9 @@ async function deleteBlockedPeriod(request: Request) {
 
   // Den Gast vor dem Storno laden: danach ist die Verknüpfung zur Anfrage
   // gelöscht und der Empfänger der Absage-Mail nicht mehr ermittelbar.
+  // Manuelle Buchungen bekommen keine automatische Mail – die Betreiberin
+  // hat sie selbst eingetragen und sagt dem Gast auch selbst ab (Hinweis im
+  // Storno-Dialog, StayList).
   const guest =
     stay.bookingRequestId === null
       ? undefined
@@ -101,7 +108,7 @@ async function deleteBlockedPeriod(request: Request) {
 
   await cancelStay(db, id, authorized.actor, reason);
 
-  if (guest) {
+  if (guest && guest.source !== "manual") {
     try {
       await sendGuestDecline(guest, reason);
     } catch (error) {

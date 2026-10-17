@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { blockedPeriodCreateSchema, bookingRequestSchema, looksLikeAddress } from "./validation";
+import {
+  blockedPeriodCreateSchema,
+  bookingRequestSchema,
+  looksLikeAddress,
+  manualBookingSchema,
+} from "./validation";
 
 const base = {
   name: "Erika Musterfrau",
@@ -215,6 +220,7 @@ describe("bookingRequestSchema", () => {
 describe("blockedPeriodCreateSchema", () => {
   it("akzeptiert einen Sperrzeitraum über genau einen Tag (Ende = letzter gesperrter Tag)", () => {
     const result = blockedPeriodCreateSchema.safeParse({
+      kind: "block",
       startDate: "2027-03-10",
       endDate: "2027-03-10",
       note: "Wartung",
@@ -225,6 +231,7 @@ describe("blockedPeriodCreateSchema", () => {
 
   it("lehnt einen Sperrzeitraum ab, der vor seinem Beginn endet", () => {
     const result = blockedPeriodCreateSchema.safeParse({
+      kind: "block",
       startDate: "2027-03-10",
       endDate: "2027-03-09",
     });
@@ -237,11 +244,12 @@ describe("blockedPeriodCreateSchema", () => {
     }
   });
 
-  it("lehnt einen Aufenthalt mit gleichem Anreise- und Abreisetag ab", () => {
+  it("lehnt eine interne Belegung mit gleichem Anreise- und Abreisetag ab", () => {
     const result = blockedPeriodCreateSchema.safeParse({
+      kind: "internal",
       startDate: "2027-03-10",
       endDate: "2027-03-10",
-      guestName: "Familie Janssen",
+      note: "Familie",
     });
 
     expect(result.success).toBe(false);
@@ -250,18 +258,33 @@ describe("blockedPeriodCreateSchema", () => {
     }
   });
 
-  it("akzeptiert einen Aufenthalt über eine Nacht", () => {
+  it("akzeptiert eine interne Belegung über eine Nacht", () => {
+    const result = blockedPeriodCreateSchema.safeParse({
+      kind: "internal",
+      startDate: "2027-03-10",
+      endDate: "2027-03-11",
+      note: "Familie",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("legt keine manuellen Aufenthalte nur mit Gastnamen mehr an (Art fehlt)", () => {
     const result = blockedPeriodCreateSchema.safeParse({
       startDate: "2027-03-10",
       endDate: "2027-03-11",
       guestName: "Familie Janssen",
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Bitte die Art des Eintrags wählen");
+    }
   });
 
   it("liefert eine lesbare Meldung bei ungültigem Datum", () => {
     const result = blockedPeriodCreateSchema.safeParse({
+      kind: "block",
       startDate: "kein-datum",
       endDate: "2027-03-11",
     });
@@ -270,6 +293,88 @@ describe("blockedPeriodCreateSchema", () => {
     if (!result.success) {
       expect(result.error.issues[0]?.message).toBe("Bitte ein gültiges Startdatum angeben");
     }
+  });
+});
+
+describe("manualBookingSchema", () => {
+  const manual = { ...base, startDate: "2027-07-10", endDate: "2027-07-12" };
+
+  it("akzeptiert eine Buchung ohne Mindestaufenthalt der Saison", () => {
+    // 01.07.–31.08. verlangt online 7 Nächte, manuell genügen zwei.
+    expect(manualBookingSchema.safeParse(manual).success).toBe(true);
+  });
+
+  it("akzeptiert eine nachträglich eingetragene Buchung in der Vergangenheit, mit Wäsche", () => {
+    const result = manualBookingSchema.safeParse({
+      ...base,
+      startDate: "2020-01-01",
+      endDate: "2020-01-03",
+      linens: 2,
+      towels: 1,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("akzeptiert eine Buchung mehr als 24 Monate im Voraus", () => {
+    const start = new Date();
+    start.setUTCFullYear(start.getUTCFullYear() + 3);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 2);
+    const result = manualBookingSchema.safeParse({
+      ...base,
+      startDate: start.toISOString().slice(0, 10),
+      endDate: end.toISOString().slice(0, 10),
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("verlangt Anreise vor Abreise", () => {
+    const result = manualBookingSchema.safeParse({ ...manual, endDate: "2027-07-10" });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Die Abreise muss nach der Anreise liegen");
+    }
+  });
+
+  it("verlangt eine E-Mail-Adresse (Spalte NOT NULL)", () => {
+    const result = manualBookingSchema.safeParse({ ...manual, email: undefined });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("übernimmt die Namensregel der Online-Anfrage", () => {
+    const result = manualBookingSchema.safeParse({ ...manual, name: "www.beispiel.com" });
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each([0, 5])("lehnt %i Personen ab", (guests) => {
+    expect(manualBookingSchema.safeParse({ ...manual, guests }).success).toBe(false);
+  });
+
+  it("lehnt mehr Wäschesätze als Personen ab", () => {
+    const result = manualBookingSchema.safeParse({ ...manual, guests: 2, towels: 3 });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]).toMatchObject({
+        path: ["towels"],
+        message: "Nicht mehr Sätze als Personen",
+      });
+    }
+  });
+
+  it("begrenzt die Nächte zum Schutz der Preisberechnung", () => {
+    const result = manualBookingSchema.safeParse({
+      ...manual,
+      startDate: "2027-07-01",
+      endDate: "2027-12-31",
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 

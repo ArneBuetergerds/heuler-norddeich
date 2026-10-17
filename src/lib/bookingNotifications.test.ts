@@ -18,6 +18,7 @@ const request: BookingRequest = {
   linens: 0,
   towels: 0,
   status: "pending",
+  source: "online",
   reasonNote: null,
   createdAt: new Date("2027-01-01"),
   decidedAt: null,

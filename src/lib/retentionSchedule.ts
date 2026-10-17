@@ -13,6 +13,17 @@ import { safeError } from "./safeError";
 export const FIRST_RUN_DELAY_MS = 60 * 1000;
 export const RUN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Liegt der letzte Lauf länger zurück, läuft die Löschung nicht wie erwartet
+ * (zwei verpasste Tage statt einem: ein Neustart verschiebt den Takt).
+ */
+export const PURGE_STALE_AFTER_MS = 2 * RUN_INTERVAL_MS;
+
+/** Ob die Admin-Seite warnen soll: kein Lauf protokolliert oder zu lange her. */
+export function purgeRunOverdue(lastRunAt: Date | null, now: Date): boolean {
+  return lastRunAt === null || now.getTime() - lastRunAt.getTime() > PURGE_STALE_AFTER_MS;
+}
+
 const STARTED = Symbol.for("heuler.retentionSchedule");
 
 /** Ein Lauf der automatischen Löschung. Wirft nie. */

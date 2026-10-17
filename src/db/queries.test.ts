@@ -146,6 +146,8 @@ function period(id: number, start: string, end: string, extra: Partial<Row> = {}
     id,
     startDate: new Date(start),
     endDate: new Date(end),
+    // Wie die Migration den Altbestand zuordnet; `extra` kann überschreiben.
+    kind: extra.bookingRequestId ? "booking" : extra.guestName ? "legacy_stay" : "block",
     note: null,
     guestName: null,
     bookingRequestId: null,
@@ -207,6 +209,8 @@ describe("getPublicOccupancy", () => {
         period(3, "2026-10-12", "2026-10-18", { bookingRequestId: 4 }),
         period(4, "2026-11-01", "2026-11-05", { note: "Wartung" }),
         period(5, "2026-12-20", "2027-01-02", { guestName: "Familie Ahrends" }),
+        // Interne Belegung: öffentlich nur belegt, ohne Notiz.
+        period(6, "2027-02-01", "2027-02-05", { kind: "internal", note: "Familie Weber" }),
       ],
     ],
   ]);
@@ -225,8 +229,12 @@ describe("getPublicOccupancy", () => {
         { startDate: new Date("2026-10-12"), endDate: new Date("2026-10-18") },
         { startDate: new Date("2026-12-20"), endDate: new Date("2027-01-02") },
       ],
-      maintenance: [{ startDate: new Date("2026-11-01"), endDate: new Date("2026-11-05") }],
+      maintenance: [
+        { startDate: new Date("2026-11-01"), endDate: new Date("2026-11-05") },
+        { startDate: new Date("2027-02-01"), endDate: new Date("2027-02-05") },
+      ],
     });
+    expect(JSON.stringify(occupancy)).not.toContain("Weber");
   });
 
   it("fragt weder Namen noch Notizen ab", async () => {
@@ -272,6 +280,7 @@ function request(id: number, status: BookingRequest["status"], createdAt: string
     linens: 0,
     towels: 0,
     status,
+    source: "online",
     reasonNote: null,
     createdAt: new Date(createdAt),
     decidedAt: null,
@@ -413,6 +422,7 @@ describe("getOccupancyInRange", () => {
         endDate: new Date("2026-10-01"),
         guestName: "Erika Muster",
         bookingRequestId: 11,
+        source: "online",
       },
       {
         id: 3,
@@ -420,6 +430,7 @@ describe("getOccupancyInRange", () => {
         endDate: new Date("2026-11-04"),
         guestName: "Peter Wilkens",
         bookingRequestId: 12,
+        source: "online",
       },
       {
         id: 4,
@@ -427,6 +438,7 @@ describe("getOccupancyInRange", () => {
         endDate: new Date("2026-11-07"),
         guestName: "Familie Janssen",
         bookingRequestId: null,
+        source: null,
       },
     ]);
     expect(occupancy.maintenance).toEqual([
@@ -434,6 +446,7 @@ describe("getOccupancyInRange", () => {
         id: 6,
         startDate: new Date("2026-09-28"),
         endDate: new Date("2026-10-01"),
+        kind: "block",
         note: "Wartung",
       },
     ]);
@@ -453,10 +466,12 @@ describe("getOccupancyInRange", () => {
           "id",
           "startDate",
           "endDate",
+          "kind",
           "note",
           "guestName",
           "bookingRequestId",
           "requestName",
+          "requestSource",
         ],
       },
     ]);

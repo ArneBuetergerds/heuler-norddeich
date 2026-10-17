@@ -10,7 +10,8 @@ import { adminActionLog, bookingRequest, blockedPeriod } from "../src/db/schema"
 import {
   confirmBookingRequest,
   declineBookingRequest,
-  createManualStay,
+  createInternalStay,
+  createManualBooking,
   cancelStay,
 } from "../src/db/adminQueries";
 import { getOccupancy } from "../src/db/queries";
@@ -37,6 +38,7 @@ async function main(): Promise<void> {
       endDate: new Date("2027-05-08"),
     })
     .$returningId();
+  let manualRequestId: number | null = null;
 
   try {
     // 1. Bestätigen verknüpft den Sperrzeitraum mit der Anfrage.
@@ -79,38 +81,58 @@ async function main(): Promise<void> {
       after.status === "declined" && after.reasonNote === "E2E-Test",
     );
 
-    // 3. Manueller Aufenthalt ohne Anfrage.
-    await createManualStay(
+    // 3. Interne Belegung ohne Gastdaten.
+    await createInternalStay(
       db,
       {
-        guestName: "E2E Familie",
         startDate: new Date("2027-06-01"),
         endDate: new Date("2027-06-05"),
+        note: "E2E intern",
       },
       ACTOR,
     );
     occupancy = await getOccupancy();
-    const manual = occupancy.stays.find((s) => s.guestName === "E2E Familie");
-    check(
-      "Manueller Aufenthalt erscheint als Belegung ohne Anfrage",
-      manual?.bookingRequestId === null,
-    );
+    const internal = occupancy.maintenance.find((m) => m.note === "E2E intern");
+    check("Interne Belegung erscheint als Sperrzeitraum der Art intern", internal?.kind === "internal");
 
-    if (manual) {
-      await cancelStay(db, manual.id, ACTOR);
+    if (internal) {
+      await cancelStay(db, internal.id, ACTOR);
       occupancy = await getOccupancy();
       check(
-        "Storno entfernt den manuellen Aufenthalt",
-        !occupancy.stays.some((s) => s.id === manual.id),
+        "Entfernen löscht die interne Belegung",
+        !occupancy.maintenance.some((m) => m.id === internal.id),
       );
     }
 
-    // 4. Check-Constraint: Gastname und Anfrage schliessen sich aus.
+    // 3b. Manuelle Buchung: bestätigte Anfrage mit Herkunft "manual".
+    manualRequestId = (
+      await createManualBooking(
+        db,
+        {
+          name: "E2E Telefongast",
+          email: "e2e-manuell@example.invalid",
+          startDate: new Date("2027-06-10"),
+          endDate: new Date("2027-06-15"),
+          guests: 2,
+          linens: 0,
+          towels: 0,
+        },
+        ACTOR,
+      )
+    ).bookingRequestId;
+    occupancy = await getOccupancy();
+    const manual = occupancy.stays.find((s) => s.bookingRequestId === manualRequestId);
+    check("Manuelle Buchung erscheint als Belegung mit Herkunft manual", manual?.source === "manual");
+
+    // 4. Check-Constraint: Gastname und Anfrage schliessen sich aus. Die Art
+    // passt zur Anfrage (`booking`), damit allein der Gastname die Zeile
+    // ungültig macht (blocked_period_guest_source, blocked_period_kind_legacy_stay).
     const violated = await db
       .insert(blockedPeriod)
       .values({
         startDate: new Date("2027-07-01"),
         endDate: new Date("2027-07-02"),
+        kind: "booking",
         guestName: "Ungueltig",
         bookingRequestId: id,
       })
@@ -120,6 +142,11 @@ async function main(): Promise<void> {
   } finally {
     await db.delete(blockedPeriod).where(eq(blockedPeriod.bookingRequestId, id));
     await db.delete(bookingRequest).where(eq(bookingRequest.id, id));
+    await db.delete(blockedPeriod).where(eq(blockedPeriod.note, "E2E intern"));
+    if (manualRequestId !== null) {
+      await db.delete(blockedPeriod).where(eq(blockedPeriod.bookingRequestId, manualRequestId));
+      await db.delete(bookingRequest).where(eq(bookingRequest.id, manualRequestId));
+    }
     await db.delete(adminActionLog).where(eq(adminActionLog.actor, ACTOR));
   }
 

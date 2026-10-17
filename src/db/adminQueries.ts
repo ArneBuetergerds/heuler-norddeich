@@ -114,6 +114,7 @@ export async function confirmBookingRequest(
       .values({
         startDate: request.startDate,
         endDate: request.endDate,
+        kind: "booking",
         bookingRequestId: request.id,
       })
       .$returningId();
@@ -163,8 +164,10 @@ export async function declineBookingRequest(
 
 /**
  * Storniert einen Aufenthalt. Ging er aus einer Anfrage hervor, wandert diese
- * zurück auf "declined" – der Gast erfährt den Grund per Mail. Manuell
- * eingetragene Aufenthalte haben keine Anfrage und verschwinden ersatzlos.
+ * zurück auf "declined" – bei Online-Buchungen erfährt der Gast den Grund per
+ * Mail (die Route entscheidet das, nicht diese Funktion). Altbestands-
+ * Aufenthalte nur mit Gastnamen, interne Belegungen und Sperrzeiträume haben
+ * keine Anfrage und verschwinden ersatzlos.
  */
 export async function cancelStay(
   db: DbLike,
@@ -202,10 +205,88 @@ export async function cancelStay(
   });
 }
 
-/** Trägt einen telefonisch oder persönlich vereinbarten Aufenthalt ein. */
-export async function createManualStay(
+/**
+ * Trägt eine telefonisch oder persönlich vereinbarte Buchung als volle Buchung
+ * ein: eine bestätigte Anfrage mit Herkunft `manual` samt Belegung, wie nach
+ * `confirmBookingRequest`. Rechnung, Detaildialog, Löschfristen und
+ * Anonymisierung laufen danach wie bei Online-Buchungen.
+ *
+ * Verschickt nichts – weder an den Gast noch an die Betreiberin. `endDate`
+ * ist der Abreisetag (zählt nicht mit).
+ */
+export async function createManualBooking(
   db: DbLike,
-  stay: { guestName: string; startDate: Date; endDate: Date },
+  booking: {
+    name: string;
+    email: string;
+    phone?: string;
+    message?: string;
+    startDate: Date;
+    endDate: Date;
+    guests: number;
+    linens: number;
+    towels: number;
+  },
+  actor: string,
+  now: Date = new Date(),
+): Promise<{ bookingRequestId: number; blockedPeriodId: number }> {
+  return db.transaction(async (tx) => {
+    await assertRangeFree(tx, booking.startDate, booking.endDate);
+
+    const [request] = await tx
+      .insert(bookingRequest)
+      .values({
+        name: booking.name,
+        email: booking.email,
+        // Leere Eingaben wie bei fehlenden Angaben speichern.
+        phone: booking.phone || null,
+        message: booking.message || null,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        guests: booking.guests,
+        linens: booking.linens,
+        towels: booking.towels,
+        status: "confirmed",
+        source: "manual",
+        // Ab der Entscheidung läuft keine Frist, maßgeblich ist bei
+        // bestätigten Buchungen die Abreise. Gesetzt wie bei der Bestätigung.
+        decidedAt: now,
+      })
+      .$returningId();
+
+    const [created] = await tx
+      .insert(blockedPeriod)
+      .values({
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        kind: "booking",
+        bookingRequestId: request.id,
+      })
+      .$returningId();
+
+    // Ohne Gastdaten: Die stehen an der Anfrage selbst.
+    await logAdminAction(tx, {
+      actor,
+      action: "manual_booking",
+      bookingRequestId: request.id,
+      blockedPeriodId: created.id,
+      details: period(booking.startDate, booking.endDate),
+    });
+
+    return { bookingRequestId: request.id, blockedPeriodId: created.id };
+  });
+}
+
+/**
+ * Trägt eine interne Belegung ein (Eigennutzung, Familie, Freunde): Zeitraum
+ * plus Notiz, ohne Gastdaten und ohne Rechnung. `endDate` ist der Abreisetag
+ * (zählt nicht mit), wie bei Gästen. Die Belegung wird
+ * INTERNAL_RETENTION_MONTHS nach diesem Tag automatisch gelöscht
+ * (src/lib/retention.ts), weil die Notiz Personen nennen kann.
+ */
+export async function createInternalStay(
+  db: DbLike,
+  stay: { startDate: Date; endDate: Date; note?: string },
   actor: string,
 ): Promise<void> {
   await db.transaction(async (tx) => {
@@ -216,14 +297,15 @@ export async function createManualStay(
       .values({
         startDate: stay.startDate,
         endDate: stay.endDate,
-        guestName: stay.guestName,
+        kind: "internal",
+        note: stay.note || null,
       })
       .$returningId();
 
-    // Ohne Gastnamen: Der steht am Aufenthalt selbst.
+    // Ohne Notiz: Sie kann Namen enthalten.
     await logAdminAction(tx, {
       actor,
-      action: "manual_stay",
+      action: "internal_stay",
       blockedPeriodId: created.id,
       details: period(stay.startDate, stay.endDate),
     });
@@ -231,7 +313,8 @@ export async function createManualStay(
 }
 
 /**
- * Legt einen Sperrzeitraum ohne Gast an (Wartung, Eigennutzung, …).
+ * Legt einen Sperrzeitraum ohne Personenbezug an (z. B. Wartung). Interne
+ * Belegungen (Eigennutzung, Familie) laufen über `createInternalStay`.
  *
  * `block.endDate` ist der letzte gesperrte Tag (inklusiv) – anders als bei
  * Gastaufenthalten gibt es hier keinen Abreisetag, an dem schon wieder

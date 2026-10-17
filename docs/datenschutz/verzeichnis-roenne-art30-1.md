@@ -91,6 +91,7 @@ Buchungen und Rechnungen sind in der Anwendung umgesetzt (zentral in
 | Abgelehnte oder stornierte Anfragen | 6 Monate nach der Absage | Raum für Rückfragen und für den Nachweis der Gleichbehandlung, danach entbehrlich |
 | Anfragen ohne Reaktion | 6 Monate nach Eingang | dito |
 | Zustande gekommene Buchungen | bis zum Ablauf des dritten Kalenderjahres nach dem Aufenthalt | regelmäßige Verjährung, §§ 195, 199 BGB |
+| Interne Belegungen (Eigennutzung, Familie, Freunde) | 6 Monate nach Abreise | Notiz kann Personen nennen; nach dem Aufenthalt nicht mehr erforderlich |
 | Rechnungen und Zahlungsbelege | 10 Jahre | `[prüfen: steuerliche Aufbewahrungspflicht hängt von der Einkunftsart ab — § 147 AO gilt für Buchführungspflichtige, § 147a AO erst ab 750.000 € Überschusseinkünften. Für Privatvermietung ist eine kürzere Frist vertretbar; bitte mit der Steuerberatung klären.]` |
 | Protokoll administrativer Aktionen | 3 Jahre nach Erstellung, automatische Löschung | Nachvollziehbarkeit der Bearbeitung und Sicherheit der Verarbeitung, Art. 5 Abs. 2 und Art. 32 DSGVO |
 | Serverprotokolle | 7 Tage | Störungsanalyse und Missbrauchserkennung |
@@ -103,4 +104,5 @@ die noch aufzubewahren ist, werden Name, E-Mail-Adresse, Telefonnummer und
 Nachricht der Anfrage entfernt (anonymisiert); Rechnung und Anfrage werden mit
 Ablauf der Rechnungsfrist gelöscht. Im Administrationsbereich lässt sich eine
 Anfrage zusätzlich von Hand löschen bzw. anonymisieren. Offen bleibt die
-Abstimmung der Fristen mit der Steuerberatung.
+Abstimmung der Fristen mit der Steuerberatung. Ablauf, Reihenfolge und
+Protokollierung des Löschlaufs beschreibt `docs/loeschlauf.md`.

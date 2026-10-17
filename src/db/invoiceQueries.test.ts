@@ -121,6 +121,7 @@ const confirmed: BookingRequest = {
   linens: 0,
   towels: 0,
   status: "confirmed",
+  source: "online",
   reasonNote: null,
   createdAt: new Date("2027-02-03"),
   decidedAt: null,

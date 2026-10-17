@@ -79,6 +79,10 @@ export function OccupancyCalendar({
     // oder Ab- und Anreise zweier verschiedener Gäste am selben Tag.
     const block = occupancy.maintenance.find((entry) => isDateBlocked(day, [entry]));
     if (block) {
+      // Interne Belegungen sehen aus wie Sperrzeiträume, tragen aber „Intern“.
+      if (block.kind === "internal") {
+        return { className: BLOCKED, title: block.note ? `Intern: ${block.note}` : "Intern" };
+      }
       return { className: BLOCKED, title: block.note ?? "Gesperrt" };
     }
 

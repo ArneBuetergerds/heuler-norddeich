@@ -1,12 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SQL, Table } from "drizzle-orm";
 import { compileCondition } from "./fakeConditions";
-import { adminActionLog } from "./schema";
+import { adminActionLog, blockedPeriod, bookingRequest } from "./schema";
 import {
   confirmBookingRequest,
   declineBookingRequest,
   cancelStay,
-  createManualStay,
+  createInternalStay,
+  createManualBooking,
   createMaintenanceBlock,
   RANGE_TAKEN_ERROR,
   NOT_PENDING_ERROR,
@@ -20,6 +21,8 @@ import {
 // streng typisiert bleibt.
 type FakeDb = {
   inserted: unknown[];
+  /** Tabelle je Eintrag in `inserted`, gleiche Reihenfolge. */
+  insertedTables: Table[];
   /** Einträge in admin_action_log, getrennt von den übrigen Inserts. */
   logs: Record<string, unknown>[];
   updated: unknown[];
@@ -45,7 +48,7 @@ type FakeDb = {
       };
     };
   };
-  transaction: (callback: (tx: FakeDb) => Promise<void>) => Promise<void>;
+  transaction: <T>(callback: (tx: FakeDb) => Promise<T>) => Promise<T>;
 };
 
 type FakeDbOptions = {
@@ -66,10 +69,14 @@ function createFakeDb({
   existingBlockedPeriods = [],
 }: FakeDbOptions): FakeDb {
   const inserted: unknown[] = [];
+  const insertedTables: Table[] = [];
   const logs: Record<string, unknown>[] = [];
   const updated: unknown[] = [];
+  // Fortlaufende IDs je Insert, ab 500: Die erste angelegte Zeile hat 500.
+  let nextId = 500;
   const fakeDb: FakeDb = {
     inserted,
+    insertedTables,
     logs,
     updated,
     deleted: 0,
@@ -84,8 +91,10 @@ function createFakeDb({
           logs.push(values as Record<string, unknown>);
         } else {
           inserted.push(values);
+          insertedTables.push(table);
         }
-        return { returning: async () => [values], $returningId: async () => [{ id: 500 }] };
+        const id = nextId++;
+        return { returning: async () => [values], $returningId: async () => [{ id }] };
       },
     }),
     update: () => ({
@@ -113,9 +122,7 @@ function createFakeDb({
         }),
       }),
     }),
-    transaction: async (callback: (tx: FakeDb) => Promise<void>) => {
-      await callback(fakeDb);
-    },
+    transaction: async <T,>(callback: (tx: FakeDb) => Promise<T>): Promise<T> => callback(fakeDb),
   };
   return fakeDb;
 }
@@ -159,6 +166,7 @@ describe("confirmBookingRequest", () => {
       {
         startDate: request.startDate,
         endDate: request.endDate,
+        kind: "booking",
         bookingRequestId: request.id,
       },
     ]);
@@ -253,31 +261,163 @@ describe("cancelStay", () => {
   });
 });
 
-describe("createManualStay", () => {
-  it("legt einen Aufenthalt mit Gastnamen und ohne Anfrage an", async () => {
+const manualBooking = {
+  name: "Hanna Telefon",
+  email: "hanna@example.invalid",
+  phone: "0176 7654321",
+  message: "Kommt mit Hund",
+  startDate: new Date("2026-09-01"),
+  endDate: new Date("2026-09-08"),
+  guests: 3,
+  linens: 2,
+  towels: 0,
+};
+
+describe("createManualBooking", () => {
+  const now = new Date("2026-08-20T10:00:00Z");
+
+  it("legt eine bestätigte Anfrage mit Herkunft manual und die verknüpfte Belegung an", async () => {
     const fakeDb = createFakeDb({});
 
-    await createManualStay(
-      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-      fakeDb,
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    const result = await createManualBooking(fakeDb, manualBooking, ACTOR, now);
+
+    expect(fakeDb.insertedTables).toEqual([bookingRequest, blockedPeriod]);
+    expect(fakeDb.inserted).toEqual([
       {
-        guestName: "Familie Janssen",
+        name: "Hanna Telefon",
+        email: "hanna@example.invalid",
+        phone: "0176 7654321",
+        message: "Kommt mit Hund",
         startDate: new Date("2026-09-01"),
         endDate: new Date("2026-09-08"),
+        guests: 3,
+        linens: 2,
+        towels: 0,
+        status: "confirmed",
+        source: "manual",
+        decidedAt: now,
       },
+      {
+        startDate: new Date("2026-09-01"),
+        endDate: new Date("2026-09-08"),
+        kind: "booking",
+        bookingRequestId: 500,
+      },
+    ]);
+    expect(result).toEqual({ bookingRequestId: 500, blockedPeriodId: 501 });
+  });
+
+  it("speichert leere Angaben zu Telefon und Nachricht als null", async () => {
+    const fakeDb = createFakeDb({});
+
+    await createManualBooking(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      { ...manualBooking, phone: "", message: undefined },
+      ACTOR,
+      now,
+    );
+
+    expect(fakeDb.inserted[0]).toMatchObject({ phone: null, message: null });
+  });
+
+  it("prüft die Verfügbarkeit sperrend in derselben Transaktion", async () => {
+    const fakeDb = createFakeDb({});
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await createManualBooking(fakeDb, manualBooking, ACTOR, now);
+
+    expect(fakeDb.locks).toEqual(["update"]);
+  });
+
+  it("lehnt einen belegten Zeitraum ab und schreibt nichts", async () => {
+    const fakeDb = createFakeDb({
+      existingBlockedPeriods: [
+        { startDate: new Date("2026-09-07"), endDate: new Date("2026-09-10") },
+      ],
+    });
+
+    await expect(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      createManualBooking(fakeDb, manualBooking, ACTOR, now),
+    ).rejects.toThrow(RANGE_TAKEN_ERROR);
+
+    expect(fakeDb.inserted).toHaveLength(0);
+    expect(fakeDb.logs).toHaveLength(0);
+  });
+
+  it("lässt den Wechseltag frei: Anreise am Abreisetag des Vorgängers", async () => {
+    const fakeDb = createFakeDb({
+      existingBlockedPeriods: [
+        { startDate: new Date("2026-08-25"), endDate: new Date("2026-09-01") },
+      ],
+    });
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await createManualBooking(fakeDb, manualBooking, ACTOR, now);
+
+    expect(fakeDb.inserted).toHaveLength(2);
+  });
+
+  it("protokolliert manual_booking mit Anfrage, Belegung und Zeitraum, ohne Gastdaten", async () => {
+    const fakeDb = createFakeDb({});
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await createManualBooking(fakeDb, manualBooking, ACTOR, now);
+
+    expect(fakeDb.logs).toEqual([
+      {
+        actor: ACTOR,
+        action: "manual_booking",
+        bookingRequestId: 500,
+        blockedPeriodId: 501,
+        details: { startDate: "2026-09-01", endDate: "2026-09-08" },
+      },
+    ]);
+    const log = JSON.stringify(fakeDb.logs);
+    for (const text of ["Hanna", "hanna@", "0176", "Hund"]) {
+      expect(log).not.toContain(text);
+    }
+  });
+});
+
+describe("createInternalStay", () => {
+  it("legt eine interne Belegung mit Notiz und Abreisetag als Ende an, ohne Gast", async () => {
+    const fakeDb = createFakeDb({});
+
+    await createInternalStay(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      { startDate: new Date("2026-09-01"), endDate: new Date("2026-09-08"), note: "Familie Janssen" },
       ACTOR,
     );
 
+    expect(fakeDb.insertedTables).toEqual([blockedPeriod]);
     expect(fakeDb.inserted).toEqual([
       {
         startDate: new Date("2026-09-01"),
         endDate: new Date("2026-09-08"),
-        guestName: "Familie Janssen",
+        kind: "internal",
+        note: "Familie Janssen",
       },
     ]);
   });
 
-  it("lehnt einen bereits belegten Zeitraum ab", async () => {
+  it("speichert eine leere Notiz als null", async () => {
+    const fakeDb = createFakeDb({});
+
+    await createInternalStay(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      { startDate: new Date("2026-09-01"), endDate: new Date("2026-09-08") },
+      ACTOR,
+    );
+
+    expect(fakeDb.inserted[0]).toMatchObject({ note: null });
+  });
+
+  it("lehnt einen belegten Zeitraum ab", async () => {
     const fakeDb = createFakeDb({
       existingBlockedPeriods: [
         { startDate: new Date("2026-09-05"), endDate: new Date("2026-09-10") },
@@ -285,19 +425,37 @@ describe("createManualStay", () => {
     });
 
     await expect(
-      createManualStay(
+      createInternalStay(
         // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
         fakeDb,
-        {
-          guestName: "Familie Janssen",
-          startDate: new Date("2026-09-01"),
-          endDate: new Date("2026-09-08"),
-        },
+        { startDate: new Date("2026-09-01"), endDate: new Date("2026-09-08") },
         ACTOR,
       ),
     ).rejects.toThrow(RANGE_TAKEN_ERROR);
 
     expect(fakeDb.inserted).toHaveLength(0);
+  });
+
+  it("protokolliert internal_stay ohne Notiz", async () => {
+    const fakeDb = createFakeDb({});
+
+    await createInternalStay(
+      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+      fakeDb,
+      { startDate: new Date("2026-09-01"), endDate: new Date("2026-09-08"), note: "Familie Janssen" },
+      ACTOR,
+    );
+
+    expect(fakeDb.logs).toEqual([
+      {
+        actor: ACTOR,
+        action: "internal_stay",
+        bookingRequestId: null,
+        blockedPeriodId: 500,
+        details: { startDate: "2026-09-01", endDate: "2026-09-08" },
+      },
+    ]);
+    expect(JSON.stringify(fakeDb.logs)).not.toContain("Janssen");
   });
 });
 
@@ -488,31 +646,6 @@ describe("Protokoll administrativer Aktionen", () => {
       },
     ]);
     expect(JSON.stringify(fakeDb.logs)).not.toContain("Janssen");
-  });
-
-  it("protokolliert einen manuellen Aufenthalt ohne Gastnamen", async () => {
-    const fakeDb = createFakeDb({});
-
-    await createManualStay(
-      // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
-      fakeDb,
-      {
-        guestName: "Familie Janssen",
-        startDate: new Date("2026-09-01"),
-        endDate: new Date("2026-09-08"),
-      },
-      ACTOR,
-    );
-
-    expect(fakeDb.logs).toEqual([
-      {
-        actor: ACTOR,
-        action: "manual_stay",
-        bookingRequestId: null,
-        blockedPeriodId: 500,
-        details: { startDate: "2026-09-01", endDate: "2026-09-08" },
-      },
-    ]);
   });
 
   it("protokolliert einen Sperrzeitraum mit gespeichertem (exklusivem) Ende", async () => {

@@ -55,3 +55,19 @@ export function berlinIsoDate(date: Date): string {
 export function berlinYear(date: Date): number {
   return Number(berlinIsoDate(date).slice(0, 4));
 }
+
+/**
+ * Zeitpunkt nach deutscher Zeit, z. B. "01.03.2027, 10:01 Uhr" – für echte
+ * Zeitpunkte (`timestamp`-Spalten), nicht für Kalendertage (`formatDate`).
+ */
+export function formatBerlinDateTime(instant: Date): string {
+  const text = instant.toLocaleString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: BUSINESS_TIME_ZONE,
+  });
+  return `${text} Uhr`;
+}

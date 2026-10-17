@@ -4,8 +4,8 @@
  *
  * Die Bedingung wird mit dem echten MySQL-Dialekt zu SQL übersetzt und dann
  * gelesen. Unterstützt sind nur Vergleiche (`=`, `<>`, `<`, `>`, `<=`, `>=`,
- * `in (…)`) zwischen Spalte und Parameter, verknüpft mit `and`. Alles andere
- * wirft – ein Test soll nie still an einer nicht verstandenen Bedingung
+ * `in (…)`) zwischen Spalte und Parameter sowie `isNull(spalte)`, verknüpft
+ * mit `and`. Alles andere wirft – ein Test soll nie still an einer nicht verstandenen Bedingung
  * vorbeilaufen.
  *
  * Verglichen wird in der Form, die auch an MySQL ginge: Der Zeilenwert läuft
@@ -18,6 +18,7 @@ import { MySqlDialect } from "drizzle-orm/mysql-core";
 const dialect = new MySqlDialect();
 
 const PREDICATE = /`(\w+)`\.`(\w+)` (=|<>|<=|>=|<|>|in) (\?|\((?:\?, )*\?\))/g;
+const NULL_PREDICATE = /`(\w+)`\.`(\w+)` is null/g;
 
 type Row = Record<string, unknown>;
 
@@ -64,7 +65,10 @@ export function compileCondition(
   }
   const { sql, params } = dialect.sqlToQuery(condition);
 
-  const rest = sql.replace(PREDICATE, "").replace(/\band\b|[()\s]/g, "");
+  const rest = sql
+    .replace(PREDICATE, "")
+    .replace(NULL_PREDICATE, "")
+    .replace(/\band\b|[()\s]/g, "");
   if (rest !== "") {
     throw new Error(`Bedingung nicht unterstützt: ${sql}`);
   }
@@ -88,6 +92,13 @@ export function compileCondition(
             return value !== null && compare(value, operator, values[0]);
           },
     );
+  }
+
+  // `is null` verbraucht keinen Parameter, die Reihenfolge der Platzhalter
+  // oben bleibt davon unberührt.
+  for (const [, tableName, columnName] of sql.matchAll(NULL_PREDICATE)) {
+    const { key } = columnFor(table, tableName, columnName);
+    checks.push((row) => row[key] === null || row[key] === undefined);
   }
 
   return (row) => checks.every((check) => check(row));

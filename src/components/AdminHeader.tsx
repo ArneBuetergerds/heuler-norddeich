@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Anfragen" },
-  { href: "/admin/sperrzeitraeume", label: "Sperrzeiträume" },
+  // Adresse historisch, Inhalt: Buchungen, interne Belegungen, Sperrzeiträume.
+  { href: "/admin/sperrzeitraeume", label: "Eintragen" },
+  { href: "/admin/loeschfristen", label: "Löschfristen" },
 ] as const;
 
 /**

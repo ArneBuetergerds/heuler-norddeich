@@ -94,6 +94,10 @@ Bei jeder neuen Anfrage bekommt die Betreiberin zusätzlich zur Mail eine Push-B
 
 Technik: `public/sw.js` (Service Worker, Scope `/admin`, bewusst ohne Caching), `public/admin.webmanifest`, Abos in der Tabelle `push_subscription`. Abgelaufene Abos werden beim Versand automatisch entfernt.
 
+## Automatische Löschung
+
+Was die Website nach welcher Frist löscht oder anonymisiert, wann der Löschlauf läuft und wo man ihn im Admin prüft (`/admin/loeschfristen`), beschreibt [`docs/loeschlauf.md`](docs/loeschlauf.md).
+
 ## Deployment
 
 Die App läuft containerisiert (siehe `Dockerfile`) auf einem selbst betriebenen VPS mit [Coolify](https://coolify.io) und einer eigenen MySQL-Instanz – nicht auf Vercel. Mailversand läuft über SMTP der eigenen Domain, nicht über einen Drittanbieter.

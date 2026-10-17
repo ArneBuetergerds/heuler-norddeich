@@ -12,10 +12,12 @@ const occupancyColumns = {
   id: blockedPeriod.id,
   startDate: blockedPeriod.startDate,
   endDate: blockedPeriod.endDate,
+  kind: blockedPeriod.kind,
   note: blockedPeriod.note,
   guestName: blockedPeriod.guestName,
   bookingRequestId: blockedPeriod.bookingRequestId,
   requestName: bookingRequest.name,
+  requestSource: bookingRequest.source,
 };
 
 /**
@@ -67,7 +69,9 @@ export type PublicOccupancy = { stays: Period[]; maintenance: Period[] };
  *
  * `hasGuest` unterscheidet Belegung und Sperrzeitraum wie `splitOccupancy`
  * (Anfrage oder manueller Gastname = Belegung), wird aber in SQL gebildet,
- * damit kein Name die Datenbank verlässt.
+ * damit kein Name die Datenbank verlässt. Interne Belegungen haben beides
+ * nicht und landen bei `maintenance` – der öffentliche Kalender zeigt beides
+ * gleich als belegt, ihre Notiz wird nicht gelesen.
  *
  * `today` ist UTC-Mitternacht des heutigen Tages, wie die `date`-Spalten.
  */

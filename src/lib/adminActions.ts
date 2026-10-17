@@ -6,7 +6,11 @@ export const ADMIN_ACTIONS = [
   "confirm",
   "decline",
   "cancel",
+  // Altbestand: früher manuell eingetragene Aufenthalte nur mit Gastnamen.
+  // Wird nicht mehr geschrieben, bleibt für vorhandene Einträge in der Liste.
   "manual_stay",
+  "manual_booking",
+  "internal_stay",
   "block_create",
   "block_delete",
   "invoice_create",

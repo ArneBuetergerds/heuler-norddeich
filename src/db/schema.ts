@@ -18,6 +18,16 @@ import type { AdminAction, AdminActionDetails } from "../lib/adminActions";
 
 export const bookingRequestStatus = ["pending", "confirmed", "declined"] as const;
 
+/**
+ * Herkunft einer Anfrage: `online` über das Formular der Website, `manual`
+ * von der Betreiberin im Admin eingetragen (z. B. telefonisch vereinbart).
+ * Eine manuelle Buchung ist sofort bestätigt und bekommt keine automatischen
+ * Mails; sonst verhält sie sich wie eine Online-Buchung (Rechnung,
+ * Löschfristen, Anonymisierung).
+ */
+export const bookingRequestSource = ["online", "manual"] as const;
+export type BookingRequestSource = (typeof bookingRequestSource)[number];
+
 export const bookingRequest = mysqlTable(
   "booking_request",
   {
@@ -36,6 +46,8 @@ export const bookingRequest = mysqlTable(
     linens: int("linens").notNull().default(0),
     towels: int("towels").notNull().default(0),
     status: mysqlEnum("status", bookingRequestStatus).notNull().default("pending"),
+    // Default `online`: Alle Zeilen von vor dieser Spalte kamen über die Website.
+    source: mysqlEnum("source", bookingRequestSource).notNull().default("online"),
     // Freitext-Begründung, die der Gast bei Ablehnung oder Storno per Mail erhält.
     reasonNote: text("reason_note"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
@@ -64,13 +76,28 @@ export const bookingRequest = mysqlTable(
 );
 
 /**
- * Einzige Quelle der Wahrheit für die Verfügbarkeit: Jeder Eintrag sperrt einen
- * Zeitraum, unabhängig von seiner Herkunft. Die Herkunft entscheidet nur über
- * die Darstellung:
+ * Art eines Eintrags in `blocked_period`:
  *
- *   bookingRequestId gesetzt → Belegung aus bestätigter Anfrage (Gastname per Join)
- *   guestName gesetzt        → manuell eingetragener Aufenthalt (z. B. telefonisch vereinbart)
- *   beide null               → echter Sperrzeitraum (Wartung, Eigennutzung), `note` erklärt ihn
+ *   booking     → Belegung aus bestätigter Anfrage (online oder manuell
+ *                 eingetragen), `bookingRequestId` gesetzt, Gastname per Join
+ *   block       → Sperrzeitraum ohne Personenbezug (z. B. Wartung), `note`
+ *                 erklärt ihn; wird nicht automatisch gelöscht
+ *   internal    → interne Belegung (Eigennutzung, Familie, Freunde): Zeitraum
+ *                 plus `note`, keine Rechnung, keine Gastdaten; wird
+ *                 INTERNAL_RETENTION_MONTHS nach dem Ende gelöscht
+ *   legacy_stay → ALTBESTAND: früher manuell eingetragener Aufenthalt nur mit
+ *                 `guestName`. Wird nicht mehr neu angelegt, bleibt aber les-
+ *                 und anzeigbar und läuft wie eine Buchung ab
+ *                 (src/lib/retention.ts), bis er als manuelle Buchung oder
+ *                 interne Belegung neu eingetragen ist.
+ */
+export const blockedPeriodKind = ["booking", "block", "internal", "legacy_stay"] as const;
+export type BlockedPeriodKind = (typeof blockedPeriodKind)[number];
+
+/**
+ * Einzige Quelle der Wahrheit für die Verfügbarkeit: Jeder Eintrag sperrt einen
+ * Zeitraum, unabhängig von seiner Art (`kind`, siehe `blockedPeriodKind`).
+ * Die Art entscheidet über Darstellung und Löschfrist.
  */
 export const blockedPeriod = mysqlTable(
   "blocked_period",
@@ -78,7 +105,13 @@ export const blockedPeriod = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     startDate: date("start_date", { mode: "date" }).notNull(),
     endDate: date("end_date", { mode: "date" }).notNull(),
+    // Default `block` nur für das Hinzufügen der Spalte: Die Migration ordnet
+    // Altbestand danach per UPDATE zu (Anfrage → booking, Gastname →
+    // legacy_stay). Neue Einträge setzen die Art immer ausdrücklich, außer
+    // dem Sperrzeitraum, für den der Default zutrifft.
+    kind: mysqlEnum("kind", blockedPeriodKind).notNull().default("block"),
     note: text("note"),
+    // Nur Altbestand (`kind = legacy_stay`), siehe `blockedPeriodKind`.
     guestName: text("guest_name"),
     bookingRequestId: int("booking_request_id").references(
       () => bookingRequest.id,
@@ -92,6 +125,17 @@ export const blockedPeriod = mysqlTable(
     check(
       "blocked_period_guest_source",
       sql`NOT (${table.guestName} IS NOT NULL AND ${table.bookingRequestId} IS NOT NULL)`,
+    ),
+    // Art und Herkunft passen zusammen: genau Belegungen haben eine Anfrage,
+    // genau Altbestands-Aufenthalte einen Gastnamen. Interne Belegungen und
+    // Sperrzeiträume haben beides nicht.
+    check(
+      "blocked_period_kind_booking",
+      sql`(${table.kind} = 'booking') = (${table.bookingRequestId} IS NOT NULL)`,
+    ),
+    check(
+      "blocked_period_kind_legacy_stay",
+      sql`(${table.kind} = 'legacy_stay') = (${table.guestName} IS NOT NULL)`,
     ),
   ],
 );

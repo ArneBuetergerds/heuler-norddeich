@@ -29,6 +29,7 @@ const BEISPIEL: BookingRequest = {
   linens: 4,
   towels: 2,
   status: "pending",
+  source: "online",
   reasonNote: null,
   createdAt: new Date("2027-02-03"),
   decidedAt: null,

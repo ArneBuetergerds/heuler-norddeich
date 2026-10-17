@@ -51,6 +51,7 @@ export function StayDetailDialog({
           <DialogDescription>
             {formatDateRange(stay.startDate, stay.endDate)} · {naechte}{" "}
             {naechte === 1 ? "Nacht" : "Nächte"}
+            {stay.source === "manual" && " · manuell eingetragen"}
           </DialogDescription>
         </DialogHeader>
 
@@ -88,13 +89,16 @@ export function StayDetailDialog({
                 <span className="text-schlick-3">nichts bestellt</span>
               )}
             </Zeile>
-            <Zeile label="Angefragt am">{formatDate(request.createdAt)}</Zeile>
+            <Zeile label={request.source === "manual" ? "Eingetragen am" : "Angefragt am"}>
+              {formatDate(request.createdAt)}
+            </Zeile>
             {request.message && <Zeile label="Nachricht">{request.message}</Zeile>}
           </dl>
         ) : (
           <p className="text-[13px] text-schlick-2">
-            Manuell eingetragener Aufenthalt – zu ihm gibt es keine Anfrage und
-            damit auch keine Kontaktdaten.
+            Manuell eingetragener Aufenthalt aus dem Altbestand – zu ihm gibt es
+            keine Anfrage und damit auch keine Kontaktdaten. Für eine Rechnung
+            bitte als Buchung neu eintragen.
           </p>
         )}
 
@@ -135,8 +139,8 @@ export function StayDetailDialog({
           <InvoiceSection request={request} invoice={invoice} />
         ) : (
           <p className="text-[11px] text-schlick-2">
-            Für manuell eingetragene Aufenthalte lässt sich keine Rechnung
-            erstellen – es fehlen Anfrage und Kontaktdaten.
+            Für manuell eingetragene Aufenthalte aus dem Altbestand lässt sich
+            keine Rechnung erstellen – es fehlen Anfrage und Kontaktdaten.
           </p>
         )}
 
