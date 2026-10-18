@@ -49,6 +49,11 @@ export const bookingRequest = mysqlTable(
     message: text("message"),
     // Personenzahl: begrenzt zugleich, wie viele Wäschesätze bestellbar sind.
     guests: int("guests").notNull().default(1),
+    // Davon Kinder unter 14 Jahren: Sie zahlen keinen Gästebeitrag der Stadt
+    // Norden (src/lib/pricing.ts, `payingGuests`). Default 0 für Anfragen von
+    // vor dieser Spalte – für sie zahlen alle Gäste (BDS-006). Mindestens eine
+    // Person ist 14 oder älter, siehe Check unten.
+    guestsUnder14: int("guests_under_14").notNull().default(0),
     // Zusatzleistungen, je Satz und Aufenthalt, bar vor Ort. Zahl statt
     // Ja/Nein, weil selten alle Gäste Wäsche brauchen - manche bringen eigene
     // mit.
@@ -89,6 +94,13 @@ export const bookingRequest = mysqlTable(
       "booking_request_extras_range",
       sql`${table.linens} >= 0 AND ${table.linens} <= ${table.guests}
           AND ${table.towels} >= 0 AND ${table.towels} <= ${table.guests}`,
+    ),
+    // Mindestens eine Person ist 14 oder älter: Unter 14 sind höchstens alle
+    // Gäste bis auf einen. Dieselbe Regel prüft die Validierung
+    // (`addUnder14WithinGuestsIssues` in src/lib/validation.ts).
+    check(
+      "booking_request_guests_under_14_range",
+      sql`${table.guestsUnder14} >= 0 AND ${table.guestsUnder14} <= ${table.guests} - 1`,
     ),
   ],
 );

@@ -129,6 +129,7 @@ async function postBookingRequest(request: Request) {
     endDate,
     message,
     guests,
+    guestsUnder14,
     linens,
     towels,
   } = parsed.data;
@@ -155,6 +156,7 @@ async function postBookingRequest(request: Request) {
       endDate,
       message,
       guests,
+      guestsUnder14,
       linens,
       towels,
       // Nachweis, welche Mietbedingungen der Gast bestätigt hat: Das Schema

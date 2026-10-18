@@ -290,6 +290,7 @@ const manualBooking = {
   startDate: new Date("2026-09-01"),
   endDate: new Date("2026-09-08"),
   guests: 3,
+  guestsUnder14: 1,
   linens: 2,
   towels: 0,
 };
@@ -318,6 +319,8 @@ describe("createManualBooking", () => {
         startDate: new Date("2026-09-01"),
         endDate: new Date("2026-09-08"),
         guests: 3,
+        // Kinder unter 14 (BDS-006) werden wie angegeben gespeichert.
+        guestsUnder14: 1,
         linens: 2,
         towels: 0,
         status: "confirmed",

@@ -60,6 +60,9 @@ export function Zahlenfeld({
   min,
   max,
   onChange,
+  disabled = false,
+  describedBy,
+  invalid = false,
 }: {
   id: string;
   /** Wofür gezählt wird – für die Beschriftung der Knöpfe im Screenreader. */
@@ -68,12 +71,17 @@ export function Zahlenfeld({
   min: number;
   max: number;
   onChange: (wert: number) => void;
+  /** Ganzes Feld gesperrt, z. B. „davon unter 14“ bei nur einer Person. */
+  disabled?: boolean;
+  /** IDs von Hinweis und/oder Fehlermeldung für `aria-describedby`. */
+  describedBy?: string;
+  invalid?: boolean;
 }) {
   return (
     <div className="flex items-center gap-1">
       <SchrittButton
         label={`${name} verringern`}
-        disabled={value <= min}
+        disabled={disabled || value <= min}
         onClick={() => onChange(value - 1)}
       >
         −
@@ -85,12 +93,15 @@ export function Zahlenfeld({
         value={value}
         min={min}
         max={max}
+        disabled={disabled}
+        aria-describedby={describedBy}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="h-11 w-14 rounded-sm border border-linie bg-sand text-center text-base text-schlick tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+        className="h-11 w-14 rounded-sm border border-linie bg-sand text-center text-base text-schlick tabular-nums [appearance:textfield] disabled:cursor-not-allowed disabled:text-schlick-3 aria-invalid:border-destructive [&::-webkit-inner-spin-button]:appearance-none"
       />
       <SchrittButton
         label={`${name} erhöhen`}
-        disabled={value >= max}
+        disabled={disabled || value >= max}
         onClick={() => onChange(value + 1)}
       >
         +

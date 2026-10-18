@@ -9,9 +9,11 @@ import {
   invoiceFileName,
   parseAddress,
   postalAddressLines,
+  GUEST_TAX_INVOICE_NOTE,
   SMALL_BUSINESS_NOTE,
   type InvoiceSnapshot,
 } from "./invoice";
+import { GUEST_TAX } from "./pricing";
 import { renderInvoicePdf } from "./invoicePdf";
 
 const request: BookingRequest = {
@@ -27,7 +29,10 @@ const request: BookingRequest = {
   startDate: new Date("2027-08-29"),
   endDate: new Date("2027-09-05"),
   message: null,
+  // Drei Personen, davon ein Kind: Gästebeitrag für zwei Personen, alle
+  // sieben Nächte in der Hauptsaison des Gästebeitrags (3,50 €).
   guests: 3,
+  guestsUnder14: 1,
   linens: 2,
   towels: 0,
   status: "confirmed",
@@ -80,29 +85,78 @@ describe("buildInvoiceSnapshot", () => {
   it("bepreist Nacht für Nacht und trennt beim Saisonwechsel", () => {
     const s = snapshot();
 
-    expect(s.lines).toHaveLength(2);
+    expect(s.lines).toHaveLength(3);
     expect(s.lines[0]).toMatchObject({ quantity: 3, unitPrice: 94, total: 282 });
     expect(s.lines[1]).toMatchObject({ quantity: 4, unitPrice: 74, total: 296 });
-    expect(s.total).toBe(578);
+  });
+
+  it("weist den Gästebeitrag als eigenen Posten aus: zahlende Personen × Nächte zum Satz", () => {
+    const s = snapshot();
+
+    expect(s.lines[2]).toEqual({
+      description: "Gästebeitrag Stadt Norden (Hauptsaison)",
+      // 3 Personen − 1 Kind = 2 zahlende × 7 Nächte
+      quantity: 14,
+      unitPrice: GUEST_TAX.main,
+      total: 49,
+    });
+    expect(s.guestsUnder14).toBe(1);
+    expect(s.guestTaxNote).toBe(GUEST_TAX_INVOICE_NOTE);
+  });
+
+  it("trennt den Gästebeitrag an der Saisongrenze 31.10./01.11. in zwei Posten", () => {
+    // 3 Nächte Hauptsaison (29.–31.10.), 2 Nächte Nebensaison (01.–02.11.);
+    // beim Mietpreis alles Zwischensaison.
+    const s = snapshot({
+      request: {
+        ...request,
+        startDate: new Date("2027-10-29"),
+        endDate: new Date("2027-11-03"),
+        guests: 2,
+        guestsUnder14: 0,
+        linens: 0,
+      },
+    });
+
+    expect(s.lines).toHaveLength(3);
+    expect(s.lines[0]).toMatchObject({ quantity: 5, unitPrice: 74, total: 370 });
+    expect(s.lines[1]).toMatchObject({
+      description: "Gästebeitrag Stadt Norden (Hauptsaison)",
+      quantity: 6,
+      unitPrice: 3.5,
+      total: 21,
+    });
+    expect(s.lines[2]).toMatchObject({
+      description: "Gästebeitrag Stadt Norden (Nebensaison)",
+      quantity: 4,
+      unitPrice: 1.8,
+      total: 7.2,
+    });
+    expect(s.total).toBe(398.2);
+  });
+
+  it("rechnet Miete plus Gästebeitrag als Rechnungsbetrag", () => {
+    expect(snapshot().total).toBe(578 + 49);
   });
 
   it("teilt den Betrag so auf, dass Anzahlung und Rest exakt die Summe ergeben", () => {
     const s = snapshot();
 
-    expect(s.deposit).toBe(173.4);
-    expect(s.balance).toBe(404.6);
+    // 30 % von 627 € (Miete 578 € + Gästebeitrag 49 €)
+    expect(s.deposit).toBe(188.1);
+    expect(s.balance).toBe(438.9);
     expect(s.deposit + s.balance).toBeCloseTo(s.total, 2);
   });
 
-  it("führt Nebenkosten und Wäsche nur als bar zu zahlende Hinweise", () => {
+  it("führt Nebenkosten und Wäsche nur als bar zu zahlende Hinweise, den Gästebeitrag nicht", () => {
     const s = snapshot();
 
     expect(s.cashOnSite.some((p) => p.includes("Endreinigung"))).toBe(true);
     expect(s.cashOnSite.some((p) => p.includes("Bettwäsche 2"))).toBe(true);
     // Keine Handtücher bestellt, also auch nicht erwähnt.
     expect(s.cashOnSite.some((p) => p.includes("Handtücher"))).toBe(false);
-    // Der Rechnungsbetrag ist allein die Miete.
-    expect(s.total).toBe(578);
+    // Der Gästebeitrag steht seit BDS-006 auf der Rechnung, nicht im Bar-Block.
+    expect(s.cashOnSite.some((p) => p.includes("Gästebeitrag"))).toBe(false);
   });
 
   it("friert den Stand ein – das Datum steht als Text, nicht als Date", () => {
@@ -124,6 +178,42 @@ describe("renderInvoicePdf", () => {
     expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe("%PDF-");
     expect(pdf.getPageCount()).toBe(1);
     expect(pdf.getTitle()).toBe("Rechnung RE-2027-0001");
+  });
+
+  it("druckt Gästebeitrag-Posten, Spalte „Menge“, Kinder im Kopf und den Weiterleitungshinweis", async () => {
+    const bytes = await renderInvoicePdf(snapshot());
+
+    expect(pdfDrawsText(bytes, "Menge")).toBe(true);
+    expect(pdfDrawsText(bytes, "Nächte")).toBe(false);
+    expect(pdfDrawsText(bytes, "Gästebeitrag Stadt Norden (Hauptsaison)")).toBe(true);
+    expect(pdfDrawsText(bytes, "3 Personen, davon 1 unter 14 Jahren")).toBe(true);
+    expect(pdfDrawsText(bytes, "Der Gästebeitrag wird nach der Satzung")).toBe(true);
+  });
+
+  it("rendert einen alten Snapshot ohne Kinderangabe und mit Gästebeitrag im Bar-Block unverändert", async () => {
+    // So sahen Snapshots vor BDS-006 aus: nur Übernachtungen, Gästebeitrag
+    // als Barposten, kein guestsUnder14, kein Hinweis.
+    const alt: InvoiceSnapshot = {
+      ...snapshot(),
+      lines: snapshot().lines.slice(0, 2),
+      total: 578,
+      deposit: 173.4,
+      balance: 404.6,
+      cashOnSite: [
+        "Endreinigung 55,00 €",
+        "Servicegebühr 30,00 €",
+        "Gästebeitrag nach Satzung der Stadt Norden (3,50 € bzw. 1,80 € je Person ab 14 Jahren und Nacht)",
+      ],
+    };
+    delete alt.guestsUnder14;
+    delete alt.guestTaxNote;
+
+    const bytes = await renderInvoicePdf(alt);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+    expect(pdfDrawsText(bytes, "3 Personen")).toBe(true);
+    expect(pdfDrawsText(bytes, "unter 14 Jahren")).toBe(false);
+    expect(pdfDrawsText(bytes, "Gästebeitrag Stadt Norden")).toBe(false);
+    expect(pdfDrawsText(bytes, "Gästebeitrag nach Satzung")).toBe(true);
   });
 
   it("enthält den Kleinunternehmer-Hinweis nach § 19 UStG", () => {

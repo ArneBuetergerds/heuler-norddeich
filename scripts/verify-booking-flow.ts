@@ -114,6 +114,7 @@ async function main(): Promise<void> {
           startDate: new Date("2027-06-10"),
           endDate: new Date("2027-06-15"),
           guests: 2,
+          guestsUnder14: 1,
           linens: 0,
           towels: 0,
         },
@@ -123,6 +124,38 @@ async function main(): Promise<void> {
     occupancy = await getOccupancy();
     const manual = occupancy.stays.find((s) => s.bookingRequestId === manualRequestId);
     check("Manuelle Buchung erscheint als Belegung mit Herkunft manual", manual?.source === "manual");
+
+    // 3c. Kinder unter 14 (BDS-006): gespeichert bei der manuellen Buchung,
+    // Default 0 ohne Angabe, und die Datenbank lehnt „alle unter 14“ ab.
+    const [manualRow] = await db
+      .select({ guestsUnder14: bookingRequest.guestsUnder14 })
+      .from(bookingRequest)
+      .where(eq(bookingRequest.id, manualRequestId));
+    check("Manuelle Buchung speichert die Kinder unter 14", manualRow?.guestsUnder14 === 1);
+    const [firstRow] = await db
+      .select({ guestsUnder14: bookingRequest.guestsUnder14 })
+      .from(bookingRequest)
+      .where(eq(bookingRequest.id, id));
+    check("Anfrage ohne Angabe zählt 0 Kinder unter 14", firstRow?.guestsUnder14 === 0);
+    const under14Violated = await db
+      .insert(bookingRequest)
+      .values({
+        name: "E2E Ungueltig",
+        email: "e2e-ungueltig@example.invalid",
+        startDate: new Date("2027-07-01"),
+        endDate: new Date("2027-07-02"),
+        guests: 1,
+        guestsUnder14: 1,
+      })
+      .$returningId()
+      .then(async ([row]) => {
+        if (row) {
+          await db.delete(bookingRequest).where(eq(bookingRequest.id, row.id));
+        }
+        return false;
+      })
+      .catch(() => true);
+    check("Datenbank lehnt mehr Kinder unter 14 als Personen − 1 ab", under14Violated);
 
     // 4. Check-Constraint: Gastname und Anfrage schliessen sich aus. Die Art
     // passt zur Anfrage (`booking`), damit allein der Gastname die Zeile

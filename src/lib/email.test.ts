@@ -38,6 +38,7 @@ const request: BookingRequest = {
   endDate: new Date("2027-05-08"),
   message: null,
   guests: 2,
+  guestsUnder14: 0,
   linens: 0,
   towels: 0,
   status: "pending",
@@ -165,6 +166,7 @@ describe("email", () => {
     const text = sendMail.mock.calls[0]?.[0] as { text: string };
     expect(text.text).not.toContain("Bettwäsche");
     expect(text.text).toContain("Personen: 2");
+    expect(text.text).toContain("Davon unter 14 Jahren: 0");
   });
 
   // Die Mails hatten lange eine eigene, schlechtere Datumsformatierung:
@@ -187,9 +189,14 @@ describe("email", () => {
     const text = mail.text.replaceAll("\u00a0", " ");
 
     expect(text).toContain("7 Nächte × 74 €");
-    expect(text).toContain("Summe: 518,00 €");
-    expect(text).toContain("Anzahlung 30 %: 155,40 €");
-    expect(text).toContain("Restbetrag: 362,60 €");
+    expect(text).toContain("Summe Mietpreis: 518,00 €");
+    // Gästebeitrag: 2 Personen × 7 Nächte × 3,50 € (Hauptsaison ab 15.03.)
+    expect(text).toContain("Gästebeitrag der Stadt Norden (2 Personen ab 14 Jahren):");
+    expect(text).toContain("7 Nächte × 3,50 € × 2 (Hauptsaison): 49,00 €");
+    expect(text).toContain("Gesamt Mietpreis und Gästebeitrag: 567,00 €");
+    // 30 % von 567 €
+    expect(text).toContain("Anzahlung 30 %: 170,10 €");
+    expect(text).toContain("Restbetrag: 396,90 €");
   });
 
   it("erfindet keine Bankverbindung, wenn keine hinterlegt ist", async () => {
@@ -313,5 +320,57 @@ describe("Rechnung und Mietbedingungen im Anhang der Bestätigung", () => {
     const mail = sendMail.mock.calls[0]?.[0] as { text: string; attachments?: unknown };
     expect(mail.attachments).toBeUndefined();
     expect(mail.text).toContain("Die Rechnung senden wir Ihnen gesondert zu.");
+  });
+});
+
+describe("Gästebeitrag in den Mails (BDS-006)", () => {
+  const mitKindern: BookingRequest = { ...request, guests: 4, guestsUnder14: 2 };
+
+  it("nennt den Gästebeitrag in der Zusage nicht mehr als Barzahlung vor Ort", async () => {
+    const { buildGuestConfirmation } = await import("./email");
+    const text = buildGuestConfirmation(mitKindern).text;
+
+    const barZeilen = text.split("\n").filter((zeile) => /\bbar\b/.test(zeile));
+    expect(barZeilen.length).toBeGreaterThan(0);
+    for (const zeile of barZeilen) {
+      expect(zeile).not.toContain("Gästebeitrag");
+    }
+    expect(text).not.toContain("3,50 € je Person");
+    expect(text).toContain("Den Gästebeitrag bezahlen Sie mit der Rechnung");
+  });
+
+  it("rechnet den Gästebeitrag nur für Personen ab 14 Jahren und nimmt ihn in die Anzahlung", async () => {
+    const { buildGuestConfirmation } = await import("./email");
+    const text = buildGuestConfirmation(mitKindern).text.replaceAll("\u00a0", " ");
+
+    // 2 zahlende Personen × 7 Nächte × 3,50 € = 49 €; Miete 518 €.
+    expect(text).toContain("(2 Personen ab 14 Jahren)");
+    expect(text).toContain("Summe Gästebeitrag: 49,00 €");
+    expect(text).toContain("Anzahlung 30 %: 170,10 €");
+  });
+
+  it("nennt Personen und Kinder unter 14 in Eingangsbestätigung und Betreiberin-Mail", async () => {
+    const { buildGuestRequestReceived, buildBookingRequestNotification } = await import("./email");
+
+    const gast = buildGuestRequestReceived(mitKindern).text.replaceAll("\u00a0", " ");
+    expect(gast).toContain("für 4 Personen, davon 2 unter 14 Jahren.");
+    expect(gast).toContain("Summe Gästebeitrag: 49,00 €");
+
+    const betreiberin = buildBookingRequestNotification(mitKindern, "owner@example.invalid").text;
+    expect(betreiberin).toContain("Personen: 4");
+    expect(betreiberin).toContain("Davon unter 14 Jahren: 2");
+    expect(betreiberin).toContain("Gästebeitrag der Stadt Norden");
+  });
+
+  it("nennt in der Eingangsbestätigung ohne Kinder nur die Personenzahl", async () => {
+    const { buildGuestRequestReceived } = await import("./email");
+    expect(buildGuestRequestReceived(request).text).toContain("für 2 Personen.");
+  });
+
+  it("sagt in den Stornobedingungen, dass der Gästebeitrag erstattet wird", async () => {
+    const { buildGuestConfirmation } = await import("./email");
+    expect(buildGuestConfirmation(request).text).toContain(
+      "Der Gästebeitrag der Stadt Norden wird bei einer Stornierung vollständig erstattet",
+    );
   });
 });

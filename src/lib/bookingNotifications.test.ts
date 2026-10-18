@@ -19,6 +19,7 @@ const request: BookingRequest = {
   endDate: new Date("2027-05-08"),
   message: null,
   guests: 2,
+  guestsUnder14: 0,
   linens: 0,
   towels: 0,
   status: "pending",

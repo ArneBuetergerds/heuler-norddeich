@@ -20,6 +20,7 @@ import {
 } from "@/lib/month";
 import { hasPostalAddress, postalAddressLines } from "@/lib/invoice";
 import { EXTRAS, extrasTotal } from "@/lib/pricing";
+import { guestsUnder14Note } from "@/lib/quoteView";
 import { vapidConfig } from "@/lib/push";
 import { adminDeletionDecision, berlinDay } from "@/lib/retention";
 import { AdminPushSettings } from "@/components/AdminPushSettings";
@@ -165,6 +166,11 @@ export default async function AdminPage({
                   <span className="font-normal text-schlick-2">
                     {" · "}
                     {request.guests} {request.guests === 1 ? "Person" : "Personen"}
+                    {guestsUnder14Note(request.guestsUnder14) && (
+                      <span className="text-schlick-3">
+                        , {guestsUnder14Note(request.guestsUnder14)}
+                      </span>
+                    )}
                   </span>
                 </p>
 

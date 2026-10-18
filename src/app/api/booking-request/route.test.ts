@@ -154,6 +154,35 @@ describe("POST /api/booking-request", () => {
     expect(gespeichert).not.toHaveProperty("termsAccepted");
   });
 
+  it.each([
+    [{ guests: 3, guestsUnder14: 2 }, 2],
+    [{}, 0],
+  ])("speichert die Kinder unter 14 (%j → %i)", async (overrides, erwartet) => {
+    const values = vi.fn();
+    insert.mockReturnValue({
+      values: (v: Record<string, unknown>) => {
+        values(v);
+        return { $returningId: async () => [{ id: 44 }] };
+      },
+    });
+
+    const response = await POST(bookingRequest(overrides));
+
+    expect(response.status).toBe(201);
+    expect(values).toHaveBeenCalledWith(expect.objectContaining({ guestsUnder14: erwartet }));
+  });
+
+  it("lehnt mehr Kinder unter 14 als Personen − 1 mit Meldung am Feld ab und speichert nichts", async () => {
+    const response = await POST(bookingRequest({ guests: 2, guestsUnder14: 2 }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Unter 14 Jahren höchstens 1 von 2 Personen – mindestens eine Person ist 14 oder älter",
+      field: "guestsUnder14",
+    });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it("lehnt eine Anfrage ohne Haken für die Mietbedingungen mit Meldung am Feld ab", async () => {
     const response = await POST(bookingRequest({ termsAccepted: false }));
 

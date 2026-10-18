@@ -215,12 +215,18 @@ export type InvoiceSummary = {
   bookingRequestId: number;
   /** Rechnungsdatum aus dem Snapshot, ISO "YYYY-MM-DD" (deutsche Zeit). */
   issuedAt: string;
+  /**
+   * Steht der Gästebeitrag auf der Rechnung (seit BDS-006)? Rechnungen von
+   * davor enthalten nur die Miete und nennen den Gästebeitrag als Barposten
+   * vor Ort – dann gilt für diese Buchung weiter die Barzahlung.
+   */
+  includesGuestTax: boolean;
 };
 
 /**
  * Rechnungen zu den angegebenen Buchungen, nur mit den Feldern, die die
- * Admin-Übersicht braucht. Das Rechnungsdatum wird in SQL aus dem Snapshot
- * gelesen, damit nicht der ganze Snapshot (Positionen, Anschrift, Bank) je
+ * Admin-Übersicht braucht. Rechnungsdatum und ob der Gästebeitrag auf der
+ * Rechnung steht, werden in SQL aus dem Snapshot gelesen, damit nicht der ganze Snapshot (Positionen, Anschrift, Bank) je
  * Rechnung geladen und an den Browser gegeben wird.
  */
 export async function getInvoiceSummaries(
@@ -236,6 +242,12 @@ export async function getInvoiceSummaries(
       number: invoice.number,
       bookingRequestId: invoice.bookingRequestId,
       issuedAt: sql<string>`json_unquote(json_extract(${invoice.snapshot}, '$.issuedAt'))`,
+      // `guestTaxNote` setzt buildInvoiceSnapshot genau dann, wenn
+      // Gästebeitrag-Posten auf der Rechnung stehen; ältere Snapshots haben
+      // das Feld nicht. json_contains_path liefert 1 oder 0 (MySQL 5.7+).
+      includesGuestTax: sql<boolean>`json_contains_path(${invoice.snapshot}, 'one', '$.guestTaxNote')`.mapWith(
+        (value: unknown) => Number(value) === 1,
+      ),
     })
     .from(invoice)
     .where(inArray(invoice.bookingRequestId, bookingRequestIds));

@@ -81,6 +81,16 @@ class Schreiber {
 }
 
 /**
+ * Personen für den Kopf: „4 Personen, davon 2 unter 14 Jahren“. Snapshots von
+ * vor BDS-006 haben kein `guestsUnder14` und zeigen nur die Personenzahl.
+ */
+function personen(snapshot: InvoiceSnapshot): string {
+  const anzahl = `${snapshot.guests} ${snapshot.guests === 1 ? "Person" : "Personen"}`;
+  const kinder = snapshot.guestsUnder14 ?? 0;
+  return kinder > 0 ? `${anzahl}, davon ${kinder} unter 14 Jahren` : anzahl;
+}
+
+/**
  * Erzeugt das Rechnungs-PDF ausschließlich aus dem eingefrorenen Stand
  * (siehe `InvoiceSnapshot`) – nie aus aktuellen Preisen. Dieselbe Rechnung
  * ergibt so bei jedem Abruf dasselbe Dokument.
@@ -137,7 +147,7 @@ export async function renderInvoicePdf(snapshot: InvoiceSnapshot): Promise<Uint8
   s.text(PROPERTY, { size: 10 });
   s.weiter(15);
   s.text(
-    `Leistungszeitraum: ${datum(snapshot.serviceStart)} bis ${datum(snapshot.serviceEnd)} · ${snapshot.guests} ${snapshot.guests === 1 ? "Person" : "Personen"}`,
+    `Leistungszeitraum: ${datum(snapshot.serviceStart)} bis ${datum(snapshot.serviceEnd)} · ${personen(snapshot)}`,
     { size: 9.5, color: GRAU },
   );
   s.weiter(28);
@@ -145,7 +155,10 @@ export async function renderInvoicePdf(snapshot: InvoiceSnapshot): Promise<Uint8
   // --- Positionen -----------------------------------------------------------
   const spalten = { menge: rechterRand - 190, einzel: rechterRand - 90 };
   s.text("Leistung", { size: 8.5, bold: true, color: GRAU });
-  s.text("Nächte", { x: spalten.menge, size: 8.5, bold: true, color: GRAU });
+  // „Menge“ statt „Nächte“: Beim Gästebeitrag zählt die Spalte Personen ×
+  // Nächte (seit BDS-006). Gilt auch für ältere Snapshots – dort steht nur
+  // die Zahl der Nächte darin, was „Menge“ ebenso trifft.
+  s.text("Menge", { x: spalten.menge, size: 8.5, bold: true, color: GRAU });
   s.rechts("Einzelpreis", spalten.einzel + 20, { size: 8.5, bold: true });
   s.rechts("Betrag", rechterRand, { size: 8.5, bold: true });
   s.weiter(8);
@@ -177,6 +190,9 @@ export async function renderInvoicePdf(snapshot: InvoiceSnapshot): Promise<Uint8
   s.rechts(euro(snapshot.total), rechterRand, { size: 11, bold: true });
   s.weiter(16);
   s.absatz(SMALL_BUSINESS_NOTE, { size: 8.5, color: GRAU });
+  if (snapshot.guestTaxNote) {
+    s.absatz(snapshot.guestTaxNote, { size: 8.5, color: GRAU });
+  }
   s.weiter(18);
 
   // --- Zahlung --------------------------------------------------------------

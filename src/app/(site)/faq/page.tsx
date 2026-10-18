@@ -51,12 +51,12 @@ const FAQ: readonly { frage: string; antwort: string; verweis?: Verweis }[] = [
   },
   {
     frage: "Wie und wann bezahle ich?",
-    antwort: `Nach der Zusage überweisen Sie innerhalb von ${DEPOSIT_DUE_DAYS} Tagen ${Math.round(DEPOSIT_SHARE * 100)} % des Mietpreises als Anzahlung, den Rest spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise. Endreinigung (${CLEANING_FEE} €), Servicegebühr (${SERVICE_FEE} €), bestellte Wäsche und der Gästebeitrag werden bar bei der Schlüsselübergabe bezahlt.`,
+    antwort: `Nach der Zusage überweisen Sie innerhalb von ${DEPOSIT_DUE_DAYS} Tagen ${Math.round(DEPOSIT_SHARE * 100)} % des Rechnungsbetrags (Mietpreis und Gästebeitrag) als Anzahlung, den Rest spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise. Endreinigung (${CLEANING_FEE} €), Servicegebühr (${SERVICE_FEE} €) und bestellte Wäsche werden bar bei der Schlüsselübergabe bezahlt.`,
     verweis: { href: rentalTermsHref("zahlung"), thema: "Zahlung" },
   },
   {
     frage: "Was kostet eine Stornierung?",
-    antwort: `${CANCELLATION_TIERS.map((tier) => `${tier.label[0].toUpperCase()}${tier.label.slice(1)}: ${tier.cost}`).join(". ")}. Gelingt eine Weitervermietung, erstatten wir die Stornokosten. Eine Reiserücktrittsversicherung empfehlen wir.`,
+    antwort: `${CANCELLATION_TIERS.map((tier) => `${tier.label[0].toUpperCase()}${tier.label.slice(1)}: ${tier.cost}`).join(". ")}. Die Stornokosten beziehen sich nur auf den Mietpreis, den Gästebeitrag erstatten wir vollständig. Gelingt eine Weitervermietung, erstatten wir die Stornokosten. Eine Reiserücktrittsversicherung empfehlen wir.`,
     verweis: { href: rentalTermsHref(CANCELLATION_ANCHOR), thema: "Stornierung" },
   },
   {
@@ -78,11 +78,11 @@ const FAQ: readonly { frage: string; antwort: string; verweis?: Verweis }[] = [
   {
     frage: "Ist die Wohnung für Kinder geeignet?",
     antwort:
-      "Ja. Ein Babyreisebett und ein Kinderhochstuhl sind vorhanden, Spielplatz und Seehundstation liegen wenige Gehminuten entfernt. Kinder bis einschließlich 13 Jahre zahlen keinen Gästebeitrag.",
+      "Ja. Ein Babyreisebett und ein Kinderhochstuhl sind vorhanden, Spielplatz und Seehundstation liegen wenige Gehminuten entfernt. Kinder bis einschließlich 13 Jahre zahlen keinen Gästebeitrag – geben Sie im Anfrageformular einfach an, wie viele Personen unter 14 Jahre alt sind.",
   },
   {
     frage: "Wie hoch ist der Gästebeitrag (Kurtaxe)?",
-    antwort: `Die Stadt Norden erhebt ${euro(GUEST_TAX.main)} € je Person ab 14 Jahren und Nacht vom 15.03. bis 31.10., in der übrigen Zeit ${euro(GUEST_TAX.off)} €. Er wird bei der Schlüsselübergabe bar bezahlt; dafür erhalten Sie die Gästekarte mit Vergünstigungen.`,
+    antwort: `Die Stadt Norden erhebt ${euro(GUEST_TAX.main)} € je Person ab 14 Jahren und Nacht vom 15.03. bis 31.10., in der übrigen Zeit ${euro(GUEST_TAX.off)} €. Er steht als eigener Posten auf der Rechnung und wird mit Anzahlung und Restbetrag überwiesen; wir leiten ihn an die Stadt Norden weiter. Die Gästekarte mit Vergünstigungen erhalten Sie bei der Schlüsselübergabe.`,
   },
   {
     frage: "Sind Haustiere erlaubt? Darf geraucht werden?",

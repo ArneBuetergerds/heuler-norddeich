@@ -254,6 +254,8 @@ export async function createManualBooking(
     startDate: Date;
     endDate: Date;
     guests: number;
+    /** Davon unter 14 Jahren (kein Gästebeitrag); höchstens `guests` − 1. */
+    guestsUnder14: number;
     linens: number;
     towels: number;
     /** Rechnungsanschrift, freiwillig; vollständig oder gar nicht (manualBookingSchema). */
@@ -283,6 +285,7 @@ export async function createManualBooking(
         startDate: booking.startDate,
         endDate: booking.endDate,
         guests: booking.guests,
+        guestsUnder14: booking.guestsUnder14,
         linens: booking.linens,
         towels: booking.towels,
         status: "confirmed",

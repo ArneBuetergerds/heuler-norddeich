@@ -31,6 +31,8 @@ const BEISPIEL: BookingRequest = {
   endDate: new Date("2027-07-17"),
   message: "Kommen wir mit dem Zug an? Gibt es einen Parkplatz am Haus?",
   guests: 4,
+  // Zwei Kinder: Gästebeitrag nur für zwei Personen ab 14 Jahren.
+  guestsUnder14: 2,
   linens: 4,
   towels: 2,
   status: "pending",
@@ -51,6 +53,7 @@ const SCHLICHT: BookingRequest = {
   phone: null,
   message: null,
   guests: 2,
+  guestsUnder14: 0,
   linens: 0,
   towels: 0,
 };

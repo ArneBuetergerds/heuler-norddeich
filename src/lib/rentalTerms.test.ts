@@ -99,10 +99,29 @@ describe("rentalTermsSections", () => {
     expect(text).toContain("bar bei der Schlüsselübergabe");
   });
 
+  it("nennt den Gästebeitrag als Teil von Rechnung und Anzahlung, nicht als Barzahlung (BDS-006)", () => {
+    const text = abschnitt("preise");
+    expect(text).toContain("Der Gästebeitrag steht als eigener Posten auf der Rechnung");
+    expect(text).toContain("mit Anzahlung und Restbetrag überwiesen");
+    expect(text).toContain("an die Stadt Norden weiter");
+    // Kein Satz nennt den Gästebeitrag zusammen mit einer Barzahlung.
+    for (const satz of alles.split(/(?<=[.!?])\s+|\n/)) {
+      if (/\bbar\b/.test(satz)) {
+        expect(satz).not.toContain("Gästebeitrag");
+      }
+    }
+  });
+
+  it("sagt im Storno-Abschnitt, dass der Gästebeitrag erstattet wird", () => {
+    expect(abschnitt("storno")).toContain(
+      "Der Gästebeitrag der Stadt Norden wird bei einer Stornierung vollständig erstattet; die Stornokosten beziehen sich nur auf den Mietpreis.",
+    );
+  });
+
   it("nennt Anzahlung und Restzahlung aus den Konstanten und verweist auf den Storno-Abschnitt", () => {
     const text = abschnitt("zahlung");
     expect(text).toContain(
-      `Anzahlung von ${Math.round(DEPOSIT_SHARE * 100)} % des Mietpreises innerhalb von ${DEPOSIT_DUE_DAYS} Tagen`,
+      `Anzahlung von ${Math.round(DEPOSIT_SHARE * 100)} % des Rechnungsbetrags (Mietpreis und Gästebeitrag) innerhalb von ${DEPOSIT_DUE_DAYS} Tagen`,
     );
     expect(text).toContain(`spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise`);
     expect(text).toContain("Überweisung");

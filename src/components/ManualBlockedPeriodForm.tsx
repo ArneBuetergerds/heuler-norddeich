@@ -15,6 +15,7 @@ import { formatDate } from "@/lib/format";
 import { adminOverviewHref, startOfUtcMonth } from "@/lib/month";
 import { ADDRESS_LIMITS } from "@/lib/invoice";
 import { EXTRAS, MAX_GUESTS } from "@/lib/pricing";
+import { under14Hint, under14Selectable } from "@/lib/quoteView";
 import { INTERNAL_RETENTION_MONTHS, internalStayDeletionDate } from "@/lib/retention";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +76,7 @@ const FELD_ID: Record<string, string> = {
   country: "country",
   message: "message",
   guests: "guests",
+  guestsUnder14: "guestsUnder14",
   linens: "extras",
   towels: "extras",
 };
@@ -103,6 +105,8 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
   const [fehler, setFehler] = useState<Fehler | null>(null);
   const [erfolg, setErfolg] = useState<Erfolg | null>(null);
   const [guests, setGuests] = useState(2);
+  // Davon unter 14 Jahren: zahlen keinen Gästebeitrag.
+  const [guestsUnder14, setGuestsUnder14] = useState(0);
   const [extras, setExtras] = useState({ linens: 0, towels: 0 });
   const erfolgRef = useRef<HTMLDivElement>(null);
 
@@ -134,6 +138,12 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
       linens: Math.min(alt.linens, neu),
       towels: Math.min(alt.towels, neu),
     }));
+    // Mindestens eine Person ist 14 oder älter – wie Server und Datenbank.
+    setGuestsUnder14((alt) => Math.min(alt, neu - 1));
+  }
+
+  function changeGuestsUnder14(wert: number): void {
+    setGuestsUnder14(Math.max(0, Math.min(Number.isFinite(wert) ? wert : 0, guests - 1)));
   }
 
   /** Meldung am betroffenen Feld zeigen und dorthin springen, wie im Gastformular. */
@@ -202,6 +212,7 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
                   city: optionalText(formData, "city"),
                   country: optionalText(formData, "country"),
                   guests,
+                  guestsUnder14,
                   linens: extras.linens,
                   towels: extras.towels,
                   message: optionalText(formData, "message"),
@@ -256,6 +267,7 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
       form.reset();
       setRange(undefined);
       setGuests(2);
+      setGuestsUnder14(0);
       setExtras({ linens: 0, towels: 0 });
       router.refresh();
     } finally {
@@ -368,16 +380,47 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
 
       {kind === "booking" ? (
         <>
-          <Feld id="guests" fehler={fehler} label="Personen">
-            <Zahlenfeld
-              id="guests"
-              name="Personen"
-              value={guests}
-              min={1}
-              max={MAX_GUESTS}
-              onChange={changeGuests}
-            />
-          </Feld>
+          {/* Personen und „davon unter 14“ als eine Gruppe: Das zweite Feld ist
+              eingerückt und hängt optisch am ersten. Untereinander statt
+              nebeneinander, weil die Formularspalte ab md schmaler ist als zwei
+              Zahlenfelder. */}
+          <div className="flex flex-col gap-3">
+            <Feld id="guests" fehler={fehler} label="Personen">
+              <Zahlenfeld
+                id="guests"
+                name="Personen"
+                value={guests}
+                min={1}
+                max={MAX_GUESTS}
+                onChange={changeGuests}
+                invalid={fehler?.feld === "guests"}
+                describedBy={fehler?.feld === "guests" ? "guests-fehler" : undefined}
+              />
+            </Feld>
+
+            <div className="border-l-2 border-linie pl-4">
+              <Feld id="guestsUnder14" fehler={fehler} label="davon unter 14 Jahre">
+                <Zahlenfeld
+                  id="guestsUnder14"
+                  name="Personen unter 14 Jahre"
+                  value={guestsUnder14}
+                  min={0}
+                  max={guests - 1}
+                  onChange={changeGuestsUnder14}
+                  disabled={!under14Selectable(guests)}
+                  invalid={fehler?.feld === "guestsUnder14"}
+                  describedBy={
+                    fehler?.feld === "guestsUnder14"
+                      ? "guestsUnder14-hinweis guestsUnder14-fehler"
+                      : "guestsUnder14-hinweis"
+                  }
+                />
+                <p id="guestsUnder14-hinweis" className="text-mikro text-schlick-2">
+                  {under14Hint(guests)}
+                </p>
+              </Feld>
+            </div>
+          </div>
 
           <fieldset id="extras" tabIndex={-1} className="flex flex-col gap-3 outline-none">
             <legend className="mb-1.5 text-klein font-medium text-schlick">

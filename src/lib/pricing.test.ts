@@ -10,6 +10,11 @@ import {
   priceBreakdown,
   depositAmount,
   balanceAmount,
+  bookingCharges,
+  guestTaxBreakdown,
+  guestTaxTotal,
+  payingGuests,
+  paymentSplit,
 } from "./pricing";
 
 describe("seasonForDate", () => {
@@ -158,7 +163,7 @@ describe("Anzahlung", () => {
 });
 
 describe("quoteStay", () => {
-  it("rechnet eine Woche Hauptsaison für 4 Personen inkl. Pflicht-Nebenkosten", async () => {
+  it("rechnet eine Woche Hauptsaison für 4 Personen inkl. Pflicht-Nebenkosten und Gästebeitrag", async () => {
     const { quoteStay } = await import("./pricing");
     const quote = quoteStay(new Date("2027-07-10"), new Date("2027-07-17"), {
       guests: 4,
@@ -167,10 +172,26 @@ describe("quoteStay", () => {
     });
     expect(quote.nights).toBe(7);
     expect(quote.rent).toBe(658);
-    expect(quote.total).toBe(743);
-    expect(quote.deposit).toBe(197.4);
-    // 7 Nächte × 3,50 € × 4 Personen
-    expect(quote.guestTaxMax).toBe(98);
+    // 7 Nächte × 3,50 € × 4 Personen, ohne Angabe keine Kinder
+    expect(quote.guestTax).toBe(98);
+    expect(quote.total).toBe(658 + 98 + 85);
+    // 30 % von Miete + Gästebeitrag (756 €)
+    expect(quote.deposit).toBe(226.8);
+  });
+
+  it("rechnet den Gästebeitrag nur für Personen ab 14 Jahren", async () => {
+    const { quoteStay } = await import("./pricing");
+    const quote = quoteStay(new Date("2027-07-10"), new Date("2027-07-17"), {
+      guests: 4,
+      guestsUnder14: 2,
+      linens: 0,
+      towels: 0,
+    });
+    expect(quote.guestTax).toBe(49);
+    expect(quote.guestTaxLines).toEqual([
+      { season: "main", nights: 7, persons: 2, rate: 3.5, total: 49 },
+    ]);
+    expect(quote.deposit).toBe(depositAmount(658 + 49));
   });
 
   it("zählt bestellte Wäsche in den Gesamtpreis, nicht in die Anzahlung", async () => {
@@ -181,8 +202,8 @@ describe("quoteStay", () => {
       towels: 1,
     });
     expect(quote.extras).toBe(25);
-    expect(quote.total).toBe(658 + 85 + 25);
-    expect(quote.deposit).toBe(197.4);
+    expect(quote.total).toBe(658 + 49 + 85 + 25);
+    expect(quote.deposit).toBe(212.1);
   });
 
   it("wechselt den Gästebeitrag an der Saisongrenze am 15.03.", async () => {
@@ -191,5 +212,80 @@ describe("quoteStay", () => {
     expect(guestTaxPerNight(new Date("2027-03-15"))).toBe(3.5);
     expect(guestTaxPerNight(new Date("2027-10-31"))).toBe(3.5);
     expect(guestTaxPerNight(new Date("2027-11-01"))).toBe(1.8);
+  });
+});
+
+describe("Gästebeitrag je Buchung", () => {
+  it("zählt als zahlende Personen alle ab 14 Jahren", () => {
+    expect(payingGuests({ guests: 4, guestsUnder14: 3 })).toBe(1);
+    expect(payingGuests({ guests: 2, guestsUnder14: 0 })).toBe(2);
+  });
+
+  it.each([undefined, null])("zählt Altbestand ohne Kinderangabe (%s) als 0 Kinder", (guestsUnder14) => {
+    expect(payingGuests({ guests: 3, guestsUnder14 })).toBe(3);
+    expect(guestTaxTotal(new Date("2027-07-10"), new Date("2027-07-17"), { guests: 3, guestsUnder14 })).toBe(73.5);
+  });
+
+  it("trennt beim Saisonwechsel am 15.03. und bepreist jede Nacht mit ihrem Satz", () => {
+    // Nächte 12., 13., 14.03. Nebensaison, 15. und 16.03. Hauptsaison.
+    const posten = guestTaxBreakdown(new Date("2027-03-12"), new Date("2027-03-17"), {
+      guests: 3,
+      guestsUnder14: 1,
+    });
+    expect(posten).toEqual([
+      { season: "off", nights: 3, persons: 2, rate: 1.8, total: 10.8 },
+      { season: "main", nights: 2, persons: 2, rate: 3.5, total: 14 },
+    ]);
+    expect(guestTaxTotal(new Date("2027-03-12"), new Date("2027-03-17"), { guests: 3, guestsUnder14: 1 })).toBe(24.8);
+  });
+
+  it("trennt beim Saisonwechsel am 01.11.", () => {
+    const posten = guestTaxBreakdown(new Date("2027-10-30"), new Date("2027-11-02"), { guests: 1 });
+    expect(posten.map((p) => [p.season, p.nights])).toEqual([
+      ["main", 2],
+      ["off", 1],
+    ]);
+  });
+
+  it("rundet auf volle Cent ohne Gleitkommareste", () => {
+    // 3 × 1,80 € × 7 = 37,80 € – als Gleitkommazahl 37.800000000000004.
+    expect(guestTaxTotal(new Date("2027-01-10"), new Date("2027-01-17"), { guests: 3 })).toBe(37.8);
+    // Über den Saisonwechsel: 2 × 3,50 € × 2 + 2 × 1,80 € × 1 = 17,60 €.
+    expect(guestTaxTotal(new Date("2027-10-30"), new Date("2027-11-02"), { guests: 2 })).toBe(17.6);
+  });
+
+  it("ergibt ohne zahlende Personen keinen Posten", () => {
+    expect(guestTaxBreakdown(new Date("2027-07-10"), new Date("2027-07-17"), { guests: 1, guestsUnder14: 1 })).toEqual([]);
+  });
+});
+
+describe("Anzahlung und Rest aus Miete und Gästebeitrag", () => {
+  it("rechnet das Beispiel der alten Vorlage: 537 € Miete + 63 € Gästebeitrag → 180 € Anzahlung", () => {
+    expect(paymentSplit(537, 63)).toEqual({ total: 600, deposit: 180, balance: 420 });
+  });
+
+  it.each([
+    [578, 49],
+    [370, 28.2],
+    [94, 1.8],
+    [1234.55, 37.8],
+  ])("ergibt zusammen wieder genau die Summe (%s € + %s €)", (rent, tax) => {
+    const { total, deposit, balance } = paymentSplit(rent, tax);
+    expect(total).toBeCloseTo(rent + tax, 2);
+    expect(deposit + balance).toBeCloseTo(total, 2);
+  });
+
+  it("fasst eine Buchung zusammen wie die Rechnung: Miete, Gästebeitrag, Zahlung", () => {
+    const charges = bookingCharges({
+      startDate: new Date("2027-08-29"),
+      endDate: new Date("2027-09-05"),
+      guests: 3,
+      guestsUnder14: 1,
+    });
+    expect(charges.rent).toBe(578);
+    expect(charges.guestTax).toBe(49);
+    expect(charges.total).toBe(627);
+    expect(charges.deposit).toBe(188.1);
+    expect(charges.balance).toBe(438.9);
   });
 });
