@@ -19,7 +19,7 @@ type Props = {
  * dem Absenden sieht, fragt eher an – und muss nicht erst auf die
  * Eingangsbestätigung warten, um zu erfahren, was der Aufenthalt kostet.
  *
- * Gegliedert nach Zahlungsweg (BDS-006): Mietpreis und Gästebeitrag stehen auf
+ * Gegliedert nach Zahlungsweg (BDS-006): Mietpreis und Kurtaxe stehen auf
  * der Rechnung und werden in Anzahlung und Rest überwiesen; Endreinigung,
  * Servicegebühr und Wäsche werden bar bei der Schlüsselübergabe bezahlt. Der
  * Bar-Block hat dieselbe Fläche wie der Bar-Block in der Preistabelle der
@@ -67,7 +67,7 @@ export function PriceQuote({ startDate, endDate, guests, guestsUnder14, linens, 
 
           <div className="flex flex-col gap-1.5">
             <p id={`${id}-gaestebeitrag`} className="text-mikro font-semibold text-schlick-2">
-              Gästebeitrag der Stadt Norden
+              Kurtaxe der Stadt Norden
             </p>
             <dl
               aria-labelledby={`${id}-gaestebeitrag`}
@@ -81,7 +81,7 @@ export function PriceQuote({ startDate, endDate, guests, guestsUnder14, linens, 
 
           <dl className="flex flex-col gap-1.5 border-t border-linie pt-2.5 text-klein text-schlick">
             <Zeile
-              label="Mietpreis und Gästebeitrag"
+              label="Mietpreis und Kurtaxe"
               betrag={transfer.total}
               className="font-semibold"
             />
@@ -130,7 +130,7 @@ export function PriceQuote({ startDate, endDate, guests, guestsUnder14, linens, 
       </dl>
 
       <p className="text-mikro text-schlick-2">
-        Unverbindliche Vorschau. Kinder bis 13 Jahre zahlen keinen Gästebeitrag.
+        Unverbindliche Vorschau. Kinder bis 13 Jahre zahlen keine Kurtaxe.
       </p>
     </section>
   );

@@ -23,7 +23,7 @@ export const CANCELLATION_TIERS = [
 ] as const;
 
 export const CANCELLATION_NOTES = [
-  "Der Gästebeitrag der Stadt Norden wird bei einer Stornierung vollständig erstattet; die Stornokosten beziehen sich nur auf den Mietpreis.",
+  "Die Kurtaxe der Stadt Norden wird bei einer Stornierung vollständig erstattet; die Stornokosten beziehen sich nur auf den Mietpreis.",
   "Die Stornierung bitte per E-Mail an kontakt@norddeich-heuler.de.",
   "Gelingt es, die Wohnung für den Zeitraum anderweitig zu vermieten, erstatten wir die Stornokosten.",
   "Wir empfehlen den Abschluss einer Reiserücktrittsversicherung.",

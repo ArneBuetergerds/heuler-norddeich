@@ -84,7 +84,7 @@ describe("rentalTermsSections", () => {
     }
   });
 
-  it("nennt Nebenkosten, Wäsche und Gästebeitrag mit den Beträgen aus pricing.ts", () => {
+  it("nennt Nebenkosten, Wäsche und Kurtaxe mit den Beträgen aus pricing.ts", () => {
     const text = abschnitt("preise");
     expect(text).toContain(`Endreinigung ${CLEANING_FEE} €`);
     expect(text).toContain(`Servicegebühr ${SERVICE_FEE} €`);
@@ -99,29 +99,36 @@ describe("rentalTermsSections", () => {
     expect(text).toContain("bar bei der Schlüsselübergabe");
   });
 
-  it("nennt den Gästebeitrag als Teil von Rechnung und Anzahlung, nicht als Barzahlung (BDS-006)", () => {
+  it("nennt die Kurtaxe als Teil von Rechnung und Anzahlung, nicht als Barzahlung (BDS-006)", () => {
     const text = abschnitt("preise");
-    expect(text).toContain("Der Gästebeitrag steht als eigener Posten auf der Rechnung");
+    expect(text).toContain("Die Kurtaxe steht als eigener Posten auf der Rechnung");
     expect(text).toContain("mit Anzahlung und Restbetrag überwiesen");
     expect(text).toContain("an die Stadt Norden weiter");
-    // Kein Satz nennt den Gästebeitrag zusammen mit einer Barzahlung.
+    // Kein Satz nennt die Kurtaxe zusammen mit einer Barzahlung.
     for (const satz of alles.split(/(?<=[.!?])\s+|\n/)) {
       if (/\bbar\b/.test(satz)) {
+        expect(satz).not.toContain("Kurtaxe");
         expect(satz).not.toContain("Gästebeitrag");
       }
     }
   });
 
-  it("sagt im Storno-Abschnitt, dass der Gästebeitrag erstattet wird", () => {
+  it("sagt „Kurtaxe“ und nennt „Gästebeitrag“ nur einmal als Begriff der Satzung", () => {
+    const satzung = "Kurtaxe (Gästebeitrag nach Satzung der Stadt Norden)";
+    expect(alles.split(satzung).length - 1).toBe(1);
+    expect(alles.replace(satzung, "")).not.toContain("Gästebeitrag");
+  });
+
+  it("sagt im Storno-Abschnitt, dass die Kurtaxe erstattet wird", () => {
     expect(abschnitt("storno")).toContain(
-      "Der Gästebeitrag der Stadt Norden wird bei einer Stornierung vollständig erstattet; die Stornokosten beziehen sich nur auf den Mietpreis.",
+      "Die Kurtaxe der Stadt Norden wird bei einer Stornierung vollständig erstattet; die Stornokosten beziehen sich nur auf den Mietpreis.",
     );
   });
 
   it("nennt Anzahlung und Restzahlung aus den Konstanten und verweist auf den Storno-Abschnitt", () => {
     const text = abschnitt("zahlung");
     expect(text).toContain(
-      `Anzahlung von ${Math.round(DEPOSIT_SHARE * 100)} % des Rechnungsbetrags (Mietpreis und Gästebeitrag) innerhalb von ${DEPOSIT_DUE_DAYS} Tagen`,
+      `Anzahlung von ${Math.round(DEPOSIT_SHARE * 100)} % des Rechnungsbetrags (Mietpreis und Kurtaxe) innerhalb von ${DEPOSIT_DUE_DAYS} Tagen`,
     );
     expect(text).toContain(`spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise`);
     expect(text).toContain("Überweisung");
@@ -163,7 +170,7 @@ describe("rentalTermsSections", () => {
 
   it("nennt keine abweichenden Beträge oder Zeiten aus der Vorlage", () => {
     expect(alles).not.toContain("15 Uhr");
-    // Ohne Ziffer oder Komma davor – "3,50 €" (Gästebeitrag) ist gemeint.
+    // Ohne Ziffer oder Komma davor – "3,50 €" (Kurtaxe) ist gemeint.
     expect(alles).not.toMatch(/(?<![\d,])50 €/);
     expect(alles).not.toMatch(/(?<![\d,])25 €/);
   });

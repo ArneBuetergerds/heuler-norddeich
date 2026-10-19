@@ -254,7 +254,7 @@ export async function createManualBooking(
     startDate: Date;
     endDate: Date;
     guests: number;
-    /** Davon unter 14 Jahren (kein Gästebeitrag); höchstens `guests` − 1. */
+    /** Davon unter 14 Jahren (keine Kurtaxe); höchstens `guests` − 1. */
     guestsUnder14: number;
     linens: number;
     towels: number;

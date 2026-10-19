@@ -49,7 +49,7 @@ export const bookingRequest = mysqlTable(
     message: text("message"),
     // Personenzahl: begrenzt zugleich, wie viele Wäschesätze bestellbar sind.
     guests: int("guests").notNull().default(1),
-    // Davon Kinder unter 14 Jahren: Sie zahlen keinen Gästebeitrag der Stadt
+    // Davon Kinder unter 14 Jahren: Sie zahlen keine Kurtaxe der Stadt
     // Norden (src/lib/pricing.ts, `payingGuests`). Default 0 für Anfragen von
     // vor dieser Spalte – für sie zahlen alle Gäste (BDS-006). Mindestens eine
     // Person ist 14 oder älter, siehe Check unten.

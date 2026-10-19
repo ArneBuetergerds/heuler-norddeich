@@ -17,8 +17,8 @@ describe("paymentOverview", () => {
     towels: 0,
   });
 
-  it("überweist Mietpreis und Gästebeitrag, geteilt in Anzahlung und Rest", () => {
-    // 7 × 94 € Miete + 7 × 2 × 3,50 € Gästebeitrag
+  it("überweist Mietpreis und Kurtaxe, geteilt in Anzahlung und Rest", () => {
+    // 7 × 94 € Miete + 7 × 2 × 3,50 € Kurtaxe
     expect(paymentOverview(quote).transfer).toEqual({
       total: 707,
       deposit: 212.1,
@@ -89,12 +89,12 @@ describe("under14Selectable / under14Hint", () => {
 
   it("gibt das Feld ab zwei Personen frei", () => {
     expect(under14Selectable(2)).toBe(true);
-    expect(under14Hint(2)).toBe("Kinder bis 13 Jahre zahlen keinen Gästebeitrag.");
+    expect(under14Hint(2)).toBe("Kinder bis 13 Jahre zahlen keine Kurtaxe.");
   });
 });
 
 describe("stayChargesView (Admin-Dialog, BDS-006)", () => {
-  // 29.08.–05.09.2027, 3 Personen, 1 Kind: Miete 578 €, Gästebeitrag 49 €.
+  // 29.08.–05.09.2027, 3 Personen, 1 Kind: Miete 578 €, Kurtaxe 49 €.
   const charges = bookingCharges({
     startDate: new Date("2027-08-29"),
     endDate: new Date("2027-09-05"),
@@ -102,7 +102,7 @@ describe("stayChargesView (Admin-Dialog, BDS-006)", () => {
     guestsUnder14: 1,
   });
 
-  it("ohne Rechnung: Gästebeitrag auf der Rechnung, Überweisung Miete + Gästebeitrag", () => {
+  it("ohne Rechnung: Kurtaxe auf der Rechnung, Überweisung Miete + Kurtaxe", () => {
     expect(stayChargesView(charges, undefined)).toEqual({
       invoiceGuestTaxLines: charges.guestTaxLines,
       invoiceTotal: 627,
@@ -111,7 +111,7 @@ describe("stayChargesView (Admin-Dialog, BDS-006)", () => {
     });
   });
 
-  it("mit neuer Rechnung (Gästebeitrag enthalten): wie ohne Rechnung", () => {
+  it("mit neuer Rechnung (Kurtaxe enthalten): wie ohne Rechnung", () => {
     const view = stayChargesView(charges, { number: "RE-2027-0005", includesGuestTax: true });
 
     expect(view.invoiceTotal).toBe(627);
@@ -120,7 +120,7 @@ describe("stayChargesView (Admin-Dialog, BDS-006)", () => {
     expect(view.invoiceBeforeSwitch).toBe(false);
   });
 
-  it("mit Rechnung von vor der Umstellung: Miete als Rechnungsbetrag, Gästebeitrag bar vor Ort", () => {
+  it("mit Rechnung von vor der Umstellung: Miete als Rechnungsbetrag, Kurtaxe bar vor Ort", () => {
     expect(stayChargesView(charges, { number: "RE-2027-0001", includesGuestTax: false })).toEqual({
       invoiceGuestTaxLines: [],
       invoiceTotal: 578,

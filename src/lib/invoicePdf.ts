@@ -155,7 +155,7 @@ export async function renderInvoicePdf(snapshot: InvoiceSnapshot): Promise<Uint8
   // --- Positionen -----------------------------------------------------------
   const spalten = { menge: rechterRand - 190, einzel: rechterRand - 90 };
   s.text("Leistung", { size: 8.5, bold: true, color: GRAU });
-  // „Menge“ statt „Nächte“: Beim Gästebeitrag zählt die Spalte Personen ×
+  // „Menge“ statt „Nächte“: Bei der Kurtaxe zählt die Spalte Personen ×
   // Nächte (seit BDS-006). Gilt auch für ältere Snapshots – dort steht nur
   // die Zahl der Nächte darin, was „Menge“ ebenso trifft.
   s.text("Menge", { x: spalten.menge, size: 8.5, bold: true, color: GRAU });

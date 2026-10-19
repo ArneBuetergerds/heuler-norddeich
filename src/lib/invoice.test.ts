@@ -16,6 +16,9 @@ import {
 import { GUEST_TAX } from "./pricing";
 import { renderInvoicePdf } from "./invoicePdf";
 
+/** Einzig erlaubte Nennung des Satzungsbegriffs (BDS-006, Bezeichnung Kurtaxe). */
+const GUEST_TAX_SATZUNG = "Kurtaxe (Gästebeitrag nach Satzung der Stadt Norden)";
+
 const request: BookingRequest = {
   id: 7,
   name: "Erika Musterfrau",
@@ -29,8 +32,8 @@ const request: BookingRequest = {
   startDate: new Date("2027-08-29"),
   endDate: new Date("2027-09-05"),
   message: null,
-  // Drei Personen, davon ein Kind: Gästebeitrag für zwei Personen, alle
-  // sieben Nächte in der Hauptsaison des Gästebeitrags (3,50 €).
+  // Drei Personen, davon ein Kind: Kurtaxe für zwei Personen, alle
+  // sieben Nächte in der Hauptsaison der Kurtaxe (3,50 €).
   guests: 3,
   guestsUnder14: 1,
   linens: 2,
@@ -90,11 +93,11 @@ describe("buildInvoiceSnapshot", () => {
     expect(s.lines[1]).toMatchObject({ quantity: 4, unitPrice: 74, total: 296 });
   });
 
-  it("weist den Gästebeitrag als eigenen Posten aus: zahlende Personen × Nächte zum Satz", () => {
+  it("weist die Kurtaxe als eigenen Posten aus: zahlende Personen × Nächte zum Satz", () => {
     const s = snapshot();
 
     expect(s.lines[2]).toEqual({
-      description: "Gästebeitrag Stadt Norden (Hauptsaison)",
+      description: "Kurtaxe Stadt Norden (Hauptsaison)",
       // 3 Personen − 1 Kind = 2 zahlende × 7 Nächte
       quantity: 14,
       unitPrice: GUEST_TAX.main,
@@ -104,7 +107,7 @@ describe("buildInvoiceSnapshot", () => {
     expect(s.guestTaxNote).toBe(GUEST_TAX_INVOICE_NOTE);
   });
 
-  it("trennt den Gästebeitrag an der Saisongrenze 31.10./01.11. in zwei Posten", () => {
+  it("trennt die Kurtaxe an der Saisongrenze 31.10./01.11. in zwei Posten", () => {
     // 3 Nächte Hauptsaison (29.–31.10.), 2 Nächte Nebensaison (01.–02.11.);
     // beim Mietpreis alles Zwischensaison.
     const s = snapshot({
@@ -121,13 +124,13 @@ describe("buildInvoiceSnapshot", () => {
     expect(s.lines).toHaveLength(3);
     expect(s.lines[0]).toMatchObject({ quantity: 5, unitPrice: 74, total: 370 });
     expect(s.lines[1]).toMatchObject({
-      description: "Gästebeitrag Stadt Norden (Hauptsaison)",
+      description: "Kurtaxe Stadt Norden (Hauptsaison)",
       quantity: 6,
       unitPrice: 3.5,
       total: 21,
     });
     expect(s.lines[2]).toMatchObject({
-      description: "Gästebeitrag Stadt Norden (Nebensaison)",
+      description: "Kurtaxe Stadt Norden (Nebensaison)",
       quantity: 4,
       unitPrice: 1.8,
       total: 7.2,
@@ -135,28 +138,37 @@ describe("buildInvoiceSnapshot", () => {
     expect(s.total).toBe(398.2);
   });
 
-  it("rechnet Miete plus Gästebeitrag als Rechnungsbetrag", () => {
+  it("rechnet Miete plus Kurtaxe als Rechnungsbetrag", () => {
     expect(snapshot().total).toBe(578 + 49);
   });
 
   it("teilt den Betrag so auf, dass Anzahlung und Rest exakt die Summe ergeben", () => {
     const s = snapshot();
 
-    // 30 % von 627 € (Miete 578 € + Gästebeitrag 49 €)
+    // 30 % von 627 € (Miete 578 € + Kurtaxe 49 €)
     expect(s.deposit).toBe(188.1);
     expect(s.balance).toBe(438.9);
     expect(s.deposit + s.balance).toBeCloseTo(s.total, 2);
   });
 
-  it("führt Nebenkosten und Wäsche nur als bar zu zahlende Hinweise, den Gästebeitrag nicht", () => {
+  it("führt Nebenkosten und Wäsche nur als bar zu zahlende Hinweise, die Kurtaxe nicht", () => {
     const s = snapshot();
 
     expect(s.cashOnSite.some((p) => p.includes("Endreinigung"))).toBe(true);
     expect(s.cashOnSite.some((p) => p.includes("Bettwäsche 2"))).toBe(true);
     // Keine Handtücher bestellt, also auch nicht erwähnt.
     expect(s.cashOnSite.some((p) => p.includes("Handtücher"))).toBe(false);
-    // Der Gästebeitrag steht seit BDS-006 auf der Rechnung, nicht im Bar-Block.
+    // Die Kurtaxe steht seit BDS-006 auf der Rechnung, nicht im Bar-Block.
+    expect(s.cashOnSite.some((p) => p.includes("Kurtaxe"))).toBe(false);
     expect(s.cashOnSite.some((p) => p.includes("Gästebeitrag"))).toBe(false);
+  });
+
+  it("sagt in neuen Rechnungen „Kurtaxe“, „Gästebeitrag“ nur einmal als Begriff der Satzung", () => {
+    const text = JSON.stringify(snapshot());
+
+    expect(text).toContain("Kurtaxe Stadt Norden (Hauptsaison)");
+    expect(text.split(GUEST_TAX_SATZUNG).length - 1).toBe(1);
+    expect(text.replace(GUEST_TAX_SATZUNG, "")).not.toContain("Gästebeitrag");
   });
 
   it("friert den Stand ein – das Datum steht als Text, nicht als Date", () => {
@@ -180,14 +192,14 @@ describe("renderInvoicePdf", () => {
     expect(pdf.getTitle()).toBe("Rechnung RE-2027-0001");
   });
 
-  it("druckt Gästebeitrag-Posten, Spalte „Menge“, Kinder im Kopf und den Weiterleitungshinweis", async () => {
+  it("druckt Kurtaxe-Posten, Spalte „Menge“, Kinder im Kopf und den Weiterleitungshinweis", async () => {
     const bytes = await renderInvoicePdf(snapshot());
 
     expect(pdfDrawsText(bytes, "Menge")).toBe(true);
     expect(pdfDrawsText(bytes, "Nächte")).toBe(false);
-    expect(pdfDrawsText(bytes, "Gästebeitrag Stadt Norden (Hauptsaison)")).toBe(true);
+    expect(pdfDrawsText(bytes, "Kurtaxe Stadt Norden (Hauptsaison)")).toBe(true);
     expect(pdfDrawsText(bytes, "3 Personen, davon 1 unter 14 Jahren")).toBe(true);
-    expect(pdfDrawsText(bytes, "Der Gästebeitrag wird nach der Satzung")).toBe(true);
+    expect(pdfDrawsText(bytes, "Die Kurtaxe (Gästebeitrag nach Satzung der Stadt Norden)")).toBe(true);
   });
 
   it("rendert einen alten Snapshot ohne Kinderangabe und mit Gästebeitrag im Bar-Block unverändert", async () => {
@@ -212,7 +224,7 @@ describe("renderInvoicePdf", () => {
     expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
     expect(pdfDrawsText(bytes, "3 Personen")).toBe(true);
     expect(pdfDrawsText(bytes, "unter 14 Jahren")).toBe(false);
-    expect(pdfDrawsText(bytes, "Gästebeitrag Stadt Norden")).toBe(false);
+    expect(pdfDrawsText(bytes, "Kurtaxe Stadt Norden")).toBe(false);
     expect(pdfDrawsText(bytes, "Gästebeitrag nach Satzung")).toBe(true);
   });
 

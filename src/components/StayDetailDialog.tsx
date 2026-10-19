@@ -36,7 +36,7 @@ import {
 
 /**
  * Alles zu einem bestätigten Aufenthalt an einer Stelle: Kontaktdaten,
- * Personenzahl, bestellte Wäsche, Nachricht, Mietpreis und Gästebeitrag.
+ * Personenzahl, bestellte Wäsche, Nachricht, Mietpreis und Kurtaxe.
  *
  * Der Preis wird hier **pro Nacht** aufgeschlüsselt, nicht mit dem Saisonpreis
  * des Anreisetags hochgerechnet – bei einem Aufenthalt über einen
@@ -64,9 +64,9 @@ export function StayDetailDialog({
   const posten = charges?.breakdown ?? priceBreakdown(stay.startDate, stay.endDate);
   const miete = charges?.rent ?? stayTotal(stay.startDate, stay.endDate);
   // Maßgeblich ist eine vorhandene Rechnung: Ist sie vor BDS-006 ohne
-  // Gästebeitrag ausgestellt, bleibt er bar vor Ort (`stayChargesView`).
+  // Kurtaxe ausgestellt, bleibt sie bar vor Ort (`stayChargesView`).
   const ansicht = charges ? stayChargesView(charges, invoice) : null;
-  // Nur mit Gästebeitrag-Posten auf der Rechnung bekommt die Tabelle den
+  // Nur mit Kurtaxe-Posten auf der Rechnung bekommt die Tabelle den
   // zweiten Block.
   const gaestebeitrag =
     ansicht && ansicht.invoiceGuestTaxLines.length > 0 ? ansicht : null;
@@ -187,7 +187,7 @@ export function StayDetailDialog({
                   {miete} €
                 </td>
               </tr>
-              {/* Gästebeitrag als eigener Block, Zeilen im selben Muster wie die
+              {/* Kurtaxe als eigener Block, Zeilen im selben Muster wie die
                   Miete: Menge × Satz, Klammer mit Saison und Herleitung. */}
               {gaestebeitrag && (
                 <>
@@ -197,7 +197,7 @@ export function StayDetailDialog({
                       colSpan={2}
                       className="pt-3 pb-0.5 text-left text-[11px] font-bold tracking-[0.06em] text-schlick-2 uppercase"
                     >
-                      Gästebeitrag
+                      Kurtaxe
                     </th>
                   </tr>
                   {gaestebeitrag.invoiceGuestTaxLines.map((eintrag) => (
@@ -216,7 +216,7 @@ export function StayDetailDialog({
                     </tr>
                   ))}
                   <tr className="border-t border-schlick-3">
-                    <td className="pt-1.5 font-bold">Mietpreis und Gästebeitrag</td>
+                    <td className="pt-1.5 font-bold">Mietpreis und Kurtaxe</td>
                     <td className="pt-1.5 text-right font-bold tabular-nums">
                       {formatEuro(gaestebeitrag.invoiceTotal)}
                     </td>
@@ -231,12 +231,12 @@ export function StayDetailDialog({
               ? `, Wäsche ${extrasTotal(request ?? { linens: 0, towels: 0 })} €`
               : ""}
             {ansicht?.guestTaxOnSite &&
-              `, Gästebeitrag ${formatEuro(ansicht.guestTaxOnSite.amount)} (laut Rechnung ${ansicht.guestTaxOnSite.invoiceNumber})`}
+              `, Kurtaxe ${formatEuro(ansicht.guestTaxOnSite.amount)} (laut Rechnung ${ansicht.guestTaxOnSite.invoiceNumber})`}
             .
           </p>
           {ansicht?.invoiceBeforeSwitch && (
             <p className="mt-1.5 text-[11px] font-semibold text-schlick-2">
-              Rechnung vor der Umstellung ausgestellt: Der Gästebeitrag steht nicht
+              Rechnung vor der Umstellung ausgestellt: Die Kurtaxe steht nicht
               auf der Rechnung und wird bar bei der Schlüsselübergabe kassiert.
             </p>
           )}

@@ -30,8 +30,8 @@ const NEBENKOSTEN = [
 /**
  * Gesamtpreis-Beispiele. Die Saisons wiederholen sich jährlich, das Jahr der
  * Beispieldaten ist deshalb beliebig; gerechnet wird mit denselben Funktionen
- * wie in der Preisvorschau des Formulars. Ohne Gästebeitrag („zzgl.“), weil er
- * vom Alter der Gäste abhängt: Seit BDS-006 enthält `quote.total` ihn, er wird
+ * wie in der Preisvorschau des Formulars. Ohne Kurtaxe („zzgl.“), weil sie
+ * vom Alter der Gäste abhängt: Seit BDS-006 enthält `quote.total` sie, sie wird
  * hier wieder abgezogen.
  */
 const BEISPIELE = [
@@ -157,7 +157,7 @@ export function PriceTable() {
           ))}
         </ul>
         <p className="mt-2 text-mikro text-schlick-2">
-          Für bis zu 4 Personen, zzgl. Gästebeitrag. Ihren genauen Preis sehen Sie
+          Für bis zu 4 Personen, zzgl. Kurtaxe. Ihren genauen Preis sehen Sie
           im Anfrageformular, sobald Sie einen Zeitraum wählen.
         </p>
       </div>
@@ -194,18 +194,18 @@ export function PriceTable() {
         </p>
       </div>
 
-      {/* Seit BDS-006 nicht mehr bar: Der Gästebeitrag steht auf der Rechnung
+      {/* Seit BDS-006 nicht mehr bar: Die Kurtaxe steht auf der Rechnung
           und zählt zur Anzahlung. Aufbau wie der Bar-Block darüber, aber auf
           heller Fläche mit Rahmen – so sind die beiden Zahlungswege auf einen
           Blick verschieden. Was die Gästekarte bringt, steht weiter unten
           (`KurkarteInfo`), hier nur Sätze und Bezahlung. */}
       <div className="mt-4 rounded-card border border-linie bg-sand p-5">
         <p className="text-label font-semibold uppercase text-schlick-2">
-          Gästebeitrag der Stadt Norden, mit der Rechnung
+          Kurtaxe der Stadt Norden, mit der Rechnung
         </p>
         <p className="mt-1.5 text-mikro text-schlick-2">
           Je Person ab 14 Jahren und Nacht. Kinder bis einschließlich 13 Jahre zahlen
-          keinen Gästebeitrag.
+          keine Kurtaxe.
         </p>
         <dl className="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-x-8">
           {(["main", "off"] as const).map((saison) => (
@@ -222,7 +222,7 @@ export function PriceTable() {
         </dl>
         <p className="mt-4 border-t border-linie pt-3 text-mikro text-schlick-2">
           Steht als eigener Posten auf der Rechnung und zählt zur Anzahlung; wir
-          leiten ihn an die Stadt Norden weiter. Wie Haupt- und Nebensaison
+          leiten sie an die Stadt Norden weiter. Wie Haupt- und Nebensaison
           gerechnet werden, erklärt die Stadt Norden:{" "}
           <a
             href="https://www.norddeich.de/vermieterportal/informationen/faq-gaestebeitrag"
@@ -239,7 +239,7 @@ export function PriceTable() {
 
       <p className="mt-5 text-klein text-schlick-2">
         Nach der Buchungsbestätigung überweisen Sie innerhalb von {DEPOSIT_DUE_DAYS} Tagen{" "}
-        {Math.round(DEPOSIT_SHARE * 100)} % des Rechnungsbetrags (Mietpreis und Gästebeitrag)
+        {Math.round(DEPOSIT_SHARE * 100)} % des Rechnungsbetrags (Mietpreis und Kurtaxe)
         als Anzahlung, den Restbetrag
         spätestens {BALANCE_DUE_DAYS} Tage vor Anreise.
       </p>
@@ -254,9 +254,9 @@ export function KurkarteInfo() {
   return (
     <>
       <p className="mt-4 text-body text-priel-tief">
-        Für den Gästebeitrag erhalten Sie bei der Schlüsselübergabe die
-        Nordsee-ServiceCard, die Gästekarte für Norden-Norddeich. Was er kostet
-        und wie Sie ihn bezahlen, steht bei den{" "}
+        Für die Kurtaxe erhalten Sie bei der Schlüsselübergabe die
+        Nordsee-ServiceCard, die Gästekarte für Norden-Norddeich. Was sie kostet
+        und wie Sie sie bezahlen, steht bei den{" "}
         <a href="#preise" className="font-medium underline underline-offset-2 hover:no-underline">
           Preisen
         </a>
@@ -286,7 +286,7 @@ export function KurkarteInfo() {
 
       <div className="mt-6 rounded-card bg-muschel p-5">
         <p className="text-label font-semibold uppercase text-schlick-2">
-          Fragen zum Gästebeitrag
+          Fragen zur Kurtaxe
         </p>
         <p className="mt-2 text-body font-medium text-schlick">Gästebeitragskasse</p>
         <p className="mt-1 text-klein text-schlick-2">

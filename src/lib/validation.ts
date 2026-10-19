@@ -177,7 +177,7 @@ const bookingRequestFields = z.object({
   guests: z.coerce.number().int().min(1).max(MAX_GUESTS),
   linens: z.coerce.number().int().min(0).default(0),
   towels: z.coerce.number().int().min(0).default(0),
-  // Davon Kinder unter 14 Jahren (zahlen keinen Gästebeitrag). Ohne Angabe 0:
+  // Davon Kinder unter 14 Jahren (zahlen keine Kurtaxe). Ohne Angabe 0:
   // dann zahlen alle Gäste.
   guestsUnder14: z.coerce
     .number({ error: "Bitte die Anzahl der Kinder unter 14 Jahren als Zahl angeben" })

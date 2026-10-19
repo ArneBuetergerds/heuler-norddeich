@@ -65,7 +65,7 @@ export function BookingRequestForm({ occupancy, range, onRangeChange }: Props) {
   );
   const erfolgRef = useRef<HTMLDivElement>(null);
   const [guests, setGuests] = useState(2);
-  // Davon unter 14 Jahren: zahlen keinen Gästebeitrag.
+  // Davon unter 14 Jahren: zahlen keine Kurtaxe.
   const [guestsUnder14, setGuestsUnder14] = useState(0);
   const [extras, setExtras] = useState({ linens: 0, towels: 0 });
   // Zeitpunkt, ab dem das Formular sichtbar ist: Der Server verwirft Anfragen,

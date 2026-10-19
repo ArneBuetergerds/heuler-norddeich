@@ -190,10 +190,10 @@ describe("email", () => {
 
     expect(text).toContain("7 Nächte × 74 €");
     expect(text).toContain("Summe Mietpreis: 518,00 €");
-    // Gästebeitrag: 2 Personen × 7 Nächte × 3,50 € (Hauptsaison ab 15.03.)
-    expect(text).toContain("Gästebeitrag der Stadt Norden (2 Personen ab 14 Jahren):");
+    // Kurtaxe: 2 Personen × 7 Nächte × 3,50 € (Hauptsaison ab 15.03.)
+    expect(text).toContain("Kurtaxe der Stadt Norden (2 Personen ab 14 Jahren):");
     expect(text).toContain("7 Nächte × 3,50 € × 2 (Hauptsaison): 49,00 €");
-    expect(text).toContain("Gesamt Mietpreis und Gästebeitrag: 567,00 €");
+    expect(text).toContain("Gesamt Mietpreis und Kurtaxe: 567,00 €");
     // 30 % von 567 €
     expect(text).toContain("Anzahlung 30 %: 170,10 €");
     expect(text).toContain("Restbetrag: 396,90 €");
@@ -323,29 +323,30 @@ describe("Rechnung und Mietbedingungen im Anhang der Bestätigung", () => {
   });
 });
 
-describe("Gästebeitrag in den Mails (BDS-006)", () => {
+describe("Kurtaxe in den Mails (BDS-006)", () => {
   const mitKindern: BookingRequest = { ...request, guests: 4, guestsUnder14: 2 };
 
-  it("nennt den Gästebeitrag in der Zusage nicht mehr als Barzahlung vor Ort", async () => {
+  it("nennt die Kurtaxe in der Zusage nicht mehr als Barzahlung vor Ort", async () => {
     const { buildGuestConfirmation } = await import("./email");
     const text = buildGuestConfirmation(mitKindern).text;
 
     const barZeilen = text.split("\n").filter((zeile) => /\bbar\b/.test(zeile));
     expect(barZeilen.length).toBeGreaterThan(0);
     for (const zeile of barZeilen) {
+      expect(zeile).not.toContain("Kurtaxe");
       expect(zeile).not.toContain("Gästebeitrag");
     }
     expect(text).not.toContain("3,50 € je Person");
-    expect(text).toContain("Den Gästebeitrag bezahlen Sie mit der Rechnung");
+    expect(text).toContain("Die Kurtaxe bezahlen Sie mit der Rechnung");
   });
 
-  it("rechnet den Gästebeitrag nur für Personen ab 14 Jahren und nimmt ihn in die Anzahlung", async () => {
+  it("rechnet die Kurtaxe nur für Personen ab 14 Jahren und nimmt sie in die Anzahlung", async () => {
     const { buildGuestConfirmation } = await import("./email");
     const text = buildGuestConfirmation(mitKindern).text.replaceAll("\u00a0", " ");
 
     // 2 zahlende Personen × 7 Nächte × 3,50 € = 49 €; Miete 518 €.
     expect(text).toContain("(2 Personen ab 14 Jahren)");
-    expect(text).toContain("Summe Gästebeitrag: 49,00 €");
+    expect(text).toContain("Summe Kurtaxe: 49,00 €");
     expect(text).toContain("Anzahlung 30 %: 170,10 €");
   });
 
@@ -354,12 +355,12 @@ describe("Gästebeitrag in den Mails (BDS-006)", () => {
 
     const gast = buildGuestRequestReceived(mitKindern).text.replaceAll("\u00a0", " ");
     expect(gast).toContain("für 4 Personen, davon 2 unter 14 Jahren.");
-    expect(gast).toContain("Summe Gästebeitrag: 49,00 €");
+    expect(gast).toContain("Summe Kurtaxe: 49,00 €");
 
     const betreiberin = buildBookingRequestNotification(mitKindern, "owner@example.invalid").text;
     expect(betreiberin).toContain("Personen: 4");
     expect(betreiberin).toContain("Davon unter 14 Jahren: 2");
-    expect(betreiberin).toContain("Gästebeitrag der Stadt Norden");
+    expect(betreiberin).toContain("Kurtaxe der Stadt Norden");
   });
 
   it("nennt in der Eingangsbestätigung ohne Kinder nur die Personenzahl", async () => {
@@ -367,10 +368,31 @@ describe("Gästebeitrag in den Mails (BDS-006)", () => {
     expect(buildGuestRequestReceived(request).text).toContain("für 2 Personen.");
   });
 
-  it("sagt in den Stornobedingungen, dass der Gästebeitrag erstattet wird", async () => {
+  it("sagt in keiner Mail mehr „Gästebeitrag“", async () => {
+    const {
+      buildBookingRequestNotification,
+      buildGuestConfirmation,
+      buildGuestDecline,
+      buildGuestRequestReceived,
+      buildOperatorDigest,
+    } = await import("./email");
+    const mails = [
+      buildBookingRequestNotification(mitKindern, "owner@example.invalid"),
+      buildGuestRequestReceived(mitKindern),
+      buildGuestConfirmation(mitKindern),
+      buildGuestDecline(mitKindern, "Zeitraum belegt"),
+      buildOperatorDigest(3, "owner@example.invalid", { limit: 10, windowHours: 24 }),
+    ];
+    for (const mail of mails) {
+      expect(`${mail.subject}\n${mail.text}`).not.toContain("Gästebeitrag");
+    }
+    expect(buildGuestConfirmation(mitKindern).text).toContain("Kurtaxe");
+  });
+
+  it("sagt in den Stornobedingungen, dass die Kurtaxe erstattet wird", async () => {
     const { buildGuestConfirmation } = await import("./email");
     expect(buildGuestConfirmation(request).text).toContain(
-      "Der Gästebeitrag der Stadt Norden wird bei einer Stornierung vollständig erstattet",
+      "Die Kurtaxe der Stadt Norden wird bei einer Stornierung vollständig erstattet",
     );
   });
 });

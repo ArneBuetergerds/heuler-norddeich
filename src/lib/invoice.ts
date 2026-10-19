@@ -68,35 +68,38 @@ export type InvoiceSnapshot = {
    */
   guestsUnder14?: number;
   /**
-   * Übernachtungen je Mietsaison, seit BDS-006 dazu der Gästebeitrag je Saison
-   * des Gästebeitrags. `quantity` ist bei Übernachtungen die Zahl der Nächte,
-   * beim Gästebeitrag zahlende Personen × Nächte.
+   * Übernachtungen je Mietsaison, seit BDS-006 dazu die Kurtaxe je Saison
+   * der Kurtaxe. `quantity` ist bei Übernachtungen die Zahl der Nächte,
+   * bei der Kurtaxe zahlende Personen × Nächte.
    */
   lines: InvoiceLine[];
-  /** Summe aller Posten: Miete, seit BDS-006 plus Gästebeitrag. */
+  /** Summe aller Posten: Miete, seit BDS-006 plus Kurtaxe. */
   total: number;
   deposit: number;
   balance: number;
   /**
    * Posten, die nicht auf der Rechnung stehen, sondern bar vor Ort anfallen.
-   * Snapshots von vor BDS-006 nennen hier noch den Gästebeitrag; sie werden
-   * unverändert so gerendert.
+   * Snapshots von vor BDS-006 nennen hier noch die Kurtaxe (damals als
+   * „Gästebeitrag“); sie werden unverändert so gerendert.
    */
   cashOnSite: string[];
   /**
-   * Hinweis zur Weiterleitung des Gästebeitrags (seit BDS-006), nur wenn ein
-   * Gästebeitrag-Posten auf der Rechnung steht.
+   * Hinweis zur Weiterleitung der Kurtaxe (seit BDS-006), nur wenn ein
+   * Kurtaxe-Posten auf der Rechnung steht.
    */
   guestTaxNote?: string;
   bankDetails: string[] | null;
 };
 
-/** Beschreibung des Rechnungspostens Gästebeitrag, z. B. „… (Hauptsaison)“. */
-export const GUEST_TAX_LINE_PREFIX = "Gästebeitrag Stadt Norden";
+/** Beschreibung des Rechnungspostens Kurtaxe, z. B. „… (Hauptsaison)“. */
+export const GUEST_TAX_LINE_PREFIX = "Kurtaxe Stadt Norden";
 
-/** Hinweis unter dem Rechnungsbetrag, wenn ein Gästebeitrag berechnet ist. */
+/**
+ * Hinweis unter dem Rechnungsbetrag, wenn Kurtaxe berechnet ist. Einzige
+ * Stelle der Rechnung, die den Begriff der Satzung („Gästebeitrag“) nennt.
+ */
 export const GUEST_TAX_INVOICE_NOTE =
-  "Der Gästebeitrag wird nach der Satzung der Stadt Norden je Person ab 14 Jahren und Nacht erhoben und von der Vermieterin an die Stadt Norden weitergeleitet. Kinder bis einschließlich 13 Jahre zahlen keinen Gästebeitrag.";
+  "Die Kurtaxe (Gästebeitrag nach Satzung der Stadt Norden) wird je Person ab 14 Jahren und Nacht erhoben und von der Vermieterin an die Stadt Norden weitergeleitet. Kinder bis einschließlich 13 Jahre zahlen keine Kurtaxe.";
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -216,7 +219,7 @@ export function buildInvoiceSnapshot(input: {
       unitPrice: posten.pricePerNight,
       total: posten.total,
     })),
-    // Eigener Posten je Saison des Gästebeitrags: Menge = zahlende Personen
+    // Eigener Posten je Saison der Kurtaxe: Menge = zahlende Personen
     // (ab 14 Jahren) × Nächte, Einzelpreis = Satz je Person und Nacht.
     ...charges.guestTaxLines.map((posten) => ({
       description: `${GUEST_TAX_LINE_PREFIX} (${GUEST_TAX_SEASON_NAMES[posten.season]})`,
@@ -227,7 +230,7 @@ export function buildInvoiceSnapshot(input: {
   ];
 
   // Bewusst nicht auf der Rechnung: Diese Posten kassiert die Vermieterin bar
-  // bei der Schlüsselübergabe. Der Gästebeitrag steht seit BDS-006 oben als
+  // bei der Schlüsselübergabe. Die Kurtaxe steht seit BDS-006 oben als
   // eigener Posten.
   const cashOnSite = [
     `Endreinigung ${CLEANING_FEE},00 €`,

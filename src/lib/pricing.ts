@@ -144,7 +144,7 @@ export function nightlyPrices(startDate: Date, endDate: Date): NightPrice[] {
   return naechte;
 }
 
-/** Gesamtpreis des Aufenthalts in Euro, ohne Nebenkosten und Gästebeitrag. */
+/** Gesamtpreis des Aufenthalts in Euro, ohne Nebenkosten und Kurtaxe. */
 export function stayTotal(startDate: Date, endDate: Date): number {
   return nightlyPrices(startDate, endDate).reduce((summe, nacht) => summe + nacht.price, 0);
 }
@@ -178,8 +178,8 @@ export function priceBreakdown(
 }
 
 /**
- * Anteil von Mietpreis plus Gästebeitrag, der bei Buchung als Anzahlung fällig
- * wird (BDS-006: der Gästebeitrag steht seitdem auf der Rechnung und zählt
+ * Anteil von Mietpreis plus Kurtaxe, der bei Buchung als Anzahlung fällig
+ * wird (BDS-006: die Kurtaxe steht seitdem auf der Rechnung und zählt
  * mit, siehe `paymentSplit`).
  */
 export const DEPOSIT_SHARE = 0.3;
@@ -211,29 +211,30 @@ export const CLEANING_FEE = 55;
 export const SERVICE_FEE = 30;
 
 /**
- * Gästebeitrag der Stadt Norden je Person ab 14 Jahren und Nacht. Er ist eine
- * kommunale Abgabe: Seit BDS-006 steht er als eigener Posten auf der Rechnung,
- * zählt zur Anzahlung (`paymentSplit`) und wird von der Vermieterin an die
- * Stadt weitergeleitet – nicht mehr bar vor Ort. Kinder bis einschließlich 13
- * Jahre zahlen keinen Gästebeitrag (`booking_request.guests_under_14`).
+ * Kurtaxe der Stadt Norden je Person ab 14 Jahren und Nacht (in der Satzung
+ * „Gästebeitrag“). Sie ist eine kommunale Abgabe: Seit BDS-006 steht sie als
+ * eigener Posten auf der Rechnung, zählt zur Anzahlung (`paymentSplit`) und
+ * wird von der Vermieterin an die Stadt weitergeleitet – nicht mehr bar vor
+ * Ort. Kinder bis einschließlich 13 Jahre zahlen keine Kurtaxe
+ * (`booking_request.guests_under_14`).
  */
 export const GUEST_TAX = { main: 3.5, off: 1.8 } as const;
 
 export type GuestTaxSeason = keyof typeof GUEST_TAX;
 
-/** Saisonnamen des Gästebeitrags, z. B. für den Rechnungsposten. */
+/** Saisonnamen der Kurtaxe, z. B. für den Rechnungsposten. */
 export const GUEST_TAX_SEASON_NAMES: Record<GuestTaxSeason, string> = {
   main: "Hauptsaison",
   off: "Nebensaison",
 };
 
-/** Zeiträume des Gästebeitrags als Text, passend zu `guestTaxSeason`. */
+/** Zeiträume der Kurtaxe als Text, passend zu `guestTaxSeason`. */
 export const GUEST_TAX_SEASON_LABELS: Record<GuestTaxSeason, string> = {
   main: "15.03. – 31.10.",
   off: "01.11. – 14.03.",
 };
 
-/** Hauptsaison des Gästebeitrags: 15.03. bis 31.10. (Nacht zum Folgetag). */
+/** Hauptsaison der Kurtaxe: 15.03. bis 31.10. (Nacht zum Folgetag). */
 export function guestTaxSeason(date: Date): GuestTaxSeason {
   const value = monthDayValue(date.getUTCMonth() + 1, date.getUTCDate());
   return value >= monthDayValue(3, 15) && value <= monthDayValue(10, 31) ? "main" : "off";
@@ -249,14 +250,14 @@ export function guestTaxPerNight(date: Date): number {
  */
 export type GuestCount = { guests: number; guestsUnder14?: number | null };
 
-/** Personen, die Gästebeitrag zahlen: alle ab 14 Jahren. */
+/** Personen, die Kurtaxe zahlen: alle ab 14 Jahren. */
 export function payingGuests({ guests, guestsUnder14 }: GuestCount): number {
   return Math.max(0, guests - (guestsUnder14 ?? 0));
 }
 
 export type GuestTaxLine = {
   season: GuestTaxSeason;
-  /** Nächte in dieser Saison des Gästebeitrags. */
+  /** Nächte in dieser Saison der Kurtaxe. */
   nights: number;
   /** Zahlende Personen (ab 14 Jahren). */
   persons: number;
@@ -267,7 +268,7 @@ export type GuestTaxLine = {
 };
 
 /**
- * Gästebeitrag eines Aufenthalts, je Saison des Gästebeitrags ein Posten
+ * Kurtaxe eines Aufenthalts, je Saison der Kurtaxe ein Posten
  * (Haupt- und Nebensaison, nicht die Mietsaisons). Jede Nacht kostet den Satz
  * des Tages, auf den sie folgt – wie beim Mietpreis zählt der Abreisetag
  * nicht. Ohne zahlende Personen gibt es keine Posten.
@@ -298,7 +299,7 @@ export function guestTaxBreakdown(
   return posten;
 }
 
-/** Gästebeitrag eines Aufenthalts in Euro, auf Cent gerundet. */
+/** Kurtaxe eines Aufenthalts in Euro, auf Cent gerundet. */
 export function guestTaxTotal(startDate: Date, endDate: Date, count: GuestCount): number {
   return cents(
     guestTaxBreakdown(startDate, endDate, count).reduce((summe, p) => summe + p.total, 0),
@@ -306,7 +307,7 @@ export function guestTaxTotal(startDate: Date, endDate: Date, count: GuestCount)
 }
 
 /**
- * Rechnungsbetrag, Anzahlung und Rest aus Mietpreis und Gästebeitrag – die
+ * Rechnungsbetrag, Anzahlung und Rest aus Mietpreis und Kurtaxe – die
  * einzige Stelle dafür (Rechnung, Mails, Preisvorschau). Endreinigung,
  * Servicegebühr und Wäsche zählen nicht mit, sie werden bar vor Ort bezahlt.
  */
@@ -319,8 +320,8 @@ export function paymentSplit(
 }
 
 /**
- * Was eine Buchung über die Rechnung kostet: Mietpreis je Saison, Gästebeitrag
- * je Saison des Gästebeitrags und die Zahlungsaufteilung. Rechnung, Mails,
+ * Was eine Buchung über die Rechnung kostet: Mietpreis je Saison, Kurtaxe
+ * je Saison der Kurtaxe und die Zahlungsaufteilung. Rechnung, Mails,
  * Admin und Preisvorschau rechnen alle hiermit.
  */
 export function bookingCharges(
@@ -345,15 +346,15 @@ export type StayQuote = {
   nights: number;
   breakdown: ReturnType<typeof priceBreakdown>;
   rent: number;
-  /** Gästebeitrag je Saison, für die zahlenden Personen (ab 14 Jahren). */
+  /** Kurtaxe je Saison, für die zahlenden Personen (ab 14 Jahren). */
   guestTaxLines: GuestTaxLine[];
   guestTax: number;
   cleaning: number;
   service: number;
   extras: number;
-  /** Miete + Gästebeitrag + Pflicht-Nebenkosten + bestellte Wäsche. */
+  /** Miete + Kurtaxe + Pflicht-Nebenkosten + bestellte Wäsche. */
   total: number;
-  /** Anzahlung auf Miete + Gästebeitrag (`paymentSplit`). */
+  /** Anzahlung auf Miete + Kurtaxe (`paymentSplit`). */
   deposit: number;
 };
 
@@ -361,8 +362,8 @@ export type StayQuote = {
  * Unverbindliche Preisvorschau für das Anfrageformular. Endreinigung und
  * Servicegebühr sind Pflicht und gehören deshalb in den angezeigten
  * Gesamtpreis (Preisangabenverordnung) – auch wenn sie vor Ort gezahlt werden.
- * Der Gästebeitrag ist mit der Personenzahl ab 14 Jahren genau bekannt und
- * steht seit BDS-006 auf der Rechnung, er zählt deshalb ebenfalls mit.
+ * Die Kurtaxe ist mit der Personenzahl ab 14 Jahren genau bekannt und
+ * steht seit BDS-006 auf der Rechnung, sie zählt deshalb ebenfalls mit.
  */
 export function quoteStay(
   startDate: Date,

@@ -105,7 +105,7 @@ export function ManualBlockedPeriodForm({ occupancy }: { occupancy: Occupancy })
   const [fehler, setFehler] = useState<Fehler | null>(null);
   const [erfolg, setErfolg] = useState<Erfolg | null>(null);
   const [guests, setGuests] = useState(2);
-  // Davon unter 14 Jahren: zahlen keinen Gästebeitrag.
+  // Davon unter 14 Jahren: zahlen keine Kurtaxe.
   const [guestsUnder14, setGuestsUnder14] = useState(0);
   const [extras, setExtras] = useState({ linens: 0, towels: 0 });
   const erfolgRef = useRef<HTMLDivElement>(null);

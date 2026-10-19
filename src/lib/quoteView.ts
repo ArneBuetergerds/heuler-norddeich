@@ -14,7 +14,7 @@ import {
 
 /** Was überwiesen und was bar vor Ort bezahlt wird. */
 export type PaymentOverview = {
-  /** Rechnung: Mietpreis und Gästebeitrag, in Anzahlung und Rest geteilt. */
+  /** Rechnung: Mietpreis und Kurtaxe, in Anzahlung und Rest geteilt. */
   transfer: { total: number; deposit: number; balance: number };
   /** Bar bei der Schlüsselübergabe: Endreinigung, Servicegebühr, Wäsche. */
   onSite: { lines: { label: string; amount: number }[]; total: number };
@@ -44,8 +44,8 @@ function plural(anzahl: number, einzahl: string, mehrzahl: string): string {
 }
 
 /**
- * Beschriftung eines Gästebeitrag-Postens unter der Überschrift
- * „Gästebeitrag“, z. B. „4 Nächte × 2 Personen ab 14 (Hauptsaison)“.
+ * Beschriftung eines Kurtaxe-Postens unter der Überschrift
+ * „Kurtaxe“, z. B. „4 Nächte × 2 Personen ab 14 (Hauptsaison)“.
  */
 export function guestTaxLineLabel(line: GuestTaxLine): string {
   return `${plural(line.nights, "Nacht", "Nächte")} × ${plural(line.persons, "Person", "Personen")} ab 14 (${GUEST_TAX_SEASON_NAMES[line.season]})`;
@@ -67,27 +67,27 @@ export function under14Selectable(guests: number): boolean {
 /** Hinweis unter dem Feld „davon unter 14 Jahre“, passend zum Zustand. */
 export function under14Hint(guests: number): string {
   return under14Selectable(guests)
-    ? "Kinder bis 13 Jahre zahlen keinen Gästebeitrag."
+    ? "Kinder bis 13 Jahre zahlen keine Kurtaxe."
     : "Bei einer Person entfällt die Angabe: Mindestens eine Person muss 14 Jahre oder älter sein.";
 }
 
 /**
- * Wie der Admin-Dialog Mietpreis und Gästebeitrag einer Buchung zeigt.
+ * Wie der Admin-Dialog Mietpreis und Kurtaxe einer Buchung zeigt.
  *
  * Hat die Buchung eine Rechnung, ist deren Inhalt maßgeblich: Rechnungen von
- * vor BDS-006 enthalten nur die Miete und führen den Gästebeitrag als
- * Barposten bei der Schlüsselübergabe. Für sie bleibt der Gästebeitrag bar
- * vor Ort – sonst vergäße die Betreiberin ihn. Ohne Rechnung oder mit neuer
- * Rechnung steht er auf der Rechnung.
+ * vor BDS-006 enthalten nur die Miete und führen den Gästebeitrag (damalige
+ * Bezeichnung der Kurtaxe) als Barposten bei der Schlüsselübergabe. Für sie
+ * bleibt die Kurtaxe bar vor Ort – sonst vergäße die Betreiberin sie. Ohne
+ * Rechnung oder mit neuer Rechnung steht sie auf der Rechnung.
  */
 export type StayChargesView = {
-  /** Gästebeitrag-Posten im Rechnungsblock (leer bei alter Rechnung). */
+  /** Kurtaxe-Posten im Rechnungsblock (leer bei alter Rechnung). */
   invoiceGuestTaxLines: GuestTaxLine[];
-  /** Betrag, der überwiesen wird: Miete, ggf. plus Gästebeitrag. */
+  /** Betrag, der überwiesen wird: Miete, ggf. plus Kurtaxe. */
   invoiceTotal: number;
-  /** Gästebeitrag bar vor Ort, nur bei Rechnung von vor der Umstellung. */
+  /** Kurtaxe bar vor Ort, nur bei Rechnung von vor der Umstellung. */
   guestTaxOnSite: { amount: number; invoiceNumber: string } | null;
-  /** Rechnung vor der Umstellung (BDS-006) ausgestellt, ohne Gästebeitrag. */
+  /** Rechnung vor der Umstellung (BDS-006) ausgestellt, ohne Kurtaxe. */
   invoiceBeforeSwitch: boolean;
 };
 

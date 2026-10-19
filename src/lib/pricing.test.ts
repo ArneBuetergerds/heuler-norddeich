@@ -163,7 +163,7 @@ describe("Anzahlung", () => {
 });
 
 describe("quoteStay", () => {
-  it("rechnet eine Woche Hauptsaison für 4 Personen inkl. Pflicht-Nebenkosten und Gästebeitrag", async () => {
+  it("rechnet eine Woche Hauptsaison für 4 Personen inkl. Pflicht-Nebenkosten und Kurtaxe", async () => {
     const { quoteStay } = await import("./pricing");
     const quote = quoteStay(new Date("2027-07-10"), new Date("2027-07-17"), {
       guests: 4,
@@ -175,11 +175,11 @@ describe("quoteStay", () => {
     // 7 Nächte × 3,50 € × 4 Personen, ohne Angabe keine Kinder
     expect(quote.guestTax).toBe(98);
     expect(quote.total).toBe(658 + 98 + 85);
-    // 30 % von Miete + Gästebeitrag (756 €)
+    // 30 % von Miete + Kurtaxe (756 €)
     expect(quote.deposit).toBe(226.8);
   });
 
-  it("rechnet den Gästebeitrag nur für Personen ab 14 Jahren", async () => {
+  it("rechnet die Kurtaxe nur für Personen ab 14 Jahren", async () => {
     const { quoteStay } = await import("./pricing");
     const quote = quoteStay(new Date("2027-07-10"), new Date("2027-07-17"), {
       guests: 4,
@@ -206,7 +206,7 @@ describe("quoteStay", () => {
     expect(quote.deposit).toBe(212.1);
   });
 
-  it("wechselt den Gästebeitrag an der Saisongrenze am 15.03.", async () => {
+  it("wechselt die Kurtaxe an der Saisongrenze am 15.03.", async () => {
     const { guestTaxPerNight } = await import("./pricing");
     expect(guestTaxPerNight(new Date("2027-03-14"))).toBe(1.8);
     expect(guestTaxPerNight(new Date("2027-03-15"))).toBe(3.5);
@@ -215,7 +215,7 @@ describe("quoteStay", () => {
   });
 });
 
-describe("Gästebeitrag je Buchung", () => {
+describe("Kurtaxe je Buchung", () => {
   it("zählt als zahlende Personen alle ab 14 Jahren", () => {
     expect(payingGuests({ guests: 4, guestsUnder14: 3 })).toBe(1);
     expect(payingGuests({ guests: 2, guestsUnder14: 0 })).toBe(2);
@@ -259,8 +259,8 @@ describe("Gästebeitrag je Buchung", () => {
   });
 });
 
-describe("Anzahlung und Rest aus Miete und Gästebeitrag", () => {
-  it("rechnet das Beispiel der alten Vorlage: 537 € Miete + 63 € Gästebeitrag → 180 € Anzahlung", () => {
+describe("Anzahlung und Rest aus Miete und Kurtaxe", () => {
+  it("rechnet das Beispiel der alten Vorlage: 537 € Miete + 63 € Kurtaxe → 180 € Anzahlung", () => {
     expect(paymentSplit(537, 63)).toEqual({ total: 600, deposit: 180, balance: 420 });
   });
 
@@ -275,7 +275,7 @@ describe("Anzahlung und Rest aus Miete und Gästebeitrag", () => {
     expect(deposit + balance).toBeCloseTo(total, 2);
   });
 
-  it("fasst eine Buchung zusammen wie die Rechnung: Miete, Gästebeitrag, Zahlung", () => {
+  it("fasst eine Buchung zusammen wie die Rechnung: Miete, Kurtaxe, Zahlung", () => {
     const charges = bookingCharges({
       startDate: new Date("2027-08-29"),
       endDate: new Date("2027-09-05"),

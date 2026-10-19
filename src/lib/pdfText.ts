@@ -40,8 +40,8 @@ export function darstellbar(text: string, font: PDFFont): string {
 }
 
 /**
- * Bricht Text an Wortgrenzen um, damit lange Zeilen – etwa die Hinweise zum
- * Gästebeitrag – nicht über den Rand laufen. pdf-lib bricht selbst nicht um.
+ * Bricht Text an Wortgrenzen um, damit lange Zeilen – etwa die Hinweise zur
+ * Kurtaxe – nicht über den Rand laufen. pdf-lib bricht selbst nicht um.
  */
 export function umbrechen(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const woerter = text.split(" ");

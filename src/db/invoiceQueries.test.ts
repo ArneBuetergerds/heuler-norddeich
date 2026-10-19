@@ -416,7 +416,7 @@ describe("getInvoiceSummaries", () => {
       id: 1,
       bookingRequestId: 1,
       number: "RE-2027-0001",
-      // Rechnung seit BDS-006: Gästebeitrag als Posten, mit Hinweis.
+      // Rechnung seit BDS-006: Kurtaxe als Posten, mit Hinweis.
       snapshot: { guestTaxNote: GUEST_TAX_INVOICE_NOTE } as Invoice["snapshot"],
     }),
     existingInvoice({ id: 2, bookingRequestId: 2, sequence: 2, number: "RE-2027-0002" }),
@@ -484,7 +484,7 @@ describe("getInvoiceSummaries", () => {
     );
   });
 
-  it("kennzeichnet, ob der Gästebeitrag auf der Rechnung steht (BDS-006)", async () => {
+  it("kennzeichnet, ob die Kurtaxe auf der Rechnung steht (BDS-006)", async () => {
     const fakeDb = createSummaryDb();
 
     // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API

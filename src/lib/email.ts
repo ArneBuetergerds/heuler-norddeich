@@ -85,7 +85,7 @@ function guestsText(request: Pick<BookingRequest, "guests" | "guestsUnder14">): 
 }
 
 /**
- * Mietpreis und Gästebeitrag als Textblock, nach Saison aufgeschlüsselt. Ein
+ * Mietpreis und Kurtaxe als Textblock, nach Saison aufgeschlüsselt. Ein
  * Aufenthalt über einen Saisonwechsel hinweg ergibt zwei Zeilen – mit nur
  * einer wäre der Betrag für den Gast nicht nachvollziehbar. Beides steht so
  * auch auf der Rechnung (`bookingCharges`, wie `buildInvoiceSnapshot`).
@@ -102,13 +102,13 @@ function priceLines(request: BookingRequest): string[] {
   if (charges.guestTaxLines.length > 0) {
     const personen = charges.guestTaxLines[0]!.persons;
     zeilen.push(
-      `Gästebeitrag der Stadt Norden (${personen} ${personen === 1 ? "Person" : "Personen"} ab 14 Jahren):`,
+      `Kurtaxe der Stadt Norden (${personen} ${personen === 1 ? "Person" : "Personen"} ab 14 Jahren):`,
       ...charges.guestTaxLines.map(
         (p) =>
           `  ${p.nights} ${p.nights === 1 ? "Nacht" : "Nächte"} × ${formatEuro(p.rate)} × ${p.persons} (${GUEST_TAX_SEASON_NAMES[p.season]}): ${formatEuro(p.total)}`,
       ),
-      `  Summe Gästebeitrag: ${formatEuro(charges.guestTax)}`,
-      `Gesamt Mietpreis und Gästebeitrag: ${formatEuro(charges.total)}`,
+      `  Summe Kurtaxe: ${formatEuro(charges.guestTax)}`,
+      `Gesamt Mietpreis und Kurtaxe: ${formatEuro(charges.total)}`,
     );
   }
 
@@ -117,7 +117,7 @@ function priceLines(request: BookingRequest): string[] {
 
 /**
  * Anzahlung, Restbetrag und – falls hinterlegt – die Bankverbindung. Beide
- * Beträge auf Mietpreis plus Gästebeitrag, wie auf der Rechnung.
+ * Beträge auf Mietpreis plus Kurtaxe, wie auf der Rechnung.
  */
 function paymentLines(request: BookingRequest): string[] {
   const { deposit: anzahlung, balance: rest } = bookingCharges(request);
@@ -127,7 +127,7 @@ function paymentLines(request: BookingRequest): string[] {
   const bank = process.env.BANK_TRANSFER_DETAILS?.trim();
 
   return [
-    "Zahlung (Mietpreis und Gästebeitrag):",
+    "Zahlung (Mietpreis und Kurtaxe):",
     `  Anzahlung ${Math.round(DEPOSIT_SHARE * 100)} %: ${formatEuro(anzahlung)} – bitte innerhalb von ${DEPOSIT_DUE_DAYS} Tagen überweisen`,
     `  Restbetrag: ${formatEuro(rest)} – spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise`,
     "",
@@ -371,7 +371,7 @@ export function buildGuestConfirmation(
       ...attachmentLines(invoice, rentalTerms !== undefined),
       "",
       `Vor Ort in bar: Endreinigung ${CLEANING_FEE} €, Servicegebühr ${SERVICE_FEE} €.`,
-      "Den Gästebeitrag bezahlen Sie mit der Rechnung; wir leiten ihn an die Stadt Norden weiter.",
+      "Die Kurtaxe bezahlen Sie mit der Rechnung; wir leiten sie an die Stadt Norden weiter.",
       ...(extrasLines(request).length > 0 ? ["", ...extrasLines(request)] : []),
       "",
       `Anreise ab ca. ${CHECK_IN_TIME}, Abreise bis ${CHECK_OUT_TIME}.`,
