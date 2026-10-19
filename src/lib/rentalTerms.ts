@@ -40,7 +40,7 @@ import { ADDRESS, SITE_URL } from "./site";
  * gespeichert (`booking_request.terms_version`) – bei jeder inhaltlichen
  * Änderung neu setzen. Höchstens 20 Zeichen (Spaltenlänge).
  */
-export const RENTAL_TERMS_VERSION = "2026-10-17";
+export const RENTAL_TERMS_VERSION = "2026-10-19";
 
 /** Öffentliche Seite und PDF-Download. */
 export const RENTAL_TERMS_PATH = "/mietbedingungen";
@@ -201,10 +201,13 @@ export function rentalTermsSections(): RentalTermsSection[] {
         liste([
           `Endreinigung ${euro(CLEANING_FEE)} und Servicegebühr ${euro(SERVICE_FEE)}, einmalig je Aufenthalt`,
           `auf Wunsch ${EXTRAS.linens.label} ${euro(EXTRAS.linens.pricePerSet)} und ${EXTRAS.towels.label} ${euro(EXTRAS.towels.pricePerSet)}, je Satz und Aufenthalt; bitte spätestens ${EXTRAS_LEAD_DAYS} Tage vor Anreise mitbestellen`,
-          `der Gästebeitrag der Stadt Norden je Person ab 14 Jahren und Nacht: ${euro(GUEST_TAX.main)} vom 15.03. bis 31.10., in der übrigen Zeit ${euro(GUEST_TAX.off)}; Kinder bis einschließlich 13 Jahre zahlen keinen Gästebeitrag`,
+          `die Kurtaxe (Gästebeitrag nach Satzung der Stadt Norden) je Person ab 14 Jahren und Nacht: ${euro(GUEST_TAX.main)} vom 15.03. bis 31.10., in der übrigen Zeit ${euro(GUEST_TAX.off)}; Kinder bis einschließlich 13 Jahre zahlen keine Kurtaxe`,
         ]),
         absatz(
-          "Endreinigung, Servicegebühr, bestellte Wäsche und Gästebeitrag werden bar bei der Schlüsselübergabe bezahlt. Strom, Wasser und Heizung sind im Mietpreis enthalten.",
+          "Die Kurtaxe steht als eigener Posten auf der Rechnung und wird mit Anzahlung und Restbetrag überwiesen; die Vermieterin leitet sie an die Stadt Norden weiter. Dafür gibt der Gast in der Anfrage an, wie viele Personen unter 14 Jahre alt sind.",
+        ),
+        absatz(
+          "Endreinigung, Servicegebühr und bestellte Wäsche werden bar bei der Schlüsselübergabe bezahlt. Strom, Wasser und Heizung sind im Mietpreis enthalten.",
         ),
       ],
     },
@@ -212,7 +215,7 @@ export function rentalTermsSections(): RentalTermsSection[] {
       heading: "Zahlung",
       blocks: [
         absatz(
-          `Nach der Buchungsbestätigung ist eine Anzahlung von ${Math.round(DEPOSIT_SHARE * 100)} % des Mietpreises innerhalb von ${DEPOSIT_DUE_DAYS} Tagen fällig, der Restbetrag spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise – jeweils per Überweisung. Beträge und Bankverbindung stehen in der Buchungsbestätigung und der Rechnung.`,
+          `Nach der Buchungsbestätigung ist eine Anzahlung von ${Math.round(DEPOSIT_SHARE * 100)} % des Rechnungsbetrags (Mietpreis und Kurtaxe) innerhalb von ${DEPOSIT_DUE_DAYS} Tagen fällig, der Restbetrag spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise – jeweils per Überweisung. Beträge und Bankverbindung stehen in der Buchungsbestätigung und der Rechnung.`,
         ),
         absatz(
           `Gehen Anzahlung oder Restbetrag nicht fristgerecht ein, kann die Vermieterin nach erfolgloser Mahnung vom Vertrag zurücktreten und Stornokosten nach ${abschnitt(CANCELLATION_ANCHOR)} verlangen.`,

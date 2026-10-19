@@ -4,13 +4,11 @@ import {
   BALANCE_DUE_DAYS,
   CLEANING_FEE,
   DEPOSIT_SHARE,
+  GUEST_TAX_SEASON_NAMES,
   SERVICE_FEE,
   EXTRAS,
-  balanceAmount,
-  depositAmount,
+  bookingCharges,
   extrasTotal,
-  priceBreakdown,
-  stayTotal,
 } from "./pricing";
 import { formatDate, formatEuro } from "./format";
 import {
@@ -78,34 +76,58 @@ function extrasLines(request: BookingRequest): string[] {
 }
 
 /**
- * Mietpreis als Textblock, nach Saison aufgeschlüsselt. Ein Aufenthalt über
- * einen Saisonwechsel hinweg ergibt zwei Zeilen – mit nur einer wäre der
- * Betrag für den Gast nicht nachvollziehbar.
+ * Personenzahl mit Kindern unter 14 Jahren, z. B. „4 Personen, davon 2 unter
+ * 14 Jahren“. Ohne Kinder nur die Personenzahl.
+ */
+function guestsText(request: Pick<BookingRequest, "guests" | "guestsUnder14">): string {
+  const anzahl = `${request.guests} ${request.guests === 1 ? "Person" : "Personen"}`;
+  return request.guestsUnder14 > 0 ? `${anzahl}, davon ${request.guestsUnder14} unter 14 Jahren` : anzahl;
+}
+
+/**
+ * Mietpreis und Kurtaxe als Textblock, nach Saison aufgeschlüsselt. Ein
+ * Aufenthalt über einen Saisonwechsel hinweg ergibt zwei Zeilen – mit nur
+ * einer wäre der Betrag für den Gast nicht nachvollziehbar. Beides steht so
+ * auch auf der Rechnung (`bookingCharges`, wie `buildInvoiceSnapshot`).
  */
 function priceLines(request: BookingRequest): string[] {
-  const posten = priceBreakdown(request.startDate, request.endDate);
-  const summe = stayTotal(request.startDate, request.endDate);
+  const charges = bookingCharges(request);
 
-  const zeilen = posten.map(
+  const miete = charges.breakdown.map(
     (p) =>
       `  ${p.nights} ${p.nights === 1 ? "Nacht" : "Nächte"} × ${p.pricePerNight} € (${p.season.name}): ${formatEuro(p.total)}`,
   );
+  const zeilen = ["Mietpreis:", ...miete, `  Summe Mietpreis: ${formatEuro(charges.rent)}`];
 
-  return ["Mietpreis:", ...zeilen, `  Summe: ${formatEuro(summe)}`];
+  if (charges.guestTaxLines.length > 0) {
+    const personen = charges.guestTaxLines[0]!.persons;
+    zeilen.push(
+      `Kurtaxe der Stadt Norden (${personen} ${personen === 1 ? "Person" : "Personen"} ab 14 Jahren):`,
+      ...charges.guestTaxLines.map(
+        (p) =>
+          `  ${p.nights} ${p.nights === 1 ? "Nacht" : "Nächte"} × ${formatEuro(p.rate)} × ${p.persons} (${GUEST_TAX_SEASON_NAMES[p.season]}): ${formatEuro(p.total)}`,
+      ),
+      `  Summe Kurtaxe: ${formatEuro(charges.guestTax)}`,
+      `Gesamt Mietpreis und Kurtaxe: ${formatEuro(charges.total)}`,
+    );
+  }
+
+  return zeilen;
 }
 
-/** Anzahlung, Restbetrag und – falls hinterlegt – die Bankverbindung. */
+/**
+ * Anzahlung, Restbetrag und – falls hinterlegt – die Bankverbindung. Beide
+ * Beträge auf Mietpreis plus Kurtaxe, wie auf der Rechnung.
+ */
 function paymentLines(request: BookingRequest): string[] {
-  const summe = stayTotal(request.startDate, request.endDate);
-  const anzahlung = depositAmount(summe);
-  const rest = balanceAmount(summe);
+  const { deposit: anzahlung, balance: rest } = bookingCharges(request);
   // Nicht erfunden, sondern konfiguriert: Ohne hinterlegte Bankverbindung
   // nennt die Mail die Beträge und kündigt die Kontodaten an, statt eine
   // falsche IBAN zu behaupten.
   const bank = process.env.BANK_TRANSFER_DETAILS?.trim();
 
   return [
-    "Zahlung:",
+    "Zahlung (Mietpreis und Kurtaxe):",
     `  Anzahlung ${Math.round(DEPOSIT_SHARE * 100)} %: ${formatEuro(anzahlung)} – bitte innerhalb von ${DEPOSIT_DUE_DAYS} Tagen überweisen`,
     `  Restbetrag: ${formatEuro(rest)} – spätestens ${BALANCE_DUE_DAYS} Tage vor Anreise`,
     "",
@@ -222,6 +244,7 @@ export function buildBookingRequestNotification(
       `Telefon: ${request.phone ?? "-"}`,
       `Zeitraum: ${formatRange(request)}`,
       `Personen: ${request.guests}`,
+      `Davon unter 14 Jahren: ${request.guestsUnder14}`,
       ...extrasLines(request),
       `Nachricht: ${request.message ?? "-"}`,
       "",
@@ -295,7 +318,7 @@ export function buildGuestRequestReceived(request: BookingRequest): Mail {
       `Hallo ${request.name},`,
       "",
       `vielen Dank für Ihre Anfrage für den Zeitraum ${formatRange(request)}`,
-      `für ${request.guests} ${request.guests === 1 ? "Person" : "Personen"}.`,
+      `für ${guestsText(request)}.`,
       `Wir haben sie erhalten und melden uns innerhalb von ${RESPONSE_HOURS} Stunden bei Ihnen.`,
       "",
       ...priceLines(request),
@@ -347,9 +370,8 @@ export function buildGuestConfirmation(
       "",
       ...attachmentLines(invoice, rentalTerms !== undefined),
       "",
-      `Vor Ort in bar: Endreinigung ${CLEANING_FEE} €, Servicegebühr ${SERVICE_FEE} €, Gästebeitrag`,
-      "(3,50 € je Person ab 14 Jahren und Nacht in der Hauptsaison,",
-      "sonst 1,80 €).",
+      `Vor Ort in bar: Endreinigung ${CLEANING_FEE} €, Servicegebühr ${SERVICE_FEE} €.`,
+      "Die Kurtaxe bezahlen Sie mit der Rechnung; wir leiten sie an die Stadt Norden weiter.",
       ...(extrasLines(request).length > 0 ? ["", ...extrasLines(request)] : []),
       "",
       `Anreise ab ca. ${CHECK_IN_TIME}, Abreise bis ${CHECK_OUT_TIME}.`,

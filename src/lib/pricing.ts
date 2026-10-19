@@ -144,7 +144,7 @@ export function nightlyPrices(startDate: Date, endDate: Date): NightPrice[] {
   return naechte;
 }
 
-/** Gesamtpreis des Aufenthalts in Euro, ohne Nebenkosten und Gästebeitrag. */
+/** Gesamtpreis des Aufenthalts in Euro, ohne Nebenkosten und Kurtaxe. */
 export function stayTotal(startDate: Date, endDate: Date): number {
   return nightlyPrices(startDate, endDate).reduce((summe, nacht) => summe + nacht.price, 0);
 }
@@ -177,11 +177,20 @@ export function priceBreakdown(
   return posten;
 }
 
-/** Anteil des Mietpreises, der bei Buchung als Anzahlung fällig wird. */
+/**
+ * Anteil von Mietpreis plus Kurtaxe, der bei Buchung als Anzahlung fällig
+ * wird (BDS-006: die Kurtaxe steht seitdem auf der Rechnung und zählt
+ * mit, siehe `paymentSplit`).
+ */
 export const DEPOSIT_SHARE = 0.3;
 
 /** Der Restbetrag ist spätestens so viele Tage vor Anreise fällig. */
 export const BALANCE_DUE_DAYS = 14;
+
+/** Auf volle Cent runden. */
+function cents(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
 
 /**
  * Anzahlung auf volle Cent gerundet. Der Restbetrag wird bewusst als
@@ -190,11 +199,11 @@ export const BALANCE_DUE_DAYS = 14;
  * zu wenig.
  */
 export function depositAmount(total: number): number {
-  return Math.round(total * DEPOSIT_SHARE * 100) / 100;
+  return cents(total * DEPOSIT_SHARE);
 }
 
 export function balanceAmount(total: number): number {
-  return Math.round((total - depositAmount(total)) * 100) / 100;
+  return cents(total - depositAmount(total));
 }
 
 /** Einmalige Nebenkosten je Aufenthalt, bar bei der Schlüsselübergabe. */
@@ -202,59 +211,183 @@ export const CLEANING_FEE = 55;
 export const SERVICE_FEE = 30;
 
 /**
- * Gästebeitrag der Stadt Norden je Person ab 14 Jahren und Nacht. Er ist eine
- * kommunale Abgabe, wird vor Ort bar eingezogen und steht deshalb nie im
- * Gesamtpreis der Vermietung.
+ * Kurtaxe der Stadt Norden je Person ab 14 Jahren und Nacht (in der Satzung
+ * „Gästebeitrag“). Sie ist eine kommunale Abgabe: Seit BDS-006 steht sie als
+ * eigener Posten auf der Rechnung, zählt zur Anzahlung (`paymentSplit`) und
+ * wird von der Vermieterin an die Stadt weitergeleitet – nicht mehr bar vor
+ * Ort. Kinder bis einschließlich 13 Jahre zahlen keine Kurtaxe
+ * (`booking_request.guests_under_14`).
  */
 export const GUEST_TAX = { main: 3.5, off: 1.8 } as const;
 
-/** Hauptsaison des Gästebeitrags: 15.03. bis 31.10. (Nacht zum Folgetag). */
-export function guestTaxPerNight(date: Date): number {
+export type GuestTaxSeason = keyof typeof GUEST_TAX;
+
+/** Saisonnamen der Kurtaxe, z. B. für den Rechnungsposten. */
+export const GUEST_TAX_SEASON_NAMES: Record<GuestTaxSeason, string> = {
+  main: "Hauptsaison",
+  off: "Nebensaison",
+};
+
+/** Zeiträume der Kurtaxe als Text, passend zu `guestTaxSeason`. */
+export const GUEST_TAX_SEASON_LABELS: Record<GuestTaxSeason, string> = {
+  main: "15.03. – 31.10.",
+  off: "01.11. – 14.03.",
+};
+
+/** Hauptsaison der Kurtaxe: 15.03. bis 31.10. (Nacht zum Folgetag). */
+export function guestTaxSeason(date: Date): GuestTaxSeason {
   const value = monthDayValue(date.getUTCMonth() + 1, date.getUTCDate());
-  return value >= monthDayValue(3, 15) && value <= monthDayValue(10, 31)
-    ? GUEST_TAX.main
-    : GUEST_TAX.off;
+  return value >= monthDayValue(3, 15) && value <= monthDayValue(10, 31) ? "main" : "off";
+}
+
+export function guestTaxPerNight(date: Date): number {
+  return GUEST_TAX[guestTaxSeason(date)];
+}
+
+/**
+ * Personenangaben einer Buchung. `guestsUnder14` fehlt bei Daten von vor
+ * BDS-006 und zählt dann als 0 (alle Gäste zahlen).
+ */
+export type GuestCount = { guests: number; guestsUnder14?: number | null };
+
+/** Personen, die Kurtaxe zahlen: alle ab 14 Jahren. */
+export function payingGuests({ guests, guestsUnder14 }: GuestCount): number {
+  return Math.max(0, guests - (guestsUnder14 ?? 0));
+}
+
+export type GuestTaxLine = {
+  season: GuestTaxSeason;
+  /** Nächte in dieser Saison der Kurtaxe. */
+  nights: number;
+  /** Zahlende Personen (ab 14 Jahren). */
+  persons: number;
+  /** Satz je Person und Nacht. */
+  rate: number;
+  /** persons × nights × rate, auf Cent gerundet. */
+  total: number;
+};
+
+/**
+ * Kurtaxe eines Aufenthalts, je Saison der Kurtaxe ein Posten
+ * (Haupt- und Nebensaison, nicht die Mietsaisons). Jede Nacht kostet den Satz
+ * des Tages, auf den sie folgt – wie beim Mietpreis zählt der Abreisetag
+ * nicht. Ohne zahlende Personen gibt es keine Posten.
+ */
+export function guestTaxBreakdown(
+  startDate: Date,
+  endDate: Date,
+  count: GuestCount,
+): GuestTaxLine[] {
+  const persons = payingGuests(count);
+  if (persons === 0) {
+    return [];
+  }
+
+  const posten: GuestTaxLine[] = [];
+  for (const nacht of nightlyPrices(startDate, endDate)) {
+    const season = guestTaxSeason(nacht.date);
+    const eintrag = posten.find((p) => p.season === season);
+    if (eintrag) {
+      eintrag.nights += 1;
+    } else {
+      posten.push({ season, nights: 1, persons, rate: GUEST_TAX[season], total: 0 });
+    }
+  }
+  for (const eintrag of posten) {
+    eintrag.total = cents(eintrag.persons * eintrag.nights * eintrag.rate);
+  }
+  return posten;
+}
+
+/** Kurtaxe eines Aufenthalts in Euro, auf Cent gerundet. */
+export function guestTaxTotal(startDate: Date, endDate: Date, count: GuestCount): number {
+  return cents(
+    guestTaxBreakdown(startDate, endDate, count).reduce((summe, p) => summe + p.total, 0),
+  );
+}
+
+/**
+ * Rechnungsbetrag, Anzahlung und Rest aus Mietpreis und Kurtaxe – die
+ * einzige Stelle dafür (Rechnung, Mails, Preisvorschau). Endreinigung,
+ * Servicegebühr und Wäsche zählen nicht mit, sie werden bar vor Ort bezahlt.
+ */
+export function paymentSplit(
+  rent: number,
+  guestTax: number,
+): { total: number; deposit: number; balance: number } {
+  const total = cents(rent + guestTax);
+  return { total, deposit: depositAmount(total), balance: balanceAmount(total) };
+}
+
+/**
+ * Was eine Buchung über die Rechnung kostet: Mietpreis je Saison, Kurtaxe
+ * je Saison der Kurtaxe und die Zahlungsaufteilung. Rechnung, Mails,
+ * Admin und Preisvorschau rechnen alle hiermit.
+ */
+export function bookingCharges(
+  stay: { startDate: Date; endDate: Date } & GuestCount,
+): {
+  breakdown: ReturnType<typeof priceBreakdown>;
+  rent: number;
+  guestTaxLines: GuestTaxLine[];
+  guestTax: number;
+  total: number;
+  deposit: number;
+  balance: number;
+} {
+  const breakdown = priceBreakdown(stay.startDate, stay.endDate);
+  const rent = breakdown.reduce((summe, p) => summe + p.total, 0);
+  const guestTaxLines = guestTaxBreakdown(stay.startDate, stay.endDate, stay);
+  const guestTax = cents(guestTaxLines.reduce((summe, p) => summe + p.total, 0));
+  return { breakdown, rent, guestTaxLines, guestTax, ...paymentSplit(rent, guestTax) };
 }
 
 export type StayQuote = {
   nights: number;
   breakdown: ReturnType<typeof priceBreakdown>;
   rent: number;
+  /** Kurtaxe je Saison, für die zahlenden Personen (ab 14 Jahren). */
+  guestTaxLines: GuestTaxLine[];
+  guestTax: number;
   cleaning: number;
   service: number;
   extras: number;
-  /** Miete + Pflicht-Nebenkosten + bestellte Wäsche – ohne Gästebeitrag. */
+  /** Miete + Kurtaxe + Pflicht-Nebenkosten + bestellte Wäsche. */
   total: number;
+  /** Anzahlung auf Miete + Kurtaxe (`paymentSplit`). */
   deposit: number;
-  /** Gästebeitrag, falls alle Gäste 14 oder älter sind (Obergrenze). */
-  guestTaxMax: number;
 };
 
 /**
  * Unverbindliche Preisvorschau für das Anfrageformular. Endreinigung und
  * Servicegebühr sind Pflicht und gehören deshalb in den angezeigten
  * Gesamtpreis (Preisangabenverordnung) – auch wenn sie vor Ort gezahlt werden.
+ * Die Kurtaxe ist mit der Personenzahl ab 14 Jahren genau bekannt und
+ * steht seit BDS-006 auf der Rechnung, sie zählt deshalb ebenfalls mit.
  */
 export function quoteStay(
   startDate: Date,
   endDate: Date,
-  { guests, linens, towels }: { guests: number; linens: number; towels: number },
+  {
+    guests,
+    guestsUnder14 = 0,
+    linens,
+    towels,
+  }: { guests: number; guestsUnder14?: number; linens: number; towels: number },
 ): StayQuote {
-  const naechte = nightlyPrices(startDate, endDate);
-  const rent = naechte.reduce((summe, nacht) => summe + nacht.price, 0);
+  const charges = bookingCharges({ startDate, endDate, guests, guestsUnder14 });
   const extras = extrasTotal({ linens, towels });
-  const guestTaxMax =
-    Math.round(naechte.reduce((summe, nacht) => summe + guestTaxPerNight(nacht.date), 0) * guests * 100) / 100;
 
   return {
-    nights: naechte.length,
-    breakdown: priceBreakdown(startDate, endDate),
-    rent,
+    nights: charges.breakdown.reduce((summe, p) => summe + p.nights, 0),
+    breakdown: charges.breakdown,
+    rent: charges.rent,
+    guestTaxLines: charges.guestTaxLines,
+    guestTax: charges.guestTax,
     cleaning: CLEANING_FEE,
     service: SERVICE_FEE,
     extras,
-    total: rent + CLEANING_FEE + SERVICE_FEE + extras,
-    deposit: depositAmount(rent),
-    guestTaxMax,
+    total: cents(charges.total + CLEANING_FEE + SERVICE_FEE + extras),
+    deposit: charges.deposit,
   };
 }

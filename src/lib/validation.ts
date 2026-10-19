@@ -177,6 +177,13 @@ const bookingRequestFields = z.object({
   guests: z.coerce.number().int().min(1).max(MAX_GUESTS),
   linens: z.coerce.number().int().min(0).default(0),
   towels: z.coerce.number().int().min(0).default(0),
+  // Davon Kinder unter 14 Jahren (zahlen keine Kurtaxe). Ohne Angabe 0:
+  // dann zahlen alle Gäste.
+  guestsUnder14: z.coerce
+    .number({ error: "Bitte die Anzahl der Kinder unter 14 Jahren als Zahl angeben" })
+    .int("Bitte die Anzahl der Kinder unter 14 Jahren als ganze Zahl angeben")
+    .min(0, "Die Anzahl der Kinder unter 14 Jahren darf nicht negativ sein")
+    .default(0),
 });
 
 /**
@@ -196,6 +203,27 @@ function addExtrasWithinGuestsIssues(
         message: "Nicht mehr Sätze als Personen",
       });
     }
+  }
+}
+
+/**
+ * Spiegelt die CHECK-Constraint `booking_request_guests_under_14_range`: Unter
+ * 14 Jahren sind höchstens alle Personen bis auf eine – mindestens eine Person
+ * ist 14 oder älter.
+ */
+function addUnder14WithinGuestsIssues(
+  data: { guests: number; guestsUnder14: number },
+  ctx: z.RefinementCtx,
+): void {
+  if (data.guestsUnder14 > data.guests - 1) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["guestsUnder14"],
+      message:
+        data.guests === 1
+          ? "Bei einer Person muss diese mindestens 14 Jahre alt sein"
+          : `Unter 14 Jahren höchstens ${data.guests - 1} von ${data.guests} Personen – mindestens eine Person ist 14 oder älter`,
+    });
   }
 }
 
@@ -257,6 +285,7 @@ export const bookingRequestSchema = bookingRequestFields
   })
   .superRefine((data, ctx) => {
     addExtrasWithinGuestsIssues(data, ctx);
+    addUnder14WithinGuestsIssues(data, ctx);
 
     // Wäsche braucht eine Woche Vorlauf, gemessen ab der Anreise.
     const now = new Date();
@@ -299,7 +328,8 @@ export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;
  * MAX_MONTHS_AHEAD im Voraus, Wäsche eine Woche vorher, Anreise nicht in der
  * Vergangenheit. Geprüft bleiben ein gültiger Zeitraum (Anreise vor Abreise),
  * MAX_NIGHTS als Schutz der Preisberechnung (ein Objekt je Nacht) und
- * höchstens so viele Wäschesätze wie Personen. Die Rechnungsanschrift ist
+ * höchstens so viele Wäschesätze wie Personen sowie höchstens Personen − 1
+ * unter 14 Jahren. Die Rechnungsanschrift ist
  * freiwillig, aber wenn, dann vollständig.
  */
 export const manualBookingSchema = bookingRequestFields
@@ -323,6 +353,7 @@ export const manualBookingSchema = bookingRequestFields
       });
     }
     addExtrasWithinGuestsIssues(data, ctx);
+    addUnder14WithinGuestsIssues(data, ctx);
     addAddressCompleteIssues(data, ctx);
   });
 

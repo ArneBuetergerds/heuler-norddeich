@@ -14,6 +14,9 @@ import {
   DEPOSIT_SHARE,
   EXTRAS,
   EXTRAS_LEAD_DAYS,
+  GUEST_TAX,
+  GUEST_TAX_SEASON_LABELS,
+  GUEST_TAX_SEASON_NAMES,
   SEASONS,
   SERVICE_FEE,
   quoteStay,
@@ -27,7 +30,9 @@ const NEBENKOSTEN = [
 /**
  * Gesamtpreis-Beispiele. Die Saisons wiederholen sich jährlich, das Jahr der
  * Beispieldaten ist deshalb beliebig; gerechnet wird mit denselben Funktionen
- * wie in der Preisvorschau des Formulars.
+ * wie in der Preisvorschau des Formulars. Ohne Kurtaxe („zzgl.“), weil sie
+ * vom Alter der Gäste abhängt: Seit BDS-006 enthält `quote.total` sie, sie wird
+ * hier wieder abgezogen.
  */
 const BEISPIELE = [
   { titel: "1 Woche Hauptsaison", start: "2027-07-10", ende: "2027-07-17" },
@@ -35,8 +40,14 @@ const BEISPIELE = [
   { titel: "3 Nächte Nebensaison", start: "2027-02-01", ende: "2027-02-04" },
 ].map(({ titel, start, ende }) => ({
   titel,
-  total: quoteStay(new Date(start), new Date(ende), { guests: 4, linens: 0, towels: 0 }).total,
+  total: ohneGaestebeitrag(
+    quoteStay(new Date(start), new Date(ende), { guests: 4, linens: 0, towels: 0 }),
+  ),
 }));
+
+function ohneGaestebeitrag(quote: { total: number; guestTax: number }): number {
+  return Math.round((quote.total - quote.guestTax) * 100) / 100;
+}
 
 const KURKARTE_VORTEILE = [
   "Kostenloser Veranstaltungskalender „Norderland“",
@@ -146,7 +157,7 @@ export function PriceTable() {
           ))}
         </ul>
         <p className="mt-2 text-mikro text-schlick-2">
-          Für bis zu 4 Personen, zzgl. Gästebeitrag. Ihren genauen Preis sehen Sie
+          Für bis zu 4 Personen, zzgl. Kurtaxe. Ihren genauen Preis sehen Sie
           im Anfrageformular, sobald Sie einen Zeitraum wählen.
         </p>
       </div>
@@ -164,23 +175,6 @@ export function PriceTable() {
               <dd className="font-medium tabular-nums">{betrag}</dd>
             </div>
           ))}
-          <div className="flex justify-between gap-4 text-klein text-schlick">
-            <dt>
-              Gästebeitrag je Person und Nacht
-              <span className="mt-0.5 block text-mikro text-schlick-2">
-                Hauptsaison 15.03. – 31.10. · übrige Zeit 01.11. – 14.03.
-              </span>
-            </dt>
-            <dd className="text-right font-medium tabular-nums">
-              3,50 €
-              <span className="block text-mikro font-normal text-schlick-2">1,80 €</span>
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4 text-klein text-schlick">
-            <dt>Kinder bis einschließlich 13 Jahre</dt>
-            <dd className="font-medium">kostenfrei</dd>
-          </div>
-
           {(["linens", "towels"] as const).map((key) => (
             <div
               key={key}
@@ -198,16 +192,46 @@ export function PriceTable() {
           Bettwäsche und Handtücher bitte spätestens {EXTRAS_LEAD_DAYS} Tage vor
           Anreise mitbestellen – direkt im Anfrageformular.
         </p>
-        <p className="mt-2 text-mikro text-priel-tief">
-          Wie der Gästebeitrag mit Haupt- und Nebensaison berechnet wird, erklärt
-          die Stadt Norden hier:{" "}
+      </div>
+
+      {/* Seit BDS-006 nicht mehr bar: Die Kurtaxe steht auf der Rechnung
+          und zählt zur Anzahlung. Aufbau wie der Bar-Block darüber, aber auf
+          heller Fläche mit Rahmen – so sind die beiden Zahlungswege auf einen
+          Blick verschieden. Was die Gästekarte bringt, steht weiter unten
+          (`KurkarteInfo`), hier nur Sätze und Bezahlung. */}
+      <div className="mt-4 rounded-card border border-linie bg-sand p-5">
+        <p className="text-label font-semibold uppercase text-schlick-2">
+          Kurtaxe der Stadt Norden, mit der Rechnung
+        </p>
+        <p className="mt-1.5 text-mikro text-schlick-2">
+          Je Person ab 14 Jahren und Nacht. Kinder bis einschließlich 13 Jahre zahlen
+          keine Kurtaxe.
+        </p>
+        <dl className="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-x-8">
+          {(["main", "off"] as const).map((saison) => (
+            <div key={saison} className="flex justify-between gap-4 text-klein text-schlick">
+              <dt>
+                {GUEST_TAX_SEASON_NAMES[saison]}
+                <span className="block text-mikro text-schlick-2">
+                  {GUEST_TAX_SEASON_LABELS[saison]}
+                </span>
+              </dt>
+              <dd className="font-medium tabular-nums">{formatEuro(GUEST_TAX[saison])}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-4 border-t border-linie pt-3 text-mikro text-schlick-2">
+          Steht als eigener Posten auf der Rechnung und zählt zur Anzahlung; wir
+          leiten sie an die Stadt Norden weiter. Wie Haupt- und Nebensaison
+          gerechnet werden, erklärt die Stadt Norden:{" "}
           <a
             href="https://www.norddeich.de/vermieterportal/informationen/faq-gaestebeitrag"
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium underline underline-offset-2 hover:no-underline"
+            className="font-medium text-schlick underline underline-offset-2 hover:no-underline"
           >
             Fragen und Antworten zum Gästebeitrag
+            <span className="sr-only"> (öffnet in neuem Tab)</span>
           </a>
           .
         </p>
@@ -215,7 +239,8 @@ export function PriceTable() {
 
       <p className="mt-5 text-klein text-schlick-2">
         Nach der Buchungsbestätigung überweisen Sie innerhalb von {DEPOSIT_DUE_DAYS} Tagen{" "}
-        {Math.round(DEPOSIT_SHARE * 100)} % des Mietpreises als Anzahlung, den Restbetrag
+        {Math.round(DEPOSIT_SHARE * 100)} % des Rechnungsbetrags (Mietpreis und Kurtaxe)
+        als Anzahlung, den Restbetrag
         spätestens {BALANCE_DUE_DAYS} Tage vor Anreise.
       </p>
 
@@ -229,9 +254,13 @@ export function KurkarteInfo() {
   return (
     <>
       <p className="mt-4 text-body text-priel-tief">
-        Den Gästebeitrag ziehen wir bei der Schlüsselübergabe bar ein und leiten
-        ihn an die Stadt Norden weiter. Im Gegenzug erhalten Sie die
-        Nordsee-ServiceCard, die Gästekarte für Norden-Norddeich.
+        Für die Kurtaxe erhalten Sie bei der Schlüsselübergabe die
+        Nordsee-ServiceCard, die Gästekarte für Norden-Norddeich. Was sie kostet
+        und wie Sie sie bezahlen, steht bei den{" "}
+        <a href="#preise" className="font-medium underline underline-offset-2 hover:no-underline">
+          Preisen
+        </a>
+        .
       </p>
       <ul className="mt-5 flex flex-col gap-3">
         {KURKARTE_VORTEILE.map((vorteil) => (
@@ -257,7 +286,7 @@ export function KurkarteInfo() {
 
       <div className="mt-6 rounded-card bg-muschel p-5">
         <p className="text-label font-semibold uppercase text-schlick-2">
-          Fragen zum Gästebeitrag
+          Fragen zur Kurtaxe
         </p>
         <p className="mt-2 text-body font-medium text-schlick">Gästebeitragskasse</p>
         <p className="mt-1 text-klein text-schlick-2">

@@ -3,6 +3,7 @@ import { getTableName, is, Column, type SQL } from "drizzle-orm";
 import { MySqlDialect } from "drizzle-orm/mysql-core";
 import { adminActionLog, invoice, type BookingRequest, type Invoice } from "./schema";
 import { compileCondition } from "./fakeConditions";
+import { GUEST_TAX_INVOICE_NOTE } from "../lib/invoice";
 
 // invoiceQueries.ts importiert den echten DB-Client als Vorgabe, der ohne
 // DATABASE_URL beim Import wirft. Die Tests übergeben ihre eigene Fake-DB.
@@ -121,6 +122,7 @@ const confirmed: BookingRequest = {
   endDate: new Date("2027-09-05"),
   message: null,
   guests: 3,
+  guestsUnder14: 0,
   linens: 0,
   towels: 0,
   status: "confirmed",
@@ -410,7 +412,13 @@ describe("duplicateKeyName", () => {
 
 describe("getInvoiceSummaries", () => {
   const stored = [
-    existingInvoice({ id: 1, bookingRequestId: 1, number: "RE-2027-0001" }),
+    existingInvoice({
+      id: 1,
+      bookingRequestId: 1,
+      number: "RE-2027-0001",
+      // Rechnung seit BDS-006: Kurtaxe als Posten, mit Hinweis.
+      snapshot: { guestTaxNote: GUEST_TAX_INVOICE_NOTE } as Invoice["snapshot"],
+    }),
     existingInvoice({ id: 2, bookingRequestId: 2, sequence: 2, number: "RE-2027-0002" }),
     existingInvoice({ id: 3, bookingRequestId: 3, sequence: 3, number: "RE-2027-0003" }),
   ];
@@ -433,6 +441,8 @@ describe("getInvoiceSummaries", () => {
                   number: row.number,
                   bookingRequestId: row.bookingRequestId,
                   issuedAt: "2027-09-06",
+                  // Wie json_contains_path(snapshot, 'one', '$.guestTaxNote').
+                  includesGuestTax: "guestTaxNote" in row.snapshot,
                 }));
             },
           }),
@@ -457,11 +467,50 @@ describe("getInvoiceSummaries", () => {
     await getInvoiceSummaries([1], fakeDb);
 
     const [fields] = fakeDb.selected;
-    expect(Object.keys(fields)).toEqual(["id", "number", "bookingRequestId", "issuedAt"]);
+    expect(Object.keys(fields)).toEqual([
+      "id",
+      "number",
+      "bookingRequestId",
+      "issuedAt",
+      "includesGuestTax",
+    ]);
     expect(is(fields.issuedAt, Column)).toBe(false);
     expect(dialect.sqlToQuery(fields.issuedAt as SQL).sql).toBe(
       "json_unquote(json_extract(`invoice`.`snapshot`, '$.issuedAt'))",
     );
+    expect(is(fields.includesGuestTax, Column)).toBe(false);
+    expect(dialect.sqlToQuery(fields.includesGuestTax as SQL).sql).toBe(
+      "json_contains_path(`invoice`.`snapshot`, 'one', '$.guestTaxNote')",
+    );
+  });
+
+  it("kennzeichnet, ob die Kurtaxe auf der Rechnung steht (BDS-006)", async () => {
+    const fakeDb = createSummaryDb();
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    const summaries = await getInvoiceSummaries([1, 2], fakeDb);
+
+    expect(summaries.map((entry) => [entry.number, entry.includesGuestTax])).toEqual([
+      ["RE-2027-0001", true],
+      // Rechnung von vor der Umstellung: Snapshot ohne guestTaxNote.
+      ["RE-2027-0002", false],
+    ]);
+  });
+
+  it("wandelt den Rückgabewert von json_contains_path in einen Wahrheitswert", async () => {
+    const fakeDb = createSummaryDb();
+
+    // @ts-expect-error – Fake-DB erfüllt nur die genutzte Teilmenge der Drizzle-API
+    await getInvoiceSummaries([1], fakeDb);
+
+    // `decoder` ist in Drizzle intern, trägt aber die Funktion aus `mapWith`.
+    const { decoder } = fakeDb.selected[0].includesGuestTax as unknown as {
+      decoder: { mapFromDriverValue: (value: unknown) => unknown };
+    };
+    expect(decoder.mapFromDriverValue(1)).toBe(true);
+    expect(decoder.mapFromDriverValue("1")).toBe(true);
+    expect(decoder.mapFromDriverValue(0)).toBe(false);
+    expect(decoder.mapFromDriverValue(null)).toBe(false);
   });
 
   it("fragt ohne Buchungen gar nicht erst ab", async () => {

@@ -529,3 +529,68 @@ describe("looksLikeAddress", () => {
     },
   );
 });
+
+describe("Kinder unter 14 Jahren (BDS-006)", () => {
+  const online = { ...base, ...WEIT_VORAUS };
+  const manual = { ...base, startDate: "2027-07-10", endDate: "2027-07-12" };
+
+  it.each([
+    ["bookingRequestSchema", bookingRequestSchema, online],
+    ["manualBookingSchema", manualBookingSchema, manual],
+  ] as const)("%s: setzt ohne Angabe 0 Kinder unter 14", (_name, schema, eingabe) => {
+    const result = schema.safeParse(eingabe);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.guestsUnder14).toBe(0);
+    }
+  });
+
+  it.each([
+    ["bookingRequestSchema", bookingRequestSchema, online],
+    ["manualBookingSchema", manualBookingSchema, manual],
+  ] as const)("%s: akzeptiert höchstens Personen − 1 unter 14", (_name, schema, eingabe) => {
+    const result = schema.safeParse({ ...eingabe, guests: 4, guestsUnder14: 3 });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.guestsUnder14).toBe(3);
+    }
+  });
+
+  it.each([
+    ["bookingRequestSchema", bookingRequestSchema, online],
+    ["manualBookingSchema", manualBookingSchema, manual],
+  ] as const)("%s: lehnt so viele Kinder wie Personen ab, mit Meldung am Feld", (_name, schema, eingabe) => {
+    const result = schema.safeParse({ ...eingabe, guests: 3, guestsUnder14: 3 });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]).toMatchObject({
+        path: ["guestsUnder14"],
+        message: "Unter 14 Jahren höchstens 2 von 3 Personen – mindestens eine Person ist 14 oder älter",
+      });
+    }
+  });
+
+  it("lehnt bei einer Person ein Kind unter 14 ab", () => {
+    const result = bookingRequestSchema.safeParse({ ...online, guests: 1, guestsUnder14: 1 });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]).toMatchObject({
+        path: ["guestsUnder14"],
+        message: "Bei einer Person muss diese mindestens 14 Jahre alt sein",
+      });
+    }
+  });
+
+  it.each([-1, 1.5, "zwei"])("lehnt %j als Anzahl ab", (guestsUnder14) => {
+    const result = bookingRequestSchema.safeParse({ ...online, guestsUnder14 });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toEqual(["guestsUnder14"]);
+    }
+  });
+});

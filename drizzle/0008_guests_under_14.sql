@@ -1,0 +1,2 @@
+ALTER TABLE `booking_request` ADD `guests_under_14` int DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `booking_request` ADD CONSTRAINT `booking_request_guests_under_14_range` CHECK (`booking_request`.`guests_under_14` >= 0 AND `booking_request`.`guests_under_14` <= `booking_request`.`guests` - 1);
