@@ -2,12 +2,10 @@ import type { BookingRequest } from "@/db/schema";
 import {
   CLEANING_FEE,
   EXTRAS,
+  GUEST_TAX_SEASON_NAMES,
   SERVICE_FEE,
-  balanceAmount,
-  depositAmount,
+  bookingCharges,
   extrasTotal,
-  priceBreakdown,
-  stayTotal,
 } from "./pricing";
 import { berlinIsoDate } from "./format";
 
@@ -64,14 +62,44 @@ export type InvoiceSnapshot = {
   serviceStart: string;
   serviceEnd: string;
   guests: number;
+  /**
+   * Davon unter 14 Jahren (seit BDS-006). Fehlt bei Snapshots von davor; dann
+   * nennt der Kopf nur die Personenzahl.
+   */
+  guestsUnder14?: number;
+  /**
+   * Übernachtungen je Mietsaison, seit BDS-006 dazu die Kurtaxe je Saison
+   * der Kurtaxe. `quantity` ist bei Übernachtungen die Zahl der Nächte,
+   * bei der Kurtaxe zahlende Personen × Nächte.
+   */
   lines: InvoiceLine[];
+  /** Summe aller Posten: Miete, seit BDS-006 plus Kurtaxe. */
   total: number;
   deposit: number;
   balance: number;
-  /** Posten, die nicht auf der Rechnung stehen, sondern bar vor Ort anfallen. */
+  /**
+   * Posten, die nicht auf der Rechnung stehen, sondern bar vor Ort anfallen.
+   * Snapshots von vor BDS-006 nennen hier noch die Kurtaxe (damals als
+   * „Gästebeitrag“); sie werden unverändert so gerendert.
+   */
   cashOnSite: string[];
+  /**
+   * Hinweis zur Weiterleitung der Kurtaxe (seit BDS-006), nur wenn ein
+   * Kurtaxe-Posten auf der Rechnung steht.
+   */
+  guestTaxNote?: string;
   bankDetails: string[] | null;
 };
+
+/** Beschreibung des Rechnungspostens Kurtaxe, z. B. „… (Hauptsaison)“. */
+export const GUEST_TAX_LINE_PREFIX = "Kurtaxe Stadt Norden";
+
+/**
+ * Hinweis unter dem Rechnungsbetrag, wenn Kurtaxe berechnet ist. Einzige
+ * Stelle der Rechnung, die den Begriff der Satzung („Gästebeitrag“) nennt.
+ */
+export const GUEST_TAX_INVOICE_NOTE =
+  "Die Kurtaxe (Gästebeitrag nach Satzung der Stadt Norden) wird je Person ab 14 Jahren und Nacht erhoben und von der Vermieterin an die Stadt Norden weitergeleitet. Kinder bis einschließlich 13 Jahre zahlen keine Kurtaxe.";
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -180,26 +208,33 @@ export function buildInvoiceSnapshot(input: {
   bankDetails: string[] | null;
 }): InvoiceSnapshot {
   const { request } = input;
-  const total = stayTotal(request.startDate, request.endDate);
+  const charges = bookingCharges(request);
 
-  const lines: InvoiceLine[] = priceBreakdown(request.startDate, request.endDate).map(
-    (posten) => ({
+  const lines: InvoiceLine[] = [
+    ...charges.breakdown.map((posten) => ({
       // Kurz genug, dass der Datumsbereich nicht mitten im Bereich umbricht;
       // das Objekt selbst steht einmal im Kopf der Rechnung.
       description: `Übernachtung ${posten.season.name} (${posten.season.label})`,
       quantity: posten.nights,
       unitPrice: posten.pricePerNight,
       total: posten.total,
-    }),
-  );
+    })),
+    // Eigener Posten je Saison der Kurtaxe: Menge = zahlende Personen
+    // (ab 14 Jahren) × Nächte, Einzelpreis = Satz je Person und Nacht.
+    ...charges.guestTaxLines.map((posten) => ({
+      description: `${GUEST_TAX_LINE_PREFIX} (${GUEST_TAX_SEASON_NAMES[posten.season]})`,
+      quantity: posten.persons * posten.nights,
+      unitPrice: posten.rate,
+      total: posten.total,
+    })),
+  ];
 
   // Bewusst nicht auf der Rechnung: Diese Posten kassiert die Vermieterin bar
-  // bei der Schlüsselübergabe. Der Gästebeitrag ist zudem keine eigene
-  // Leistung, sondern wird für die Stadt eingezogen.
+  // bei der Schlüsselübergabe. Die Kurtaxe steht seit BDS-006 oben als
+  // eigener Posten.
   const cashOnSite = [
     `Endreinigung ${CLEANING_FEE},00 €`,
     `Servicegebühr ${SERVICE_FEE},00 €`,
-    "Gästebeitrag nach Satzung der Stadt Norden (3,50 € bzw. 1,80 € je Person ab 14 Jahren und Nacht)",
   ];
   if (extrasTotal(request) > 0) {
     const waesche = (["linens", "towels"] as const)
@@ -220,11 +255,13 @@ export function buildInvoiceSnapshot(input: {
     serviceStart: isoDate(request.startDate),
     serviceEnd: isoDate(request.endDate),
     guests: request.guests,
+    guestsUnder14: request.guestsUnder14,
     lines,
-    total,
-    deposit: depositAmount(total),
-    balance: balanceAmount(total),
+    total: charges.total,
+    deposit: charges.deposit,
+    balance: charges.balance,
     cashOnSite,
+    ...(charges.guestTaxLines.length > 0 ? { guestTaxNote: GUEST_TAX_INVOICE_NOTE } : {}),
     bankDetails: input.bankDetails,
   };
 }

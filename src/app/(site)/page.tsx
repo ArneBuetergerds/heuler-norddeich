@@ -229,7 +229,7 @@ export default async function HomePage() {
       {/* --- Kurkarte -------------------------------------------------------- */}
       <section className="bg-priel-hell px-5 py-sektion-m md:py-sektion-l">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-h2 text-schlick">Gästebeitrag und Gästekarte</h2>
+          <h2 className="text-h2 text-schlick">Kurtaxe und Gästekarte</h2>
           <KurkarteInfo />
         </div>
       </section>

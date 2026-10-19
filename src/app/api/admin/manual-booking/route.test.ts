@@ -135,6 +135,23 @@ describe("POST /api/admin/manual-booking", () => {
     expect(state.inserts).toHaveLength(0);
   });
 
+  it("speichert die Kinder unter 14, ohne Angabe 0 (BDS-006)", async () => {
+    await POST(post({ ...BOOKING, guests: 3, guestsUnder14: 2 }));
+    expect(state.inserts[0].values).toMatchObject({ guests: 3, guestsUnder14: 2 });
+
+    state.inserts.length = 0;
+    await POST(post(BOOKING));
+    expect(state.inserts[0].values).toMatchObject({ guestsUnder14: 0 });
+  });
+
+  it("lehnt mehr Kinder unter 14 als Personen − 1 mit Meldung am Feld ab", async () => {
+    const response = await POST(post({ ...BOOKING, guests: 2, guestsUnder14: 2 }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ field: "guestsUnder14" });
+    expect(state.inserts).toHaveLength(0);
+  });
+
   it("antwortet 409, wenn der Zeitraum belegt ist", async () => {
     state.overlapping = [{ id: 7 }];
 

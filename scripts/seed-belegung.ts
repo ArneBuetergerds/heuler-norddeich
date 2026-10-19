@@ -55,6 +55,8 @@ async function manuelleBuchung(
     startDate: Date;
     endDate: Date;
     guests: number;
+    /** Davon unter 14 Jahren; ohne Angabe 0 (Default der Spalte). */
+    guestsUnder14?: number;
     /** Rechnungsanschrift, bei manuellen Buchungen freiwillig. */
     anschrift?: { street: string; postalCode: string; city: string; country?: string };
   },
@@ -67,6 +69,7 @@ async function manuelleBuchung(
       startDate: buchung.startDate,
       endDate: buchung.endDate,
       guests: buchung.guests,
+      guestsUnder14: buchung.guestsUnder14 ?? 0,
       street: buchung.anschrift?.street ?? null,
       postalCode: buchung.anschrift?.postalCode ?? null,
       city: buchung.anschrift?.city ?? null,
@@ -125,6 +128,8 @@ async function main(): Promise<void> {
       startDate: tag(4),
       endDate: tag(11),
       guests: 4,
+      // Zwei Kinder: Kurtaxe für zwei Personen auf der Rechnung.
+      guestsUnder14: 2,
       // Mit Anschrift: Im Detaildialog ist die Rechnung damit vorbelegt.
       anschrift: { street: "Deichweg 12", postalCode: "26506", city: "Norden" },
     });
@@ -182,6 +187,8 @@ async function main(): Promise<void> {
         endDate: new Date("2027-09-05"),
         message: "Wir reisen mit dem Zug an.",
         guests: 3,
+        // Saisonwechsel beim Mietpreis, ein Kind ohne Kurtaxe.
+        guestsUnder14: 1,
         linens: 3,
         towels: 2,
         status: "confirmed",
